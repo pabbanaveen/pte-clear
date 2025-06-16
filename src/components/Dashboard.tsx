@@ -4,6 +4,7 @@ import { Container, Typography, Card, Box, Chip, LinearProgress, Button } from '
 import {Grid} from '@mui/material';
 import { Quiz, CheckCircle, Star, Timer, PlayArrow, Book, TrendingUp, Psychology } from '@mui/icons-material';
 import { User } from '../types/user';
+import FillInBlanks from './practice/Reading/fillin-blanks/FillInBlanks';
 
 interface DashboardProps {
   user: User | null;
