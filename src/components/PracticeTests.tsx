@@ -144,6 +144,7 @@ export const PracticeTests = ({ user }:PracticeTestsProps) => {
                           <Box sx={{ display: 'flex', gap: 0.5 }}>
                             {subTest.aiScore && (
                               <Chip 
+                              onClick={() => { }}
                                 label="AI Score" 
                                 size="small" 
                                 sx={{ 
@@ -156,6 +157,7 @@ export const PracticeTests = ({ user }:PracticeTestsProps) => {
                             )}
                             {subTest.core && (
                               <Chip 
+                              onClick={() => { }}
                                 label="Core" 
                                 size="small" 
                                 variant="outlined"
@@ -245,8 +247,8 @@ export const PracticeTests = ({ user }:PracticeTestsProps) => {
                             {test.title}
                           </Typography>
                           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                            <Chip label={test.duration} size="small" sx={{ bgcolor: test.color + '20' }} />
-                            <Chip label={`${test.questions} questions`} size="small" variant="outlined" />
+                            <Chip onClick={() => { }} label={test.duration} size="small" sx={{ bgcolor: test.color + '20' }} />
+                            <Chip onClick={() => { }} label={`${test.questions} questions`} size="small" variant="outlined" />
                           </Box>
                         </Box>
                       </Box>
@@ -304,6 +306,7 @@ export const PracticeTests = ({ user }:PracticeTestsProps) => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Typography variant="body2">{result.score}/90</Typography>
                           <Chip 
+                          onClick={() => { }}
                             label={result.score >= 85 ? 'Excellent' : result.score >= 75 ? 'Good' : 'Needs Practice'} 
                             size="small"
                             color={result.score >= 85 ? 'success' : result.score >= 75 ? 'warning' : 'error'}
@@ -311,7 +314,7 @@ export const PracticeTests = ({ user }:PracticeTestsProps) => {
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Chip label={result.status} color="success" size="small" />
+                        <Chip onClick={() => { }} label={result.status} color="success" size="small" />
                       </TableCell>
                       <TableCell>
                         <Button size="small" startIcon={<Visibility />}>
@@ -495,6 +498,7 @@ export const PracticeTests = ({ user }:PracticeTestsProps) => {
                       </Typography>
                       <Box sx={{ mt: 1 }}>
                         <Chip 
+                        onClick={() => { }}
                           label={item.trend === 'up' ? '↗ Improving' : item.trend === 'down' ? '↘ Declining' : '→ Stable'}
                           size="small"
                           color={item.trend === 'up' ? 'success' : item.trend === 'down' ? 'error' : 'default'}

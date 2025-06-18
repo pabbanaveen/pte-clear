@@ -209,6 +209,7 @@ const ReorderParagraphs: React.FC = () => {
           >
             <Chip
               label="Reading • Re-order Paragraphs"
+              onClick={() => { }}
               size={isMobile ? 'small' : 'medium'}
             />
             <Typography
@@ -297,6 +298,7 @@ const ReorderParagraphs: React.FC = () => {
                             </IconButton>
                             <Chip
                               label={index + 1}
+                              onClick={() => { }}
                               size={isMobile ? 'small' : 'medium'}
                             />
                             <IconButton
@@ -376,6 +378,7 @@ const ReorderParagraphs: React.FC = () => {
                             <Chip
                               label={index + 1}
                               color="success"
+                              onClick={() => { }}
                               size={isMobile ? 'small' : 'medium'}
                             />
                             <Typography
@@ -416,6 +419,7 @@ const ReorderParagraphs: React.FC = () => {
                             >
                               <Chip
                                 label={index + 1}
+                                onClick={() => { }}
                                 color={isCorrect ? 'success' : 'error'}
                                 size={isMobile ? 'small' : 'medium'}
                               />

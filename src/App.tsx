@@ -27,6 +27,14 @@ import SummarizeText from './components/practice/Writing/summarize-text/Summariz
 import WriteEmail from './components/practice/Writing/emailWriting/writeEmail';
 import MultipleChoice from './components/practice/Reading/multiple-choice/MultipleChoice';
 import ReadingFillBlanks from './components/practice/Reading/ReadingFillInTheBlanks/ReadingFillInTheBlanks';
+import MultipleChoiceSingle from './components/practice/Reading/multiple-choice-single/mutlipleChoiceSingle';
+import SummarizeSpokenText from './components/practice/Listening/SummarizeSpokenText/SummarizeSpokenText';
+import ListeningMultipleChoice from './components/practice/Listening/MultipleChoiceMultiple/MutlipleChoiceMultiple';
+import ListeningFillBlanks from './components/practice/Listening/FillinTheBlanks/FillinTheBlanks';
+import HighlightCorrectSummary from './components/practice/Listening/HighlightCorrectSummary/HighlightCorrectSummary';
+import SelectMissingWord from './components/practice/Listening/SelectMissingWord/SelectMissingWord';
+import HighlightIncorrectWords from './components/practice/Listening/HighlightIncorrectWords/HighlightIncorrectWords';
+import WriteFromDictation from './components/practice/Listening/WriteFromDictation/WriteFromDictation';
 
 // import * as Components from './components';
 
@@ -124,18 +132,18 @@ const App: React.FC = () => {
             <Route path="/practice/reading/multiple-choice-multiple" element={<MultipleChoice user={user} />} />
             <Route path="/practice/reading/reorder-paragraphs" element={<ReorderParagraphs />} />
             <Route path="/practice/reading/fill-blanks" element={<FillInBlanks />} />
-            <Route path="/practice/reading/multiple-choice-single" element={<PracticeTests user={user}/>} />
+            <Route path="/practice/reading/multiple-choice-single" element={<MultipleChoiceSingle />} />
             
             {/* Listening Practice Routes */}
-            <Route path="/practice/listening/summarize-spoken" element={<PracticeTests user={user} />} />
-            <Route path="/practice/listening/multiple-choice-multiple" element={<PracticeTests user={user}/>} />
-            <Route path="/practice/listening/fill-blanks" element={<PracticeTests user={user}/>} />
+            <Route path="/practice/listening/summarize-spoken-text" element={<SummarizeSpokenText />} />
+            <Route path="/practice/listening/multiple-choice-multiple" element={<ListeningMultipleChoice user={user}/>} />
+            <Route path="/practice/listening/fill-blanks" element={<ListeningFillBlanks />} />
             <Route path="/practice/listening/multiple-choice-single" element={<PracticeTests user={user}/>} />
-            <Route path="/practice/listening/select-missing-word" element={<PracticeTests user={user}/>} />
-            <Route path="/practice/listening/highlight-incorrect" element={<PracticeTests user={user}/>} />
-            <Route path="/practice/listening/write-dictation" element={<PracticeTests user={user}/>} />
+            <Route path="/practice/listening/select-missing-word" element={<SelectMissingWord/>} />
+            <Route path="/practice/listening/highlight-incorrect" element={<HighlightIncorrectWords/>} />
+            <Route path="/practice/listening/write-dictation" element={<WriteFromDictation/>} />
             <Route path="/practice/listening/summarize-spoken-pta" element={<PracticeTests user={user}/>} />
-            <Route path="/practice/listening/highlight-summary-pta" element={<PracticeTests user={user}/>} />
+            <Route path="/practice/listening/highlight-summary" element={<HighlightCorrectSummary/>} />
             
             {/* Additional Feature Routes */}
             <Route path="/vocab-books" element={<StudyMaterials user={user} />} />

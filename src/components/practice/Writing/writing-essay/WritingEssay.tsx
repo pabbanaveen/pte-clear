@@ -109,7 +109,7 @@ const WritingEssay: React.FC = () => {
           <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="bold">
             Write Essay
           </Typography>
-          <Chip label="PTA" color="secondary" size={isMobile ? 'small' : 'medium'} />
+          <Chip onClick={() => { }} label="PTA" color="secondary" size={isMobile ? 'small' : 'medium'} />
         </Box>
         <Typography
           variant={isMobile ? 'caption' : 'body2'}
@@ -134,6 +134,7 @@ const WritingEssay: React.FC = () => {
             Question {currentQuestionIndex + 1} of {ESSAY_QUESTIONS.length}
           </Typography>
           <Chip
+          onClick={() => { }}
             label="Writing • Essay"
             size={isMobile ? 'small' : 'medium'}
           />
@@ -167,7 +168,7 @@ const WritingEssay: React.FC = () => {
                 gap={2}
                 alignItems={{ xs: 'start', sm: 'center' }}
               >
-                <Chip label={ESSAY_QUESTIONS[currentQuestionIndex].type} size="small" />
+                <Chip onClick={() => { }} label={ESSAY_QUESTIONS[currentQuestionIndex].type} size="small" />
                 <Typography variant="caption" color="text.secondary">
                   {ESSAY_QUESTIONS[currentQuestionIndex].wordLimit}
                 </Typography>

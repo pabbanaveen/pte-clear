@@ -106,7 +106,7 @@ const RecordingSection: React.FC<RecordingSectionProps> = ({
           </Typography>
           
           {recordedBlob && (
-            <Chip label={getChipLabel()} color="success" variant="outlined" />
+            <Chip onClick={() => { }} label={getChipLabel()} color="success" variant="outlined" />
           )}
           
           {micPermission === false && (

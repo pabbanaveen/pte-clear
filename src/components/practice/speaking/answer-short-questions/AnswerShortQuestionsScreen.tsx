@@ -357,7 +357,7 @@ export const AnswerShortQuestionsScreen: React.FC<PracticeTestsProps> = ({ user 
                 <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>
                   Answer Short Questions
                 </Typography>
-                <Chip label="Study Guide" color="primary" size="small" />
+                <Chip onClick={() => { }} label="Study Guide" color="primary" size="small" />
               </Stack>
               <Typography variant="body2" sx={{ color: '#666', mt: 1 }}>
                 You will hear a short question. After listening to the question, in 3 seconds, please speak into the microphone and provide a concise answer in your own words. You will have 10 seconds to give your response.

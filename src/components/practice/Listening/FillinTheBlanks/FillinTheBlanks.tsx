@@ -19,79 +19,114 @@ import {
   Select,
   MenuItem,
   TextField,
+  LinearProgress,
 } from '@mui/material';
-import { Close, Timer, DragIndicator } from '@mui/icons-material';
-import { DndContext, closestCenter, DragEndEvent, useDroppable, useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
+import { Close, Timer } from '@mui/icons-material';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import { ReadingPassage, QuestionResult, BlankPosition, WordBankWord, TimerState } from './ReadingFillInTheBlanksTypes';
-import { mockReadingPassages, mockStudentProgress } from './ReadingFillInTheBlanksMockData';
+import AudioPlayer from '../../common/AudioPlayer';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
+import { mockListeningPassages, mockStudentProgress } from './FillinTheBlanksMockData';
+import { ListeningPassage, BlankPosition, TimerState, QuestionResult } from './FillinTheBlanksTypes';
 
-interface ReadingFillBlanksProps {}
+interface ListeningFillBlanksProps {}
 
-const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
+const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [passage, setPassage] = useState<ReadingPassage>(mockReadingPassages[currentQuestionIndex]);
+  const [passage, setPassage] = useState<ListeningPassage>(mockListeningPassages[currentQuestionIndex]);
   const [showFillinBlanksSelector, setShowFillinBlanksSelector] = useState(false);
 
   // State management
   const [blanks, setBlanks] = useState<BlankPosition[]>(passage.blanks.map(blank => ({ ...blank })));
-  const [wordBank, setWordBank] = useState<WordBankWord[]>(passage.wordBank.map(word => ({ ...word })));
   const [timer, setTimer] = useState<TimerState>({
     timeRemaining: passage.timeLimit,
-    isRunning: true,
+    isRunning: false, // Start as false, will be started when user first types
     warningThreshold: 30,
     autoSubmit: true,
   });
+  
+  // Audio state
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
+  const [volume, setVolume] = useState<number>(100);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  
   const [showAnswer, setShowAnswer] = useState(false);
-  const [showTranslate, setShowTranslate]= useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [currentResult, setCurrentResult] = useState<QuestionResult | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Validate mock data on mount
+  // Audio setup
   useEffect(() => {
-    mockReadingPassages.forEach((p, idx) => {
-      const blankIds = new Set(p.blanks.map(b => b.id));
-      const wordIds = new Set(p.wordBank.map(w => w.id));
-      if (blankIds.size !== p.blanks.length) {
-        console.warn(`Duplicate blank IDs in passage ${idx + 1}`);
-      }
-      if (wordIds.size !== p.wordBank.length) {
-        console.warn(`Duplicate word IDs in passage ${idx + 1}`);
-      }
-      p.blanks.forEach(b => {
-        if (!p.wordBank.some(w => w.word === b.correctAnswer)) {
-          console.warn(`Correct answer "${b.correctAnswer}" for blank ${b.id} not found in word bank for passage ${idx + 1}`);
-        }
-      });
-    });
-  }, []);
+    if (passage.audioUrl) {
+      audioRef.current = new Audio(passage.audioUrl);
+      
+      const audio = audioRef.current;
+      
+      const handleLoadedMetadata = () => {
+        setDuration(audio.duration);
+      };
+      
+      const handleTimeUpdate = () => {
+        setCurrentTime(audio.currentTime);
+      };
+      
+      const handleEnded = () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      };
+      
+      const handleError = () => {
+        setAudioError('Failed to load audio file');
+      };
+      
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.addEventListener('timeupdate', handleTimeUpdate);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('error', handleError);
+      
+      return () => {
+        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('timeupdate', handleTimeUpdate);
+        audio.removeEventListener('ended', handleEnded);
+        audio.removeEventListener('error', handleError);
+        audio.pause();
+      };
+    }
+  }, [passage.audioUrl]);
 
   // Sync state when passage changes
   useEffect(() => {
     setBlanks(passage.blanks.map(blank => ({ ...blank })));
-    setWordBank(passage.wordBank.map(word => ({ ...word })));
     setTimer({
       timeRemaining: passage.timeLimit,
-      isRunning: true,
+      isRunning: false,
       warningThreshold: 30,
       autoSubmit: true,
     });
     setIsSubmitted(false);
     setShowResults(false);
     setCurrentResult(null);
+    setCurrentTime(0);
+    setIsPlaying(false);
+    
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.pause();
+    }
+    
     startTimeRef.current = new Date();
   }, [passage]);
 
-  // Timer functionality
+  // Timer functionality - FIXED: Now properly running
   useEffect(() => {
     if (timer.isRunning && timer.timeRemaining > 0 && !isSubmitted) {
       timerRef.current = setTimeout(() => {
@@ -108,14 +143,22 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
     };
   }, [timer.timeRemaining, timer.isRunning, isSubmitted]);
 
+  // Start timer when user first types
+  const startTimerIfNeeded = useCallback(() => {
+    if (!timer.isRunning && !isSubmitted) {
+      setTimer(prev => ({ ...prev, isRunning: true }));
+      startTimeRef.current = new Date();
+    }
+  }, [timer.isRunning, isSubmitted]);
+
   const [results, setResults] = useState<QuestionResult[]>([]);
   const studentProgress = mockStudentProgress;
 
   const handleNext = () => {
-    if (currentQuestionIndex < mockReadingPassages.length - 1) {
+    if (currentQuestionIndex < mockListeningPassages.length - 1) {
       const newIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(newIndex);
-      setPassage(mockReadingPassages[newIndex]);
+      setPassage(mockListeningPassages[newIndex]);
     }
   };
 
@@ -123,7 +166,7 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
     if (currentQuestionIndex > 0) {
       const newIndex = currentQuestionIndex - 1;
       setCurrentQuestionIndex(newIndex);
-      setPassage(mockReadingPassages[newIndex]);
+      setPassage(mockListeningPassages[newIndex]);
     }
   };
 
@@ -133,7 +176,7 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
   };
 
   const handleFillinBlankSelect = (option: any) => {
-    const newIndex = mockReadingPassages.findIndex(p => p.id === option.id);
+    const newIndex = mockListeningPassages.findIndex(p => p.id === option.id);
     if (newIndex !== -1) {
       setCurrentQuestionIndex(newIndex);
       setPassage(option);
@@ -151,76 +194,36 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
     return blanks.every(blank => blank.filledWord && blank.filledWord.trim() !== '');
   }, [blanks]);
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over) return;
-
-    const sourceId = active.id as string;
-    const destinationId = over.id as string;
-
-    console.log('Drag End:', { sourceId, destinationId });
-
-    // From Word Bank to Blank
-    if (sourceId.startsWith('word_') && destinationId.startsWith('blank_')) {
-      const word = wordBank.find(w => w.id === sourceId);
-      if (!word || word.isUsed) return;
-
-      setBlanks(prev => {
-        const newBlanks = [...prev];
-        const blankIndex = newBlanks.findIndex(b => b.id === destinationId);
-        if (blankIndex !== -1) {
-          const blank = newBlanks[blankIndex];
-          if (blank.filledWord) {
-            setWordBank(prevWords => {
-              const newWords = [...prevWords];
-              const wordIdx = newWords.findIndex(w => w.word === blank.filledWord);
-              if (wordIdx !== -1) {
-                newWords[wordIdx] = { ...newWords[wordIdx], isUsed: false };
-              }
-              return newWords;
-            });
-          }
-          newBlanks[blankIndex] = { ...blank, filledWord: word.word };
-        }
-        return newBlanks;
-      });
-
-      setWordBank(prev => {
-        const newWords = [...prev];
-        const wordIdx = newWords.findIndex(w => w.id === sourceId);
-        if (wordIdx !== -1) {
-          newWords[wordIdx] = { ...newWords[wordIdx], isUsed: true };
-        }
-        return newWords;
-      });
+  // Audio controls
+  const handleTogglePlayback = () => {
+    if (!audioRef.current) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
     }
+    setIsPlaying(!isPlaying);
+  };
 
-    // From Blank to Word Bank
-    if (sourceId.startsWith('filled_') && destinationId === 'wordBank') {
-      const blankId = sourceId.replace('filled_', '');
-      const blankIndex = blanks.findIndex(b => b.id === blankId);
-
-      if (blankIndex !== -1) {
-        const blank = blanks[blankIndex];
-        if (blank.filledWord) {
-          setWordBank(prev => {
-            const newWords = [...prev];
-            const wordIdx = newWords.findIndex(w => w.word === blank.filledWord);
-            if (wordIdx !== -1) {
-              newWords[wordIdx] = { ...newWords[wordIdx], isUsed: false };
-            }
-            return newWords;
-          });
-
-          setBlanks(prev => {
-            const newBlanks = [...prev];
-            newBlanks[blankIndex] = { ...newBlanks[blankIndex], filledWord: undefined };
-            return newBlanks;
-          });
-        }
-      }
+  const handleVolumeChange = (event: Event, newValue: number | number[]) => {
+    const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
+    setVolume(volumeValue);
+    if (audioRef.current) {
+      audioRef.current.volume = volumeValue / 100;
     }
+  };
+
+  // Handle text input change for blanks
+  const handleBlankInputChange = (blankId: string, value: string) => {
+    // Start timer on first input
+    startTimerIfNeeded();
+    
+    setBlanks(prev => prev.map(blank => 
+      blank.id === blankId 
+        ? { ...blank, filledWord: value }
+        : blank
+    ));
   };
 
   const handleSubmit = () => {
@@ -228,6 +231,12 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
 
     setIsSubmitted(true);
     setTimer(prev => ({ ...prev, isRunning: false }));
+
+    // Pause audio if playing
+    if (audioRef.current && isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
 
     const endTime = new Date();
     const timeSpent = Math.floor((endTime.getTime() - startTimeRef.current.getTime()) / 1000);
@@ -260,140 +269,29 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
 
   const handleRedo = () => {
     setBlanks(passage.blanks.map(blank => ({ ...blank })));
-    setWordBank(passage.wordBank.map(word => ({ ...word })));
     setTimer({
       timeRemaining: passage.timeLimit,
-      isRunning: true,
+      isRunning: false,
       warningThreshold: 30,
       autoSubmit: true,
     });
     setIsSubmitted(false);
     setShowResults(false);
     setCurrentResult(null);
+    setCurrentTime(0);
+    setIsPlaying(false);
+    
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.pause();
+    }
+    
     startTimeRef.current = new Date();
   };
 
   const questionNumber = studentProgress.questionNumber + currentQuestionIndex;
 
-  // Custom Droppable component for blanks
-  const DroppableBlank = ({ blank }: { blank: BlankPosition }) => {
-    const { setNodeRef, isOver } = useDroppable({
-      id: blank.id,
-    });
-
-    return (
-      <Box
-        ref={setNodeRef}
-        component="span"
-        sx={{
-          display: 'inline-flex',
-          minWidth: '120px',
-          minHeight: '32px',
-          mx: 0.5,
-          px: 1,
-          py: 0.5,
-          border: `2px ${isOver ? 'solid' : 'dashed'} ${
-            blank.isCorrect === true ? '#4caf50' :
-            blank.isCorrect === false ? '#f44336' :
-            isOver ? '#2196f3' : '#ccc'
-          }`,
-          borderRadius: 1,
-          backgroundColor: isOver ? '#e3f2fd' :
-                         blank.isCorrect === true ? '#e8f5e9' :
-                         blank.isCorrect === false ? '#ffebee' : '#fafafa',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.2s ease',
-          cursor: 'pointer',
-          pointerEvents: 'auto',
-        }}
-      >
-        {blank.filledWord ? (
-          <DraggableWord word={blank.filledWord} id={`filled_${blank.id}`} isCorrect={blank.isCorrect} />
-        ) : (
-          <Typography variant="body2" color="textSecondary">
-            Drop here
-          </Typography>
-        )}
-      </Box>
-    );
-  };
-
-  // Custom Draggable component for words
-  const DraggableWord = ({ word, id, isCorrect }: { word: string; id: string; isCorrect?: boolean }) => {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-      id,
-    });
-
-    const style = {
-      transform: transform ? CSS.Transform.toString(transform) : undefined,
-      backgroundColor: isCorrect === true ? '#4caf50' :
-                       isCorrect === false ? '#f44336' :
-                       isDragging ? '#1976d2' : '#2196f3',
-    };
-
-    return (
-      <Box
-        ref={setNodeRef}
-        {...listeners}
-        {...attributes}
-        sx={{
-          px: 1,
-          py: 0.5,
-          color: 'white',
-          borderRadius: 1,
-          fontSize: '14px',
-          fontWeight: 'medium',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.5,
-          cursor: 'grab',
-          userSelect: 'none',
-          pointerEvents: 'auto',
-          ...style,
-        }}
-      >
-        <DragIndicator sx={{ fontSize: '16px' }} />
-        {word}
-      </Box>
-    );
-  };
-
-  // Custom Droppable component for word bank
-  const DroppableWordBank = () => {
-    const { setNodeRef, isOver } = useDroppable({
-      id: 'wordBank',
-    });
-
-    return (
-      <Box
-        ref={setNodeRef}
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 2,
-          minHeight: '60px',
-          p: 2,
-          border: `2px ${isOver ? 'solid' : 'dashed'} ${isOver ? '#2196f3' : '#ccc'}`,
-          borderRadius: 1,
-          backgroundColor: isOver ? '#e3f2fd' : '#fafafa',
-          pointerEvents: 'auto',
-        }}
-      >
-        {wordBank
-          .filter(word => !word.isUsed)
-          .map((word, index) => (
-            <DraggableWord key={word.id} word={word.word} id={word.id} />
-          ))}
-        {wordBank.filter(word => !word.isUsed).length === 0 && (
-          <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
-            All words have been used
-          </Typography>
-        )}
-      </Box>
-    );
-  };
-
+  // Render text with input fields for blanks
   const renderTextWithBlanks = () => {
     let textParts = passage.text.split(/(\[BLANK_\d+\])/);
     
@@ -403,7 +301,35 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
         const blankIndex = parseInt(blankMatch[1]);
         const blank = blanks.find(b => b.position === blankIndex);
         if (blank) {
-          return <DroppableBlank key={blank.id} blank={blank} />;
+          return (
+            <TextField
+              key={blank.id}
+              size="small"
+              variant="outlined"
+              value={blank.filledWord || ''}
+              onChange={(e) => handleBlankInputChange(blank.id, e.target.value)}
+              disabled={isSubmitted}
+              sx={{
+                mx: 0.5,
+                width: '120px',
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: blank.isCorrect === true ? '#e8f5e9' :
+                                   blank.isCorrect === false ? '#ffebee' : '#fff',
+                  '& fieldset': {
+                    borderColor: blank.isCorrect === true ? '#4caf50' :
+                                 blank.isCorrect === false ? '#f44336' : '#ccc',
+                    borderWidth: blank.isCorrect !== undefined ? '2px' : '1px',
+                  },
+                },
+                '& .MuiInputBase-input': {
+                  textAlign: 'center',
+                  padding: '8px 12px',
+                  fontSize: '14px',
+                },
+              }}
+              placeholder={`Blank ${blank.position + 1}`}
+            />
+          );
         }
       }
       return <span key={index}>{part}</span>;
@@ -411,45 +337,56 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: 2, pointerEvents: 'auto' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: { xs: 1, sm: 2 } }}>
       <StageGoalBanner />
 
       <Card sx={{ maxWidth: 1200, mx: 'auto', mb: 3 }}>
-        <CardContent sx={{ p: 4 }}>
-          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 3 }}>
             <Box
               sx={{
-                width: 60,
-                height: 60,
+                width: { xs: 50, sm: 55, md: 60 },
+                height: { xs: 50, sm: 55, md: 60 },
                 bgcolor: '#2196f3',
                 borderRadius: 2,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                fontSize: '24px',
+                fontSize: { xs: '12px', sm: '14px', md: '16px' },
                 fontWeight: 'bold',
+                flexShrink: 0,
+                lineHeight: 1.2
               }}
             >
               FIB
             </Box>
-            <Box sx={{ flexGrow: 1 }}>
-              <Stack direction="row" alignItems="center" spacing={2}>
-                <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>
-                  Reading: Fill in the Blanks
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
+                <Typography 
+                  variant="h5" 
+                  sx={{ 
+                    fontWeight: 'bold', 
+                    color: '#333',
+                    fontSize: { xs: '18px', sm: '20px', md: '24px' },
+                    lineHeight: 1.3,
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  Fill in the Blanks
                 </Typography>
-                <Chip onClick={() => { }} label="Study Guide" color="primary" size="small" />
-                <Chip 
-                onClick={() => { }}
-                  label={passage.difficulty} 
-                  color={
-                    passage.difficulty === 'Beginner' ? 'success' :
-                    passage.difficulty === 'Intermediate' ? 'warning' : 'error'
-                  } 
-                  size="small" 
-                />
+                <Chip label="Study Guide" color="primary" size="small" />
               </Stack>
-              <Typography variant="body2" sx={{ color: '#666', mt: 1 }}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: '#666', 
+                  mt: 1,
+                  fontSize: { xs: '12px', sm: '13px', md: '14px' },
+                  lineHeight: 1.5,
+                  wordBreak: 'break-word'
+                }}
+              >
                 {passage.instructions}
               </Typography>
             </Box>
@@ -463,6 +400,7 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
             testedCount={studentProgress.testedCount}
           />
 
+          {/* Timer Display */}
           <Paper sx={{ p: 2, mb: 3, bgcolor: timer.timeRemaining <= timer.warningThreshold ? '#ffebee' : '#e3f2fd' }}>
             <Stack direction="row" alignItems="center" spacing={2}>
               <Timer sx={{ color: timer.timeRemaining <= timer.warningThreshold ? '#f44336' : '#2196f3' }} />
@@ -476,54 +414,65 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
                 Time: {formatTime(timer.timeRemaining)}
               </Typography>
               {timer.timeRemaining <= timer.warningThreshold && (
-                <Chip onClick={() => { }} label="Hurry Up!" color="error" size="small" />
+                <Chip label="Hurry Up!" color="error" size="small" />
+              )}
+              {!timer.isRunning && !isSubmitted && (
+                <Chip label="Timer will start when you begin typing" color="info" size="small" />
               )}
             </Stack>
           </Paper>
 
-          <DndContext onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-                {passage.title}
-              </Typography>
-              <Typography 
-                variant="body1" 
-                sx={{ 
-                  lineHeight: 1.8,
-                  fontSize: '16px',
-                  textAlign: 'justify',
-                }}
-              >
-                {renderTextWithBlanks()}
-              </Typography>
-            </Paper>
+          {/* Audio Player */}
+          <AudioPlayer
+            selectedTopic={passage}
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            duration={duration}
+            volume={volume}
+            audioError={audioError}
+            onTogglePlayback={handleTogglePlayback}
+            onVolumeChange={handleVolumeChange}
+            formatTime={formatTime}
+          />
 
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-                Word Bank
-              </Typography>
-              <DroppableWordBank />
-            </Paper>
-          </DndContext>
+          {/* Passage with Input Fields */}
+          <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+              {passage.title}
+            </Typography>
+            <Typography 
+              variant="body1" 
+              component="div"
+              sx={{ 
+                lineHeight: 2,
+                fontSize: { xs: '14px', sm: '15px', md: '16px' },
+                textAlign: 'justify',
+                '& .MuiTextField-root': {
+                  verticalAlign: 'baseline'
+                }
+              }}
+            >
+              {renderTextWithBlanks()}
+            </Typography>
+          </Paper>
 
+          {/* Progress Indicator */}
           <Box sx={{ mb: 3 }}>
             <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-              Progress: {blanks.filter(b => b.filledWord).length} of {blanks.length} blanks filled
+              Progress: {blanks.filter(b => b.filledWord && b.filledWord.trim() !== '').length} of {blanks.length} blanks filled
             </Typography>
-            <Box sx={{ 
-              width: '100%', 
-              height: 8, 
-              backgroundColor: '#e0e0e0', 
-              borderRadius: 1,
-              overflow: 'hidden',
-            }}>
-              <Box sx={{
-                width: `${(blanks.filter(b => b.filledWord).length / blanks.length) * 100}%`,
-                height: '100%',
-                backgroundColor: '#4caf50',
-                transition: 'width 0.3s ease',
-              }} />
-            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={(blanks.filter(b => b.filledWord && b.filledWord.trim() !== '').length / blanks.length) * 100}
+              sx={{
+                height: 8,
+                borderRadius: 1,
+                bgcolor: '#e0e0e0',
+                '& .MuiLinearProgress-bar': {
+                  bgcolor: '#4caf50',
+                },
+              }}
+            />
           </Box>
 
           <ActionButtons
@@ -548,11 +497,12 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
         open={showFillinBlanksSelector}
         onClose={() => setShowFillinBlanksSelector(false)}
         onSelect={handleFillinBlankSelect}
-        topics={mockReadingPassages}
-        title="Reading：Fill in the Blanks"
-        type="lecture"
+        topics={mockListeningPassages}
+        title="Listening: Fill in the Blanks"
+        type="question"
       />
 
+      {/* Results Dialog */}
       <Dialog open={showResults} onClose={() => setShowResults(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -565,21 +515,18 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
         <DialogContent>
           {currentResult && (
             <Box>
-              <Stack direction="row" spacing={3} sx={{ mb: 3 }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
                 <Chip 
-                onClick={() => { }}
                   label={`Score: ${currentResult.score}/${currentResult.maxScore}`} 
                   color={currentResult.score >= (currentResult.maxScore * 0.7) ? 'success' : 'error'}
                   size="medium"
                 />
                 <Chip 
-                onClick={() => { }}
                   label={`${currentResult.correctAnswers}/${currentResult.totalBlanks} Correct`} 
                   color="info"
                   size="medium"
                 />
                 <Chip 
-                onClick={() => { }}
                   label={`Time: ${Math.floor(currentResult.timeSpent / 60)}:${(currentResult.timeSpent % 60).toString().padStart(2, '0')}`} 
                   color="default"
                   size="medium"
@@ -588,12 +535,11 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
               <Typography variant="h6" sx={{ mb: 2 }}>Answer Review:</Typography>
               {currentResult.answers.map((answer, index) => (
                 <Box key={answer.id} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                  <Stack direction="row" alignItems="center" spacing={2}>
+                  <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Blank {answer.position + 1}:
                     </Typography>
                     <Chip 
-                    onClick={() => { }}
                       label={answer.filledWord || 'Not filled'} 
                       color={answer.isCorrect ? 'success' : 'error'}
                       size="small"
@@ -613,6 +559,7 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Answer Dialog */}
       <Dialog open={showAnswer} onClose={() => setShowAnswer(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -624,7 +571,7 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            <strong>Passage:</strong> {passage.title}
+            <strong>Audio:</strong> {passage.title}
           </Typography>
           {blanks.map((blank, index) => (
             <Box key={blank.id} sx={{ mb: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
@@ -639,6 +586,7 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Translation Dialog */}
       <Dialog open={showTranslate} onClose={() => setShowTranslate(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -660,7 +608,7 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
             </Select>
           </FormControl>
           <Typography variant="body2" sx={{ color: '#666' }}>
-            Translation feature will help you understand the passage content in your preferred language.
+            Translation feature will help you understand the audio content in your preferred language.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -672,4 +620,4 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
   );
 };
 
-export default ReadingFillBlanks;
+export default ListeningFillBlanks;

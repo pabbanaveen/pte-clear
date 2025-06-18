@@ -34,29 +34,34 @@ import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import { multipleChoiceQuestions } from './multipleChoiceQuestions';
-import { MultipleChoiceQuestion, SubmissionResult } from './multipleChoiceTypes';
-import { User } from '../../../../types/user';
+import AudioPlayer from '../../common/AudioPlayer';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
+import { ListeningMultipleChoiceQuestion, SubmissionResult } from './MultipleChoiceMultipleType';
+import { listeningMultipleChoiceQuestions } from './MutlipleChoiceMultipleMockData';
+import { User } from '../../../../types/user';
 
-// Import types and data
-
-
-interface MultipleChoiceProps {
+interface ListeningMultipleChoiceProps {
   user?: User | null;
 }
 
-const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
+const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user }) => {
   // State management
-  const [selectedQuestion, setSelectedQuestion] = useState<MultipleChoiceQuestion>(multipleChoiceQuestions[0]);
+  const [selectedQuestion, setSelectedQuestion] = useState<ListeningMultipleChoiceQuestion>(listeningMultipleChoiceQuestions[0]);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [timeRemaining, setTimeRemaining] = useState<number>(300); // 5 minutes in seconds
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
-  const [questionNumber, setQuestionNumber] = useState<number>(118);
-  const [studentName] = useState<string>('Rachel Carson');
-  const [testedCount] = useState<number>(33);
+  const [questionNumber, setQuestionNumber] = useState<number>(119);
+  const [studentName] = useState<string>('Weight Gain');
+  const [testedCount] = useState<number>(51);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  
+  // Audio state
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
+  const [volume, setVolume] = useState<number>(100);
+  const [audioError, setAudioError] = useState<string | null>(null);
   
   // Dialog states
   const [showAnswer, setShowAnswer] = useState<boolean>(false);
@@ -66,6 +71,46 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Audio setup
+  useEffect(() => {
+    if (selectedQuestion.audioUrl) {
+      audioRef.current = new Audio(selectedQuestion.audioUrl);
+      
+      const audio = audioRef.current;
+      
+      const handleLoadedMetadata = () => {
+        setDuration(audio.duration);
+      };
+      
+      const handleTimeUpdate = () => {
+        setCurrentTime(audio.currentTime);
+      };
+      
+      const handleEnded = () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      };
+      
+      const handleError = () => {
+        setAudioError('Failed to load audio file');
+      };
+      
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.addEventListener('timeupdate', handleTimeUpdate);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('error', handleError);
+      
+      return () => {
+        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('timeupdate', handleTimeUpdate);
+        audio.removeEventListener('ended', handleEnded);
+        audio.removeEventListener('error', handleError);
+        audio.pause();
+      };
+    }
+  }, [selectedQuestion.audioUrl]);
 
   // Timer functionality
   useEffect(() => {
@@ -102,6 +147,26 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
     return ((300 - timeRemaining) / 300) * 100;
   };
 
+  // Audio controls
+  const handleTogglePlayback = () => {
+    if (!audioRef.current) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleVolumeChange = (event: Event, newValue: number | number[]) => {
+    const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
+    setVolume(volumeValue);
+    if (audioRef.current) {
+      audioRef.current.volume = volumeValue / 100;
+    }
+  };
+
   // Handle option selection
   const handleOptionChange = (optionId: string) => {
     if (isSubmitted) return;
@@ -116,7 +181,7 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
   };
 
   // Calculate score and create submission result
-  const calculateScore = (selected: string[], question: MultipleChoiceQuestion): SubmissionResult => {
+  const calculateScore = (selected: string[], question: ListeningMultipleChoiceQuestion): SubmissionResult => {
     const correctAnswers = question.options.filter(opt => opt.isCorrect).map(opt => opt.id);
     const correctSelections = selected.filter(id => correctAnswers.includes(id));
     const incorrectSelections = selected.filter(id => !correctAnswers.includes(id));
@@ -166,6 +231,12 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
     setIsSubmitted(true);
     setIsTimerActive(false);
     
+    // Pause audio if playing
+    if (audioRef.current && isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+    
     alert(`Question submitted! Score: ${result.score}/100`);
   };
 
@@ -181,6 +252,12 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
       setIsSubmitted(true);
     }
     setIsTimerActive(false);
+    
+    // Pause audio if playing
+    if (audioRef.current && isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
   };
 
   // Action handlers
@@ -190,6 +267,13 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
     setIsTimerActive(false);
     setSubmissionResult(null);
     setIsSubmitted(false);
+    setCurrentTime(0);
+    setIsPlaying(false);
+    
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.pause();
+    }
   };
 
   const handleShowAnswer = (): void => {
@@ -224,7 +308,7 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
   };
 
   // Filter questions for search
-  const filteredQuestions = multipleChoiceQuestions.filter(question =>
+  const filteredQuestions = listeningMultipleChoiceQuestions.filter(question =>
     question.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     question.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
     question.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -281,7 +365,7 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
                 lineHeight: 1.2
               }}
             >
-              MCM
+              LCM
             </Box>
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
@@ -295,9 +379,9 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
                     wordBreak: 'break-word'
                   }}
                 >
-                  Multiple Choice (Multiple)
+                  Listening Multiple Choice (Multiple)
                 </Typography>
-                <Chip onClick={() => { }} label="Study Guide" color="primary" size="small" />
+                <Chip label="Study Guide" color="primary" size="small" />
               </Stack>
               <Typography 
                 variant="body2" 
@@ -309,7 +393,7 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
                   wordBreak: 'break-word'
                 }}
               >
-                Read the text and answer the question by selecting all the correct responses. More than one response is correct.
+                Listen to the recording and answer the question by selecting all the correct responses. You will need to select more than one response.
               </Typography>
             </Box>
           </Stack>
@@ -340,9 +424,9 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
                   fontSize: { xs: '13px', sm: '14px' }
                 }}
               >
-                #{questionNumber} {selectedQuestion.testSensitivity || 'Test Sensitivity'}
+                #{questionNumber} {selectedQuestion.testSensitivity || 'Audio'}
               </Typography>
-              <Chip onClick={() => { }} label="Text" color="error" variant="outlined" size="small" sx={{ mt: 1 }} />
+              <Chip label="Audio" color="error" variant="outlined" size="small" sx={{ mt: 1 }} />
             </Box>
             
             <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
@@ -373,27 +457,18 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
             </Box>
           </Stack>
 
-          {/* Passage Display */}
-          <Paper 
-            sx={{ 
-              p: { xs: 2, sm: 3 }, 
-              mb: 3, 
-              bgcolor: '#fafafa' 
-            }}
-          >
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                lineHeight: 1.8, 
-                color: '#333',
-                fontSize: { xs: '14px', sm: '15px', md: '16px' },
-                wordBreak: 'break-word',
-                hyphens: 'auto'
-              }}
-            >
-              {selectedQuestion.passage}
-            </Typography>
-          </Paper>
+          {/* Audio Player */}
+          <AudioPlayer
+            selectedTopic={selectedQuestion}
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            duration={duration}
+            volume={volume}
+            audioError={audioError}
+            onTogglePlayback={handleTogglePlayback}
+            onVolumeChange={handleVolumeChange}
+            formatTime={formatTime}
+          />
 
           {/* Question */}
           <Typography 
@@ -477,11 +552,13 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
 
           {/* Action Buttons */}
           <ActionButtons
-                      hasResponse={selectedOptions.length > 0}
-                      onSubmit={handleSubmit}
-                      onRedo={handleRedo}
-                      onTranslate={handleTranslate}
-                      onShowAnswer={handleShowAnswer} recordedBlob={null}          />
+            hasResponse={selectedOptions.length > 0}
+            onSubmit={handleSubmit}
+            onRedo={handleRedo}
+            onTranslate={handleTranslate}
+            onShowAnswer={handleShowAnswer}
+            recordedBlob={null}
+          />
 
           {/* Navigation Section */}
           <NavigationSection
@@ -493,15 +570,14 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
         </CardContent>
       </Card>
 
-    
-
-<TopicSelectionDrawer
+      {/* Topic Selection Drawer */}
+      <TopicSelectionDrawer
         open={showQuestionSelector}
         onClose={() => setShowQuestionSelector(false)}
         onSelect={handleQuestionSelect}
-        topics={multipleChoiceQuestions}
+        topics={listeningMultipleChoiceQuestions}
         title="Select Question"
-        type="lecture"
+        type="question"
       />
 
       {/* Answer Dialog */}
@@ -620,4 +696,4 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
   );
 };
 
-export default MultipleChoice;
+export default ListeningMultipleChoice;

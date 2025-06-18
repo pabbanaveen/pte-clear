@@ -283,7 +283,7 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
                 >
                   Write Email
                 </Typography>
-                <Chip label="Study Guide" color="primary" size="small" />
+                <Chip onClick={() => { }} label="Study Guide" color="primary" size="small" />
               </Stack>
               <Typography 
                 variant="body2" 
@@ -350,6 +350,7 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
               </Box>
               {score && (
                 <Chip 
+                onClick={() => { }}
                   label={`Score: ${score}/100`} 
                   color={score >= 70 ? 'success' : score >= 50 ? 'warning' : 'error'} 
                   size="small"
@@ -388,8 +389,9 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
                 gap: 1
               }}
             >
-              <Chip label={selectedScenario.category} size="small" color="primary" />
+              <Chip onClick={() => { }} label={selectedScenario.category} size="small" color="primary" />
               <Chip 
+              onClick={() => { }}
                 label={selectedScenario.difficulty} 
                 size="small" 
                 color={

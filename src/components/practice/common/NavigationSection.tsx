@@ -26,7 +26,7 @@ const NavigationSection: React.FC<NavigationSectionProps> = ({
       >
         {/* Question Counter - Always visible */}
         <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', alignItems: 'center' }}>
-          <Chip label="× 5" color="error" variant="outlined" size="small" />
+          <Chip onClick={() => { }} label="× 5" color="error" variant="outlined" size="small" />
           <Typography 
             variant="body2" 
             sx={{ 

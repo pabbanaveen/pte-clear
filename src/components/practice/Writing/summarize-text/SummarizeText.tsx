@@ -249,7 +249,7 @@ const SummarizeText = ({ user }:SummarizeTextProps) => {
                 <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>
                   Summarize Written Text (Core)
                 </Typography>
-                <Chip label="Study Guide" color="primary" size="small" />
+                <Chip onClick={() => { }} label="Study Guide" color="primary" size="small" />
               </Stack>
               <Typography variant="body2" sx={{ color: '#666', mt: 1 }}>
                 Read the passage below. Summarize the passage using between 25 and 50 words. 
@@ -290,6 +290,7 @@ const SummarizeText = ({ user }:SummarizeTextProps) => {
               </Box>
               {score && (
                 <Chip 
+                onClick={() => { }}
                   label={`Score: ${score}/100`} 
                   color={score >= 70 ? 'success' : score >= 50 ? 'warning' : 'error'} 
                 />
@@ -303,8 +304,9 @@ const SummarizeText = ({ user }:SummarizeTextProps) => {
               #{questionNumber} {selectedPassage.title}
             </Typography>
             <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-              <Chip label={selectedPassage.category} size="small" color="primary" />
+              <Chip onClick={() => { }} label={selectedPassage.category} size="small" color="primary" />
               <Chip 
+              onClick={() => { }}
                 label={selectedPassage.difficulty} 
                 size="small" 
                 color={

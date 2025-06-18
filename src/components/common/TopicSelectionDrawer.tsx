@@ -381,6 +381,7 @@ const TopicSelectionDrawer: React.FC<TopicSelectionDrawerProps> = ({ open, onClo
                             {question.questionNumber} {question.title}
                           </Typography>
                           <Chip 
+                          onClick={() => { }}
                             label={question.questionNumber} 
                             size="small" 
                             sx={{ 
@@ -392,6 +393,7 @@ const TopicSelectionDrawer: React.FC<TopicSelectionDrawerProps> = ({ open, onClo
                           />
                           {question.topic.isNew && (
                             <Chip 
+                            onClick={() => { }}
                               label="NEW" 
                               size="small" 
                               color="primary"
@@ -400,6 +402,7 @@ const TopicSelectionDrawer: React.FC<TopicSelectionDrawerProps> = ({ open, onClo
                           )}
                           {question.topic.isMarked && (
                             <Chip 
+                            onClick={() => { }}
                               label="★" 
                               size="small" 
                               color="warning"
@@ -412,6 +415,7 @@ const TopicSelectionDrawer: React.FC<TopicSelectionDrawerProps> = ({ open, onClo
                         </Typography>
                         <Stack direction="row" spacing={1}>
                           <Chip
+                          onClick={() => { }}
                             label={question.difficulty}
                             size="small"
                             color={
@@ -422,6 +426,7 @@ const TopicSelectionDrawer: React.FC<TopicSelectionDrawerProps> = ({ open, onClo
                           />
                           {question.category && (
                             <Chip
+                            onClick={() => { }}
                               label={question.category}
                               size="small"
                               variant="outlined"

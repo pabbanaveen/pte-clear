@@ -32,6 +32,7 @@ const QuestionHeader: React.FC<QuestionHeaderProps> = ({
           #{questionNumber} {studentName}
         </Typography>
         <Chip 
+        onClick={() => { }}
           label={`Tested (${testedCount})`} 
           color="success" 
           size="small"

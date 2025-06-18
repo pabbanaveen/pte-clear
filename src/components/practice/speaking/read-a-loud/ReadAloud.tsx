@@ -165,6 +165,7 @@ const ReadAloud: React.FC = () => {
             Read Aloud
           </Typography>
           <Chip
+          onClick={() => { }}
             label="AI Score Available"
             color="success"
             size="small"
@@ -182,7 +183,7 @@ const ReadAloud: React.FC = () => {
           <Typography variant="caption" color="text.secondary">
             Question {currentQuestion + 1} of {questions.length}
           </Typography>
-          <Chip label="Speaking • Read Aloud" size="small" />
+          <Chip onClick={() => { }} label="Speaking • Read Aloud" size="small" />
         </Stack>
         <LinearProgress
           variant="determinate"

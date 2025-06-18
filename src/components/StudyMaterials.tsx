@@ -55,8 +55,8 @@ export const StudyMaterials = ({ user }:StudyMaterialsProps) => {
                   {material.title}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                  <Chip label={material.type} size="small" />
-                  <Chip label={material.size} size="small" variant="outlined" />
+                  <Chip onClick={() => { }} label={material.type} size="small" />
+                  <Chip onClick={() => { }} label={material.size} size="small" variant="outlined" />
                 </Box>
                 <Typography variant="body2" color="text.secondary">
                   {material.downloads} downloads

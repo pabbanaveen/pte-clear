@@ -391,8 +391,7 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
         { label: 'Re-order Paragraphs', path: '/practice/reading/reorder-paragraphs' },
         { label: 'Reading: Fill in the Blanks', path: '/practice/reading/fill-blanks' },
         { label: 'Multiple Choice (Single)', path: '/practice/reading/multiple-choice-single' },
-        { label: 'Highlight Incorrect Words', path: '/practice/reading/highlight-incorrect' },
-        { label: 'Write From Dictation', path: '/practice/reading/write-from-dictation' },
+      
       ],
     },
     {
@@ -404,6 +403,8 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
         { label: 'Highlight Correct Summary', path: '/practice/listening/highlight-summary' },
         { label: 'Multiple Choice (Single)', path: '/practice/listening/multiple-choice-single' },
         { label: 'Select Missing Word', path: '/practice/listening/select-missing-word' },
+        { label: 'Highlight Incorrect Words', path: '/practice/listening/highlight-incorrect' },
+        { label: 'Write From Dictation', path: '/practice/listening/write-dictation' },
         { label: 'Summarize Spoken Text (Core)', path: '/practice/listening/summarize-spoken-text-core', isCore: true },
       ],
     },
@@ -535,6 +536,7 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   {item.hasAI && (
                     <Chip
+                    onClick={() => { }}
                       label="AI Score"
                       size="small"
                       sx={{
@@ -547,6 +549,7 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
                   )}
                   {item.isCore && (
                     <Chip
+                    onClick={() => { }}
                       label="Core"
                       size="small"
                       sx={{

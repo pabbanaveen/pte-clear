@@ -91,7 +91,7 @@ const RepeatSentence: React.FC = () => {
           <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="bold">
             Repeat Sentence
           </Typography>
-          <Chip label="AI Score Available" color="success" size={isMobile ? 'small' : 'medium'} />
+          <Chip onClick={() => { }} label="AI Score Available" color="success" size={isMobile ? 'small' : 'medium'} />
         </Box>
         <Typography
           variant={isMobile ? 'caption' : 'body2'}
@@ -116,6 +116,7 @@ const RepeatSentence: React.FC = () => {
             Question {currentQuestionIndex + 1} of {REPEAT_SENTENCE_QUESTIONS.length}
           </Typography>
           <Chip
+          onClick={() => { }}
             label="Speaking • Repeat Sentence"
             size={isMobile ? 'small' : 'medium'}
           />
@@ -134,6 +135,7 @@ const RepeatSentence: React.FC = () => {
           <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 } }}>
             <Box textAlign="center" mb={{ xs: 4, sm: 6 }}>
               <Chip
+              onClick={() => { }}
                 label={`Difficulty: ${REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].difficulty}`}
                 color={
                   REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].difficulty === 'Easy'

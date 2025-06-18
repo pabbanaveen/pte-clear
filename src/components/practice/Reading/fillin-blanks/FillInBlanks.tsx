@@ -237,7 +237,7 @@ const FillInBlanks: React.FC = () => {
             Question {currentQuestion + 1} of {questions.length}
           </Typography>
           <Stack direction="row" spacing={2} alignItems="center">
-            <Chip label="Reading • Fill in the Blanks" size="small" />
+            <Chip onClick={() => { }} label="Reading • Fill in the Blanks" size="small" />
             <Stack direction="row" alignItems="center" spacing={1}>
               <TimerIcon color={timeLeft < 120 ? 'error' : 'primary'} />
               <Typography color={timeLeft < 120 ? 'error.main' : 'primary.main'}>

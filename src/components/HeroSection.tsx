@@ -41,7 +41,7 @@ const HeroSection = ({ onGetStarted }:HeroSectionProps) => {
               Practice Now
             </Button>
             <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Chip label="NEW" color="secondary" size="small" />
+              <Chip onClick={() => { }} label="NEW" color="secondary" size="small" />
               <Typography variant="body2" color="text.secondary">
                 AI-powered instant scoring
               </Typography>

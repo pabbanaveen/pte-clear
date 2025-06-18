@@ -238,7 +238,7 @@ const AdminQuestions: React.FC = () => {
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {['read-aloud', 'repeat-sentence', 'describe-image', 'write-essay', 'summarize-text', 'fill-blanks', 'multiple-choice'].map((type) => (
-                  <Chip key={type} label={type} size="small" variant="outlined" />
+                  <Chip onClick={() => { }} key={type} label={type} size="small" variant="outlined" />
                 ))}
               </Box>
             </CustomCard>
@@ -301,10 +301,11 @@ const AdminQuestions: React.FC = () => {
                 <TableRow key={question.id}>
                   <TableCell>{question.title}</TableCell>
                   <TableCell>
-                    <Chip label={question.type} size="small" variant="outlined" />
+                    <Chip onClick={() => { }} label={question.type} size="small" variant="outlined" />
                   </TableCell>
                   <TableCell>
                     <Chip 
+                    onClick={() => { }}
                       label={question.skill} 
                       size="small" 
                       sx={{ bgcolor: getSkillColor(question.skill), color: 'white' }}
@@ -312,6 +313,7 @@ const AdminQuestions: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <Chip 
+                    onClick={() => { }}
                       label={question.difficulty} 
                       size="small" 
                       color={getDifficultyColor(question.difficulty) as any}

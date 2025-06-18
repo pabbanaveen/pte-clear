@@ -103,7 +103,7 @@ export const Dashboard = ({ user }:DashboardProps) => {
                 Strong Areas
               </Typography>
               {user?.progress?.strongAreas?.map((area, index) => (
-                <Chip key={index} label={area} size="small" sx={{ mr: 1, mb: 1 }} />
+                <Chip onClick={() => { }} key={index} label={area} size="small" sx={{ mr: 1, mb: 1 }} />
               ))}
             </Box>
             <Box>
@@ -111,7 +111,7 @@ export const Dashboard = ({ user }:DashboardProps) => {
                 Areas for Improvement
               </Typography>
               {user?.progress?.weakAreas?.map((area, index) => (
-                <Chip key={index} label={area} variant="outlined" size="small" sx={{ mr: 1, mb: 1 }} />
+                <Chip onClick={() => { }} key={index} label={area} variant="outlined" size="small" sx={{ mr: 1, mb: 1 }} />
               ))}
             </Box>
           </Card>
