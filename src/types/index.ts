@@ -108,6 +108,7 @@ export interface BaseQuestion {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   createdAt: string;
   updatedAt: string;
+  question_id?: string; // Unique identifier for the question
 }
 
 export type QuestionType = 
@@ -155,6 +156,7 @@ export interface WritingEssayQuestion extends BaseQuestion {
 }
 
 export interface ReadingFillBlanksQuestion extends BaseQuestion {
+  time_limit: number;
   passage: string;
   blanks: FillBlank[];
 }

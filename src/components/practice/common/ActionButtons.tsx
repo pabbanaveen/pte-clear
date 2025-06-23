@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Stack, Button, Box } from '@mui/material';
-import { Refresh, Translate } from '@mui/icons-material';
+import { Stack, Button, Box, useMediaQuery, useTheme } from '@mui/material';
+import { Help, Refresh, Send, Translate } from '@mui/icons-material';
 
 interface ActionButtonsProps {
     hasResponse? : boolean
@@ -19,7 +19,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   onTranslate,
   onShowAnswer,
 }) => {
-    const [dsableSave, setDisableSave] = useState<boolean>();
+   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+
+    const [disableSave, setDisableSave] = useState<boolean>();
     useEffect(() => {
         console.log(recordedBlob, "asfafadfdf")
         if (recordedBlob == null && hasResponse) {
@@ -31,67 +35,65 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     }, [recordedBlob, hasResponse]);
    
   return (
-    <Box sx={{ mb: 3 }}>
-      {/* Mobile: Stack vertically, Desktop: Stack horizontally */}
-      <Stack 
-        direction={{ xs: 'column', sm: 'row' }} 
-        spacing={{ xs: 1, sm: 2 }}
-        sx={{ 
-          width: '100%',
-          alignItems: 'stretch'
+   <Stack
+      direction={isMobile ? 'column' : 'row'}
+      spacing={isMobile ? 1 : 2}
+      sx={{ flexWrap: 'wrap' }}
+    >
+      <Button
+        variant="contained"
+        color="primary"
+        startIcon={<Send />}
+        onClick={() => {
+          console.log('Submit button clicked');
+          onSubmit();
         }}
+        disabled={disableSave}
+        aria-label="Submit recording"
+        sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
       >
-        <Button
-          variant="contained"
-          onClick={onSubmit}
-          sx={{ 
-            bgcolor: '#4caf50', 
-            '&:hover': { bgcolor: '#388e3c' },
-            minHeight: '40px',
-            fontSize: { xs: '14px', sm: '16px' }
-          }}
-          disabled={dsableSave}
-          fullWidth
-        >
-          Submit
-        </Button>
-        <Button 
-          variant="outlined" 
-          startIcon={<Refresh />} 
-          onClick={onRedo}
-          sx={{ 
-            minHeight: '40px',
-            fontSize: { xs: '14px', sm: '16px' }
-          }}
-          fullWidth
-        >
-          Re-do
-        </Button>
-        <Button 
-          variant="outlined" 
-          startIcon={<Translate />} 
-          onClick={onTranslate}
-          sx={{ 
-            minHeight: '40px',
-            fontSize: { xs: '14px', sm: '16px' }
-          }}
-          fullWidth
-        >
-          Translation
-        </Button>
-        <Button 
-          variant="outlined" 
-          onClick={onShowAnswer}
-          sx={{ 
-            minHeight: '40px',
-            fontSize: { xs: '14px', sm: '16px' }
-          }}
-          fullWidth
-        >
-          Answer
-        </Button>
-      </Stack>
-    </Box>
+        Submit
+      </Button>
+      <Button
+        variant="outlined"
+        color="secondary"
+        startIcon={<Refresh />}
+        onClick={() => {
+          console.log('Redo button clicked');
+          onRedo();
+        }}
+        aria-label="Redo recording"
+        sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+      >
+        Re-do
+      </Button>
+      <Button
+        variant="outlined"
+        color="info"
+        startIcon={<Translate />}
+        onClick={() => {
+          console.log('Translate button clicked');
+          onTranslate();
+        }}
+        aria-label="Translate question"
+        sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+      >
+        Translate
+      </Button>
+      <Button
+        variant="outlined"
+        color="info"
+        startIcon={<Help />}
+        onClick={() => {
+          console.log('Show Answer button clicked');
+          onShowAnswer();
+        }}
+        aria-label="Show sample answer"
+        sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+      >
+        Show Answer
+      </Button>
+    </Stack>
   );
 };
 

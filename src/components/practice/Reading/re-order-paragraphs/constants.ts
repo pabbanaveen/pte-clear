@@ -63,4 +63,82 @@ export const QUESTIONS: Question[] = [
       },
     ],
   },
+  {
+    id: 3,
+    title: 'The History of the Internet',
+    paragraphs: [
+      {
+        id: 'a',
+        text: 'By the late 1990s, the internet had become a global phenomenon, transforming communication, commerce, and entertainment worldwide.',
+        originalOrder: 4,
+      },
+      {
+        id: 'b',
+        text: 'The internet’s origins trace back to the 1960s with the development of ARPANET, a project funded by the U.S. Department of Defense.',
+        originalOrder: 1,
+      },
+      {
+        id: 'c',
+        text: 'The 1980s saw the introduction of TCP/IP protocols, which enabled different networks to interconnect and form the basis of the modern internet.',
+        originalOrder: 2,
+      },
+      {
+        id: 'd',
+        text: 'The World Wide Web, introduced in 1989 by Tim Berners-Lee, revolutionized how information is accessed and shared online.',
+        originalOrder: 3,
+      },
+    ],
+  },
+  {
+    id: 4,
+    title: 'Renewable Energy Innovations',
+    paragraphs: [
+      {
+        id: 'a',
+        text: 'Solar panels and wind turbines are now more efficient, thanks to advancements in materials and design.',
+        originalOrder: 3,
+      },
+      {
+        id: 'b',
+        text: 'The push for renewable energy began as a response to the environmental impact of fossil fuels in the mid-20th century.',
+        originalOrder: 1,
+      },
+      {
+        id: 'c',
+        text: 'Governments are increasingly investing in research to make renewable energy sources more affordable and accessible.',
+        originalOrder: 4,
+      },
+      {
+        id: 'd',
+        text: 'In the 1970s, the oil crisis spurred interest in alternative energy sources, laying the groundwork for future innovations.',
+        originalOrder: 2,
+      },
+    ],
+  },
+  {
+    id: 5,
+    title: 'The Development of Space Exploration',
+    paragraphs: [
+      {
+        id: 'a',
+        text: 'Today, private companies like SpaceX are driving new missions to Mars and beyond, expanding human presence in space.',
+        originalOrder: 4,
+      },
+      {
+        id: 'b',
+        text: 'Space exploration began in the late 1950s with the launch of Sputnik by the Soviet Union, marking the start of the Space Race.',
+        originalOrder: 1,
+      },
+      {
+        id: 'c',
+        text: 'The 1969 Apollo 11 mission successfully landed humans on the moon, a monumental achievement in space history.',
+        originalOrder: 2,
+      },
+      {
+        id: 'd',
+        text: 'The 1980s and 1990s focused on space stations like Mir and the International Space Station, fostering international cooperation.',
+        originalOrder: 3,
+      },
+    ],
+  },
 ];

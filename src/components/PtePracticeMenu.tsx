@@ -341,17 +341,31 @@
 //     </Box>
 //   );
 // };
-
-// export default PtePracticeMenu;
 import React, { useState } from 'react';
-import { Button, Menu, MenuItem, Box, Typography, Chip } from '@mui/material';
+import { Button, Menu, MenuItem, Box, Typography, Chip, useTheme, useMediaQuery } from '@mui/material';
 import { Link } from 'react-router-dom';
+
+interface MenuItemType {
+  label: string;
+  path: string;
+  hasAI?: boolean;
+  isCore?: boolean;
+  icon?: string;
+}
+
+interface MenuSection {
+  category: string;
+  items: MenuItemType[];
+}
 
 interface PtePracticeMenuProps {
   isMobile?: boolean;
 }
 
-const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) => {
+const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile: propIsMobile = false }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm')) || propIsMobile;
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -362,7 +376,7 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
     setAnchorEl(null);
   };
 
-  const menuStructure = [
+  const menuStructure: MenuSection[] = [
     {
       category: 'Speaking',
       items: [
@@ -391,7 +405,6 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
         { label: 'Re-order Paragraphs', path: '/practice/reading/reorder-paragraphs' },
         { label: 'Reading: Fill in the Blanks', path: '/practice/reading/fill-blanks' },
         { label: 'Multiple Choice (Single)', path: '/practice/reading/multiple-choice-single' },
-      
       ],
     },
     {
@@ -424,7 +437,7 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
   return (
     <Box>
       {isMobile ? (
-        <MenuItem onClick={handleClick} sx={{ fontSize: '0.9rem', color: '#333' }}>
+        <MenuItem onClick={handleClick} sx={{ fontSize: '0.8rem', color: '#333' }}>
           PTE Practice
         </MenuItem>
       ) : (
@@ -432,7 +445,7 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
           color="inherit"
           onClick={handleClick}
           onMouseEnter={handleClick}
-          sx={{ fontWeight: 600, fontSize: '1rem', color: '#333', '&:hover': { color: '#4DB6AC', backgroundColor: 'transparent' } }}
+          sx={{ fontWeight: 600, fontSize: '0.9rem', color: '#333', '&:hover': { color: '#4DB6AC', backgroundColor: 'transparent' } }}
         >
           PTE Practice
         </Button>
@@ -452,28 +465,28 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
         }}
         PaperProps={{
           style: {
-            width: '100vw', // Full viewport width
-            maxWidth: '100vw',
-            left: 0, // Align to the left edge of the viewport
+            maxWidth: isMobile ? '100%' : '90vw',
+            width: 'auto',
+            left: isMobile ? 0 : 'auto',
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
             padding: isMobile ? 8 : 16,
             overflowX: 'hidden',
-            overflowY: 'auto',
-            borderRadius: 0, // Remove border radius for full-width look
+            overflowY: 'hidden',
+            borderRadius: isMobile ? 0 : 8,
             boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
             background: '#fff',
-            marginTop: isMobile ? 0 : '8px', // Small gap below the header
+            marginTop: isMobile ? 0 : '8px',
           },
         }}
         MenuListProps={{
           sx: {
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
-            flexWrap: isMobile ? 'nowrap' : 'wrap',
+            flexWrap: 'wrap',
             width: '100%',
             p: 0,
-            gap: isMobile ? 2 : 3,
+            gap: isMobile ? 1 : 2,
           },
         }}
       >
@@ -481,11 +494,12 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
           <Box
             key={section.category}
             sx={{
-              flex: isMobile ? '0 0 100%' : '1 1 250px', // Increased min width to prevent text wrapping
-              p: isMobile ? 1 : 2,
+              flex: isMobile ? '0 0 100%' : '0 0 200px',
+              p: isMobile ? 1 : 1.5,
               borderRight: !isMobile && idx !== menuStructure.length - 1 ? '1px solid #e0e0e0' : 'none',
               borderBottom: isMobile && idx !== menuStructure.length - 1 ? '1px solid #e0e0e0' : 'none',
-              minWidth: isMobile ? '100%' : '250px', // Ensure enough width for single-line text
+              minWidth: isMobile ? '100%' : '200px',
+              maxWidth: isMobile ? '100%' : '250px',
               background: isMobile ? '#fafbfc' : 'transparent',
             }}
           >
@@ -494,7 +508,7 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
               fontWeight="bold"
               color="#1976D2"
               gutterBottom
-              sx={{ fontSize: isMobile ? '1.1rem' : '1rem', mb: 1 }}
+              sx={{ fontSize: isMobile ? '0.9rem' : '0.85rem', mb: 1 }}
             >
               {section.category === 'Speaking' && '🎤 '}
               {section.category === 'Writing' && '✍️ '}
@@ -503,19 +517,20 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
               {section.category === 'More' && '⚡ '}
               {section.category}
             </Typography>
-            {section.items.map((item:any) => (
+            {section.items.map((item) => (
               <MenuItem
+               className='pte-menu-item'
                 key={item.path}
                 component={Link}
                 to={item.path}
                 onClick={handleClose}
                 sx={{
-                  py: isMobile ? 1.2 : 0.5,
+                  py: isMobile ? 1 : 0.5,
                   px: isMobile ? 2 : 1.5,
                   borderRadius: 2,
-                  fontSize: isMobile ? '1rem' : '0.9rem',
+                  fontSize: isMobile ? '0.75rem' : '0.7rem',
                   mb: isMobile ? 0.5 : 0,
-                  whiteSpace: 'nowrap', // Prevent text wrapping
+                  whiteSpace: 'nowrap',
                   color: '#333',
                   '&:hover': {
                     background: '#e3f2fd',
@@ -525,38 +540,37 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile = false }) =
                   alignItems: 'center',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   {item.icon && (
-                    <Typography sx={{ fontSize: '1rem' }}>{item.icon}</Typography>
+                    <Typography sx={{ fontSize: '0.8rem' }}>{item.icon}</Typography>
                   )}
-                  <Typography sx={{ fontSize: isMobile ? '1rem' : '0.9rem' }}>
+                  <Typography sx={{ fontSize: isMobile ? '0.75rem' : '0.7rem' }} className='pte-menu-item-label'> 
                     {item.label.replace('AI Score', '').replace('(Core)', '').trim()}
                   </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
                   {item.hasAI && (
                     <Chip
-                    onClick={() => { }}
                       label="AI Score"
                       size="small"
                       sx={{
                         bgcolor: '#E8F5E9',
                         color: '#2E7D32',
-                        fontSize: '0.75rem',
-                        height: 20,
+                        textDecoration: 'none',
+                        fontSize: '0.6rem',
+                        height: 18,
                       }}
                     />
                   )}
                   {item.isCore && (
                     <Chip
-                    onClick={() => { }}
                       label="Core"
                       size="small"
                       sx={{
                         bgcolor: '#F3E5F5',
                         color: '#6A1B9A',
-                        fontSize: '0.75rem',
-                        height: 20,
+                        fontSize: '0.6rem',
+                        height: 18,
                       }}
                     />
                   )}

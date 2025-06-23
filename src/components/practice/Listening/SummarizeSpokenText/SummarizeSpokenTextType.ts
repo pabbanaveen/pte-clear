@@ -3,8 +3,7 @@ import { BaseTopic } from "../../common/types";
 export interface SummarizeSpokenTextTopic extends BaseTopic {
   type: 'listening';
   taskType: 'SST';
-  audioUrl: string;
-  audioDuration: number; // in seconds
+  audioText: string; // Text for TextToSpeech
   wordLimit: {
     min: number;
     max: number;

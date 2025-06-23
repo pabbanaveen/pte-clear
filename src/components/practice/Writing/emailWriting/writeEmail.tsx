@@ -200,7 +200,7 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
   };
 
   const handleSearch = (): void => {
-    setShowSearch(true);
+    setShowScenarioSelector(true);
   };
 
   const handlePrevious = (): void => {
@@ -517,63 +517,6 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
         </CardContent>
       </Card>
 
-      {/* Scenario Selection Dialog */}
-      {/* <Dialog 
-        open={showScenarioSelector} 
-        onClose={() => setShowScenarioSelector(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Select Email Scenario</Typography>
-            <IconButton onClick={() => setShowScenarioSelector(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <List>
-            {emailScenarios.map((scenario) => (
-              <ListItem key={scenario.id} disablePadding>
-                <ListItemButton 
-                  onClick={() => handleScenarioSelect(scenario)}
-                  selected={selectedScenario.id === scenario.id}
-                >
-                  <ListItemText
-                    primary={
-                      <Stack direction="row" alignItems="center" spacing={2}>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                          {scenario.title}
-                        </Typography>
-                        <Chip 
-                          label={scenario.difficulty} 
-                          size="small" 
-                          color={
-                            scenario.difficulty === 'Beginner' ? 'success' : 
-                            scenario.difficulty === 'Intermediate' ? 'warning' : 'error'
-                          }
-                        />
-                      </Stack>
-                    }
-                    secondary={
-                      <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-                        <Typography variant="caption">
-                          <strong>Category:</strong> {scenario.category}
-                        </Typography>
-                        <Typography variant="caption">
-                          <strong>Min Words:</strong> {scenario.wordLimit.min}+
-                        </Typography>
-                      </Stack>
-                    }
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-      </Dialog> */}
-
 <TopicSelectionDrawer
         open={showScenarioSelector}
         onClose={() => setShowScenarioSelector(false)}
@@ -648,48 +591,6 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
         <DialogActions>
           <Button onClick={() => setShowTranslate(false)}>Cancel</Button>
           <Button variant="contained">Translate</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Search Dialog */}
-      <Dialog open={showSearch} onClose={() => setShowSearch(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Search Email Scenarios</Typography>
-            <IconButton onClick={() => setShowSearch(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            placeholder="Search by title, category, or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-          <List>
-            {filteredScenarios.map((scenario) => (
-              <ListItem key={scenario.id} disablePadding>
-                <ListItemButton 
-                  onClick={() => {
-                    handleScenarioSelect(scenario);
-                    setShowSearch(false);
-                    setSearchQuery('');
-                  }}
-                >
-                  <ListItemText
-                    primary={scenario.title}
-                    secondary={`${scenario.category} • ${scenario.difficulty}`}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowSearch(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

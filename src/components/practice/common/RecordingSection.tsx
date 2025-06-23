@@ -1,127 +1,97 @@
-import React from 'react';
-import { 
-  Paper, 
-  Stack, 
-  IconButton, 
-  Typography, 
-  Chip, 
-  Button,
-  Alert 
-} from '@mui/material';
-import { Mic, MicOff, Help } from '@mui/icons-material';
+import React, { useEffect, useState } from 'react';
+import { Box, Button, Typography, CircularProgress, Alert, LinearProgress } from '@mui/material';
+import { Mic, MicOff } from '@mui/icons-material';
 
 interface RecordingSectionProps {
   isRecording: boolean;
   recordedBlob: Blob | null;
+  recordedAudioUrl: string | null;
   micPermission: boolean | null;
   showRecordingPrompt: boolean;
   preparationTime: number | null;
-  recordingType: 'retelling' | 'answer';
+  recordingType: string;
+  recordingTime: number; // Duration in seconds
   onToggleRecording: () => void;
 }
 
 const RecordingSection: React.FC<RecordingSectionProps> = ({
   isRecording,
   recordedBlob,
+  recordedAudioUrl,
   micPermission,
   showRecordingPrompt,
   preparationTime,
   recordingType,
+  recordingTime,
   onToggleRecording,
 }) => {
-  const getRecordingMessage = () => {
-    if (micPermission === null) return 'Checking microphone permission...';
-    if (micPermission === false) return 'Microphone permission is not granted. Please grant permission to record.';
-    if (isRecording) return `Recording your ${recordingType}...`;
-    if (recordedBlob) return `${recordingType === 'retelling' ? 'Recording' : 'Answer'} ${recordedBlob ? 'completed' : 'recorded'}. You can re-record if needed.`;
-    if (showRecordingPrompt) return `Ready to record! Click the microphone to start.`;
-    return `Click to start recording your ${recordingType}`;
-  };
+  const [recordingTimeLeft, setRecordingTimeLeft] = useState<number | null>(null);
 
-  const getChipLabel = () => {
-    return recordingType === 'retelling' ? 'Recording Ready' : 'Answer Ready';
-  };
+  useEffect(() => {
+    if (isRecording) {
+      setRecordingTimeLeft(recordingTime);
+      const timer = setInterval(() => {
+        setRecordingTimeLeft((prev) => (prev !== null && prev > 0 ? prev - 1 : null));
+      }, 1000);
+      return () => clearInterval(timer);
+    } else {
+      setRecordingTimeLeft(null);
+    }
+  }, [isRecording, recordingTime]);
 
   return (
-    <>
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Record Your {recordingType}
+      </Typography>
+      {micPermission === false && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Microphone permission denied. Please enable it to record.
+        </Alert>
+      )}
       {preparationTime !== null && preparationTime > 0 && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography>
-            Prepare to {recordingType === 'retelling' ? 'retell the lecture' : 'answer the question'}. 
-            Recording will start in {preparationTime} seconds...
-          </Typography>
-        </Alert>
+        <Typography variant="body1" sx={{ mb: 2, color: '#ff9800' }}>
+          Preparation Time: {preparationTime} seconds remaining
+        </Typography>
       )}
-
-      {showRecordingPrompt && !isRecording && !recordedBlob && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          <Typography>
-            Time to record! Click the microphone button below to start recording your {recordingType}.
-          </Typography>
-        </Alert>
+      {showRecordingPrompt && (
+        <Typography variant="body1" sx={{ mb: 2, color: '#4caf50' }}>
+          Start speaking now!
+        </Typography>
       )}
-
-      <Paper 
-        sx={{ 
-          p: 3, 
-          mb: 3, 
-          bgcolor: isRecording 
-            ? '#ffebee' 
-            : showRecordingPrompt && !recordedBlob 
-              ? '#e8f5e8' 
-              : '#fafafa' 
-        }}
+      <Button
+        variant="contained"
+        color={isRecording ? 'error' : 'primary'}
+        startIcon={isRecording ? <MicOff /> : <Mic />}
+        onClick={onToggleRecording}
+        disabled={micPermission === false || preparationTime !== null}
+        sx={{ mb: 2 }}
+        aria-label={isRecording ? 'Stop recording answer' : 'Start recording answer'}
       >
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <IconButton
-            onClick={onToggleRecording}
-            sx={{
-              bgcolor: isRecording 
-                ? '#f44336' 
-                : showRecordingPrompt && !recordedBlob 
-                  ? '#4caf50' 
-                  : micPermission === false 
-                    ? '#d3d3d3' 
-                    : '#666',
-              color: 'white',
-              '&:hover': { 
-                bgcolor: isRecording 
-                  ? '#d32f2f' 
-                  : showRecordingPrompt && !recordedBlob 
-                    ? '#388e3c' 
-                    : micPermission === false 
-                      ? '#b0b0b0' 
-                      : '#555' 
-              },
-              transition: 'background-color 0.3s',
-              cursor: micPermission === false ? 'not-allowed' : 'pointer',
-            }}
-            disabled={micPermission === false}
-          >
-            {isRecording ? <MicOff /> : <Mic />}
-          </IconButton>
-          
-          <Typography variant="body1" sx={{ flexGrow: 1 }}>
-            {getRecordingMessage()}
+        {isRecording ? 'Stop Recording' : 'Start Recording'}
+      </Button>
+      {recordedAudioUrl && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Your Recorded Answer:
           </Typography>
-          
-          {recordedBlob && (
-            <Chip onClick={() => { }} label={getChipLabel()} color="success" variant="outlined" />
-          )}
-          
-          {micPermission === false && (
-            <Button 
-              variant="outlined" 
-              size="small" 
-              startIcon={<Help />} 
-              onClick={() => alert('Please go to your browser settings and allow microphone access.')}
-            >
-              Help
-            </Button>
-          )}
-        </Stack>
-      </Paper>
-    </>
+          <audio controls src={recordedAudioUrl} style={{ width: '100%' }}>
+            Your browser does not support the audio element.
+          </audio>
+        </Box>
+      )}
+      {isRecording && <CircularProgress size={24} sx={{ ml: 2 }} />}
+      {recordingTimeLeft !== null && recordingTimeLeft >= 0 && (
+        <Box sx={{ mt: 2 }}>
+          <Typography>Recording Time: {recordingTimeLeft} seconds</Typography>
+          <LinearProgress
+            variant="determinate"
+            value={(recordingTimeLeft / recordingTime) * 100}
+            sx={{ mt: 1 }}
+          />
+        </Box>
+      )}
+    </Box>
   );
 };
 

@@ -1,13 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
-  Container, Box, Typography, Card, CardContent, Button, Chip, Paper, Stack, List, ListItem, ListItemText, LinearProgress
+  Container, Box, Typography, Card, CardContent, Button, Chip, Paper, Stack, List, ListItem, ListItemText, LinearProgress,
+  Alert,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
+  useMediaQuery
 } from '@mui/material';
-import { styled, Theme } from '@mui/material/styles';
+import { styled, Theme, useTheme } from '@mui/material/styles';
 import MicIcon from '@mui/icons-material/Mic';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import TimerIcon from '@mui/icons-material/Timer';
+import { Close } from '@mui/icons-material';
+import ActionButtons from '../../common/ActionButtons';
+import NavigationSection from '../../common/NavigationSection';
+import QuestionHeader from '../../common/QuestionHeader';
+import RecordingSection from '../../common/RecordingSection';
+import StageGoalBanner from '../../common/StageGoalBanner';
+import { readAloudQuestions } from './ReadALoudMockData';
+import { ReadAloudQuestion, UserAttempt } from './ReadAloudTypes';
+import { User } from '../../../../types/user';
+import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 
 interface Question {
   id: number;
@@ -53,403 +74,480 @@ const RecordingIndicator = styled(Box)(({ theme }) => ({
   },
 }));
 
-const ReadAloud: React.FC = () => {
-  const [isRecording, setIsRecording] = useState<boolean>(false);
-  const [hasRecorded, setHasRecorded] = useState<boolean>(false);
-  const [currentQuestion, setCurrentQuestion] = useState<number>(0);
-  const [showFeedback, setShowFeedback] = useState<boolean>(false);
-  const [preparationTime, setPreparationTime] = useState<number>(40);
-  const audioRef = useRef<HTMLAudioElement>(null);
+interface PracticeTestsProps {
+  user: User | null;
+}
 
-  const questions: Question[] = [
-    {
-      id: 1,
-      text: "Climate change is one of the most pressing issues of our time. Scientists worldwide are working tirelessly to understand its effects and develop solutions. The melting of polar ice caps, rising sea levels, and extreme weather patterns are clear indicators that immediate action is required. Governments, businesses, and individuals must collaborate to reduce carbon emissions and implement sustainable practices.",
-      preparationTime: 40,
-      recordingTime: 40,
-    },
-    {
-      id: 2,
-      text: "The advancement of artificial intelligence has revolutionized numerous industries. From healthcare to transportation, AI systems are enhancing efficiency and accuracy. Machine learning algorithms can now diagnose diseases, predict market trends, and even drive vehicles autonomously. However, this technological progress also raises important questions about job displacement and ethical considerations.",
-      preparationTime: 40,
-      recordingTime: 40,
-    },
-    {
-      id: 3,
-      text: "Education plays a crucial role in shaping society's future. Traditional classroom settings are being complemented by online learning platforms, making education more accessible to people worldwide. Interactive technologies, virtual reality, and personalized learning experiences are transforming how students acquire knowledge and develop critical thinking skills.",
-      preparationTime: 40,
-      recordingTime: 40,
-    },
-  ];
+const useAudioRecording = (preparationTime: number | null, recordingTime = 40000) => {
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [micPermission, setMicPermission] = useState<boolean | null>(null);
 
-  const mockFeedback: Feedback = {
-    overallScore: 75,
-    pronunciation: 78,
-    fluency: 72,
-    content: 80,
-    feedback: [
-      "Good pronunciation of complex words",
-      "Natural pace and rhythm maintained",
-      "Minor hesitations noted in long sentences",
-      "Excellent word stress patterns",
-    ],
-    improvements: [
-      "Focus on smoother transitions between phrases",
-      "Practice reading longer sentences without pauses",
-      "Work on consistent volume throughout",
-    ],
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const checkMicPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setMicPermission(true);
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (error) {
+        console.error('Microphone permission check failed:', error);
+        setMicPermission(false);
+      }
+    };
+    checkMicPermission();
+  }, []);
+
+  const toggleRecording = async () => {
+    if (micPermission === false) {
+      alert('Microphone permission is required. Please grant permission and try again.');
+      return;
+    }
+
+    if (!isRecording) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+
+        const chunks: Blob[] = [];
+        mediaRecorder.ondataavailable = (event) => chunks.push(event.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          setRecordedBlob(blob);
+          const url = URL.createObjectURL(blob);
+          setRecordedAudioUrl(url);
+          stream.getTracks().forEach((track) => track.stop());
+          console.log('Recording stopped, blob created');
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+        console.log('Recording started');
+
+        timerRef.current = setTimeout(() => {
+          if (mediaRecorderRef.current?.state === 'recording') {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            console.log(`Recording auto-stopped after ${recordingTime / 1000}s`);
+          }
+        }, recordingTime);
+      } catch (error) {
+        console.error('Microphone access denied:', error);
+        setMicPermission(false);
+        alert('Unable to access microphone. Please check permissions.');
+      }
+    } else if (isRecording && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      console.log('Recording manually stopped');
+    }
+  };
+
+  const resetRecording = () => {
+    setRecordedBlob(null);
+    setRecordedAudioUrl(null);
+    setIsRecording(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
   };
 
   useEffect(() => {
-    if (preparationTime > 0 && !isRecording && !hasRecorded) {
-      const timer = setInterval(() => {
-        setPreparationTime(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [preparationTime, isRecording, hasRecorded]);
+    return () => {
+      if (recordedAudioUrl) URL.revokeObjectURL(recordedAudioUrl);
+    };
+  }, [recordedAudioUrl]);
 
+  return { isRecording, recordedBlob, recordedAudioUrl, micPermission, toggleRecording, resetRecording };
+};
+
+export const ReadAloud: React.FC<PracticeTestsProps> = ({ user }) => {
+  const [selectedQuestion, setSelectedQuestion] = useState<ReadAloudQuestion>(readAloudQuestions[0]);
+  const [questionNumber, setQuestionNumber] = useState(65535);
+  const [studentName] = useState('John Doe');
+  const [testedCount] = useState(30);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [showAttempts, setShowAttempts] = useState(false);
+  const [preparationTime, setPreparationTime] = useState<number | null>(null);
+  const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
+  const [showTopicSelector, setShowTopicSelector] = useState(false);
+  const [attempts, setAttempts] = useState<UserAttempt[]>([]);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const completedQuestions = attempts.length;
+
+  const audioRecording = useAudioRecording(preparationTime, selectedQuestion.recordingTime * 1000);
+  const prepTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load attempts from localStorage
   useEffect(() => {
-    if (isRecording) {
-      const timer = setTimeout(() => {
-        setIsRecording(false);
-        setHasRecorded(true);
-      }, questions[currentQuestion].recordingTime * 1000);
-      return () => clearTimeout(timer);
+    const savedAttempts = localStorage.getItem('readAloudAttempts');
+    if (savedAttempts) {
+      try {
+        setAttempts(JSON.parse(savedAttempts));
+      } catch (error) {
+        console.error('Failed to parse readAloudAttempts:', error);
+        localStorage.removeItem('readAloudAttempts');
+      }
     }
-  }, [isRecording, currentQuestion, questions]);
+  }, []);
+
+  // Save attempt to localStorage
+  useEffect(() => {
+    if (audioRecording.recordedBlob && audioRecording.recordedAudioUrl) {
+      const attempt: UserAttempt = {
+        questionId: selectedQuestion.id,
+        recordedAudioUrl: audioRecording.recordedAudioUrl,
+        timestamp: new Date().toISOString(),
+      };
+      setAttempts((prev) => {
+        const newAttempts = [...prev, attempt];
+        try {
+          localStorage.setItem('readAloudAttempts', JSON.stringify(newAttempts));
+        } catch (error) {
+          console.error('Failed to save readAloudAttempts:', error);
+        }
+        return newAttempts;
+      });
+    }
+  }, [audioRecording.recordedBlob, audioRecording.recordedAudioUrl, selectedQuestion.id]);
+
+  // Preparation timer
+  useEffect(() => {
+    if (preparationTime !== null && preparationTime > 0) {
+      prepTimerRef.current = setTimeout(() => {
+        setPreparationTime((prev) => (prev !== null ? prev - 1 : null));
+      }, 1000);
+    } else if (preparationTime === 0) {
+      setShowRecordingPrompt(true);
+      setPreparationTime(null);
+      console.log('Preparation time ended');
+    }
+    return () => {
+      if (prepTimerRef.current) clearTimeout(prepTimerRef.current);
+    };
+  }, [preparationTime]);
+
+  // Handlers
+  const handleSubmit = () => {
+    console.log('Submit clicked');
+    if (audioRecording.recordedBlob) {
+      alert('Recording submitted! Score will be available after processing.');
+      setQuestionNumber((prev) => prev + 1);
+      audioRecording.resetRecording();
+      setPreparationTime(null);
+      setShowRecordingPrompt(false);
+    } else {
+      alert('Please record your reading before submitting.');
+    }
+  };
+
+  const handleRedo = () => {
+    console.log('Redo clicked');
+    audioRecording.resetRecording();
+    setPreparationTime(null);
+    setShowRecordingPrompt(false);
+  };
+
+  const handleTranslate = () => {
+    console.log('Translate clicked');
+    setShowTranslate(true);
+  };
+
+  const handleShowAnswer = () => {
+    console.log('Show Answer clicked');
+    setShowAnswer(true);
+  };
+
+  const handleViewAttempts = () => {
+    console.log('View Attempts clicked');
+    setShowAttempts(true);
+  };
+
+  const handlePrevious = () => {
+    console.log('Previous clicked');
+    const currentIndex = readAloudQuestions.findIndex(q => q.id === selectedQuestion.id);
+    if (currentIndex > 0) {
+      setSelectedQuestion(readAloudQuestions[currentIndex - 1]);
+      setQuestionNumber(questionNumber - 1);
+      audioRecording.resetRecording();
+      setPreparationTime(null);
+      setShowRecordingPrompt(false);
+    }
+  };
+
+  const handleNext = () => {
+    console.log('Next clicked');
+    const currentIndex = readAloudQuestions.findIndex(q => q.id === selectedQuestion.id);
+    if (currentIndex < readAloudQuestions.length - 1) {
+      setSelectedQuestion(readAloudQuestions[currentIndex + 1]);
+      setQuestionNumber(questionNumber + 1);
+      audioRecording.resetRecording();
+      setPreparationTime(null);
+      setShowRecordingPrompt(false);
+    }
+  };
 
   const handleStartPreparation = () => {
-    setPreparationTime(questions[currentQuestion].preparationTime);
+    setPreparationTime(selectedQuestion.preparationTime);
   };
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-  };
-
-  const handleGetAIFeedback = () => {
-    setShowFeedback(true);
-  };
-
-  const handleNextQuestion = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setHasRecorded(false);
-      setShowFeedback(false);
-      setPreparationTime(questions[currentQuestion + 1].preparationTime);
-    }
+  const handleTopicSelect = (topic: any) => {
+    console.log('Topic selected:', topic);
+    setSelectedQuestion(topic);
+    setQuestionNumber(readAloudQuestions.findIndex(q => q.id === topic.id) + 65535);
+    audioRecording.resetRecording();
+    setPreparationTime(null);
+    setShowRecordingPrompt(false);
+    setShowTopicSelector(false);
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
-      {/* Header */}
-      <Box mb={4}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} mb={2}>
-          <Button
-            component={RouterLink}
-            to="/practice-tests"
-            color="primary"
-            startIcon="←"
-            sx={{ textTransform: 'none' }}
-          >
-            Back to Practice
-          </Button>
-          <Box sx={{ display: { xs: 'none', sm: 'block' }, width: 1, height: 24, bgcolor: 'grey.300' }} />
-          <Typography variant="h4" fontWeight="bold" flexGrow={1}>
-            Read Aloud
-          </Typography>
-          <Chip
-          onClick={() => { }}
-            label="AI Score Available"
-            color="success"
-            size="small"
-            sx={{ bgcolor: 'success.light', color: 'success.dark' }}
-          />
-        </Stack>
-        <Typography color="text.secondary" variant="body2">
-          Read the text aloud naturally and clearly. You have 40 seconds to prepare and 40 seconds to record.
-        </Typography>
-      </Box>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: isMobile ? 1 : 2 }}>
+      {/* Stage Goal Banner */}
+      <StageGoalBanner />
 
-      {/* Progress */}
-      <Box mb={4}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} mb={2} spacing={1}>
-          <Typography variant="caption" color="text.secondary">
-            Question {currentQuestion + 1} of {questions.length}
-          </Typography>
-          <Chip onClick={() => { }} label="Speaking • Read Aloud" size="small" />
-        </Stack>
-        <LinearProgress
-          variant="determinate"
-          value={((currentQuestion + 1) / questions.length) * 100}
-          sx={{ height: 8, borderRadius: 4 }}
-        />
-      </Box>
+      {/* Progress Display */}
+      <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }}>
+        Progress: {completedQuestions}/{readAloudQuestions.length} questions attempted
+      </Typography>
 
       {/* Main Content */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
-        {/* Question Panel */}
-        <Box sx={{ flex: { md: 2 }, width: { xs: '100%', md: '66%' } }}>
-          <StyledCard>
-            <CardContent>
-              <Typography variant="h6" fontWeight="medium" mb={3}>
-                Read the following text:
-              </Typography>
-              <Paper elevation={1} sx={{ p: 4, mb: 4, bgcolor: 'grey.50' }}>
-                <Typography variant="body1" lineHeight={1.8} fontWeight="medium">
-                  {questions[currentQuestion].text}
-                </Typography>
-              </Paper>
-              <Box textAlign="center">
-                {preparationTime > 0 && !isRecording && !hasRecorded && (
-                  <Stack spacing={2} alignItems="center">
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <TimerIcon color="warning" />
-                      <Typography variant="h5" color="warning.main" fontWeight="bold">
-                        {preparationTime}s
-                      </Typography>
-                    </Stack>
-                    <Typography color="warning.main" variant="body2">
-                      Preparation time remaining
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      color="warning"
-                      onClick={handleStartPreparation}
-                      sx={{ px: 4 }}
-                    >
-                      Start Preparation
-                    </Button>
-                  </Stack>
-                )}
-                {preparationTime === 0 && !isRecording && !hasRecorded && (
-                  <Button
-                    variant="contained"
-                    color="error"
-                    size="large"
-                    startIcon={<MicIcon />}
-                    onClick={handleStartRecording}
-                    sx={{ px: 6, py: 2 }}
-                  >
-                    Start Recording ({questions[currentQuestion].recordingTime}s)
-                  </Button>
-                )}
-                {isRecording && (
-                  <Stack spacing={2} alignItems="center">
-                    <RecordingIndicator>
-                      <MicIcon sx={{ color: 'white', fontSize: 32 }} />
-                    </RecordingIndicator>
-                    <Typography color="error.main" fontWeight="medium">
-                      Recording in progress...
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Speak clearly and naturally
-                    </Typography>
-                    <LinearProgress
-                      variant="indeterminate"
-                      sx={{ width: '100%', maxWidth: 256, borderRadius: 4 }}
-                    />
-                  </Stack>
-                )}
-                {hasRecorded && !showFeedback && (
-                  <Stack spacing={2} alignItems="center">
-                    <Typography color="success.main" fontWeight="primary">
-                      ✅ Recording Complete!
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handleGetAIFeedback}
-                      sx={{ px: 4 }}
-                    >
-                      Get AI Feedback
-                    </Button>
-                  </Stack>
-                )}
-              </Box>
-            </CardContent>
-          </StyledCard>
-          {showFeedback && (
-            <StyledCard sx={{ mt: 4 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="medium" mb={3}>
-                  🤖 AI Feedback
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 4 }}>
-                  {[
-                    { label: 'Overall', score: mockFeedback.overallScore, color: 'primary' },
-                    { label: 'Pronunciation', score: mockFeedback.pronunciation, color: 'success' },
-                    { label: 'Fluency', score: mockFeedback.fluency, color: 'warning' },
-                    { label: 'Content', score: mockFeedback.content, color: 'info' },
-                  ].map((item) => (
-                    <Box key={item.label} sx={{ flex: { xs: '1 1 45%', sm: '1 1 22%' } }}>
-                      <Paper elevation={1} sx={{ p: 2, textAlign: 'center', bgcolor: `${item.color}.light` }}>
-                        <Typography variant="h6" color={`${item.color}.main`} fontWeight="bold">
-                          {item.score}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.label}
-                        </Typography>
-                      </Paper>
-                    </Box>
-                  ))}
-                </Box>
-                <Stack spacing={3}>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight="medium" mb={2}>
-                      ✅ Strengths:
-                    </Typography>
-                    <List dense>
-                      {mockFeedback.feedback.map((item, index) => (
-                        <ListItem key={index} disablePadding>
-                          <ListItemText
-                            primaryTypographyProps={{ variant: 'body2' }}
-                            primary={
-                              <Stack direction="row" alignItems="flex-start" spacing={1}>
-                                <Typography color="success.main">•</Typography>
-                                <span>{item}</span>
-                              </Stack>
-                            }
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight="medium" mb={2}>
-                      💡 Areas for Improvement:
-                    </Typography>
-                    <List dense>
-                      {mockFeedback.improvements.map((item, index) => (
+      <Card sx={{ maxWidth: isMobile ? '100%' : 1200, mx: 'auto', mb: 3 }}>
+        <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+          {/* Header */}
+          <Stack
+            direction={isMobile ? 'column' : 'row'}
+            alignItems={isMobile ? 'flex-start' : 'center'}
+            spacing={2}
+            sx={{ mb: 3 }}
+          >
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                bgcolor: '#2196f3',
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '20px',
+                fontWeight: 'bold',
+              }}
+            >
+              RA
+            </Box>
+            <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: '#333' }}>
+              Read Aloud
+            </Typography>
+          </Stack>
 
-                        <ListItem key={index} disablePadding>
-                          <ListItemText
-                            primaryTypographyProps={{ variant: 'body2' }}
-                            primary={
-                              <Stack direction="row" alignItems="flex-start" spacing={1}>
-                                <Typography color="warning.main">•</Typography>
-                                <span>{item}</span>
-                              </Stack>
-                            }
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                </Stack>
-                <Box mt={4} textAlign="center">
-                  {currentQuestion < questions.length - 1 ? (
-                    <Button
-                      variant="contained"
-                      size="large"
-                      onClick={handleNextQuestion}
-                      endIcon={<ArrowForwardIcon />}
-                      sx={{ px: 4 }}
-                    >
-                      Next Question
-                    </Button>
-                  ) : (
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
-                      <Button
-                        component={RouterLink}
-                        to="/practice-tests"
-                        variant="contained"
-                        color="secondary"
-                        sx={{ px: 4 }}
-                      >
-                        Back to Practice
-                      </Button>
-                      <Button
-                        component={RouterLink}
-                        to="/progress"
-                        variant="contained"
-                        color="success"
-                        sx={{ px: 4 }}
-                      >
-                        View Progress
-                      </Button>
-                    </Stack>
-                  )}
-                </Box>
-              </CardContent>
-            </StyledCard>
+          {/* Question Header */}
+          <QuestionHeader
+            questionNumber={questionNumber}
+            studentName={studentName}
+            testedCount={testedCount}
+          />
+
+          {/* Scoring Unavailable Notice */}
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography>Scoring is currently unavailable and will be processed after submission.</Typography>
+          </Alert>
+
+          {/* Text Display */}
+          <Paper sx={{ p: isMobile ? 2 : 3, mb: 3, bgcolor: 'grey.50' }}>
+            <Typography variant="body1" lineHeight={1.8} fontWeight="medium">
+              {selectedQuestion.text}
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" mt={2}>
+              <Chip
+                label={selectedQuestion.difficulty}
+                size="small"
+                color={
+                  selectedQuestion.difficulty === 'Beginner' ? 'success' :
+                  selectedQuestion.difficulty === 'Intermediate' ? 'warning' : 'error'
+                }
+              />
+              <Chip
+                label={selectedQuestion.category}
+                size="small"
+                variant="outlined"
+              />
+            </Stack>
+          </Paper>
+
+          {/* Preparation Timer */}
+          {preparationTime !== null && preparationTime > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body1" sx={{ mb: 1, color: '#ff9800' }}>
+                Preparation Time: {preparationTime} seconds
+              </Typography>
+              <LinearProgress variant="determinate" value={(preparationTime / selectedQuestion.preparationTime) * 100} />
+            </Box>
           )}
-        </Box>
 
-        {/* Instructions Panel */}
-        <Box sx={{ flex: { md: 1 }, width: { xs: '100%', md: '33%' } }}>
-          <StyledCard sx={{ position: { md: 'sticky' }, top: { md: 24 } }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="medium" mb={3}>
-                📝 Instructions
-              </Typography>
-              <Stack spacing={3}>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                    Task Overview:
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Read the text aloud as naturally as possible.
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                    Time Allocation:
-                  </Typography>
-                  <List dense>
-                    <ListItem disablePadding>
-                      <ListItemText primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}>
-                        • Preparation: 40 seconds
-                      </ListItemText>
-                    </ListItem>
-                    <ListItem disablePadding>
-                      <ListItemText primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}>
-                        • Recording: 40 seconds
-                      </ListItemText>
-                    </ListItem>
-                  </List>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                    Tips:
-                  </Typography>
-                  <List dense>
-                    {['Speak at a natural pace', 'Pronounce words clearly', 'Use appropriate intonation', "Don't rush or speak too slowly"].map((item) => (
-                      <ListItem key={item} disablePadding>
-                        <ListItemText primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}>
-                          • {item}
-                        </ListItemText>
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                    Scoring:
-                  </Typography>
-                  <List dense>
-                    {['Content: Reading all words', 'Pronunciation: Accuracy', 'Fluency: Natural rhythm'].map((item) => (
-                      <ListItem key={item} disablePadding>
-                        <ListItemText primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}>
-                          • {item}
-                        </ListItemText>
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-              </Stack>
-            </CardContent>
-          </StyledCard>
-        </Box>
-      </Box>
-    </Container>
+          {/* Recording Section */}
+          <RecordingSection
+            isRecording={audioRecording.isRecording}
+            recordedBlob={audioRecording.recordedBlob}
+            recordedAudioUrl={audioRecording.recordedAudioUrl}
+            micPermission={audioRecording.micPermission}
+            showRecordingPrompt={showRecordingPrompt}
+            preparationTime={preparationTime}
+            recordingType="Read Aloud"
+            recordingTime={selectedQuestion.recordingTime}
+            onToggleRecording={audioRecording.toggleRecording}
+          />
+
+          {/* Action Buttons */}
+          <ActionButtons
+            hasResponse={false} // Placeholder; adjust based on requirements
+            recordedBlob={audioRecording.recordedBlob}
+            onSubmit={handleSubmit}
+            onRedo={handleRedo}
+            onTranslate={handleTranslate}
+            onShowAnswer={handleShowAnswer}
+          />
+
+          {/* Navigation Section */}
+          <NavigationSection
+            onSearch={() => setShowTopicSelector(true)}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            questionNumber={questionNumber}
+          />
+
+          {/* View Attempts Button */}
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={handleViewAttempts}
+            aria-label="View past attempts"
+            sx={{ mt: 2, minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+          >
+            View Attempts
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Topic Selection Drawer */}
+      <TopicSelectionDrawer
+        open={showTopicSelector}
+        onClose={() => setShowTopicSelector(false)}
+        onSelect={handleTopicSelect}
+        topics={readAloudQuestions.map(q => ({
+          ...q,
+          title: q.text.substring(0, 50) + '...',
+          duration: `${q.preparationTime + q.recordingTime}s`,
+          speaker: 'Narrator',
+        }))}
+        title="Select Read Aloud Question"
+        type="question"
+      />
+
+      {/* Answer Dialog */}
+      <Dialog open={showAnswer} onClose={() => setShowAnswer(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Sample Answer</Typography>
+            <IconButton onClick={() => setShowAnswer(false)}><Close /></IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            <strong>Text:</strong> {selectedQuestion.text}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            <strong>Guidance:</strong> {selectedQuestion.expectedAnswer}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAnswer(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Translate Dialog */}
+      <Dialog open={showTranslate} onClose={() => setShowTranslate(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Translation Options</Typography>
+            <IconButton onClick={() => setShowTranslate(false)}><Close /></IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Select Language</InputLabel>
+            <Select defaultValue="spanish" label="Select Language">
+              <MenuItem value="spanish">Spanish</MenuItem>
+              <MenuItem value="french">French</MenuItem>
+              <MenuItem value="german">German</MenuItem>
+              <MenuItem value="chinese">Chinese</MenuItem>
+              <MenuItem value="japanese">Japanese</MenuItem>
+            </Select>
+          </FormControl>
+          <Typography variant="body2" sx={{ color: '#666' }}>
+            Translate the text into your preferred language.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowTranslate(false)}>Cancel</Button>
+          <Button variant="contained">Translate</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Past Attempts Dialog */}
+      <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Past Attempts</Typography>
+            <IconButton onClick={() => setShowAttempts(false)}><Close /></IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {attempts.length === 0 ? (
+            <Typography variant="body2">No attempts recorded yet.</Typography>
+          ) : (
+            <List>
+              {attempts.map((attempt, index) => {
+                const question = readAloudQuestions.find(q => q.id === attempt.questionId);
+                return (
+                  <ListItem key={index}>
+                    <ListItemText
+                      primary={`Text: ${question?.text.substring(0, 50) || 'Unknown'}...`}
+                      secondary={
+                        <>
+                          <Typography component="span" variant="body2">
+                            Time: {new Date(attempt.timestamp).toLocaleString()}
+                          </Typography>
+                          {attempt.recordedAudioUrl && (
+                            <audio controls src={attempt.recordedAudioUrl} style={{ width: '100%' }}>
+                              Your browser does not support the audio element.
+                            </audio>
+                          )}
+                        </>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button color="error" onClick={() => { setAttempts([]); localStorage.removeItem('readAloudAttempts'); }}>
+            Clear Attempts
+          </Button>
+          <Button onClick={() => setShowAttempts(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
+
 
 export default ReadAloud;

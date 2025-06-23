@@ -87,3 +87,34 @@ export const ESSAY_MOCK_FEEDBACK: EssayFeedback = {
 export const ESSAY_TIME_LIMIT_SECONDS = 1200; // 20 minutes
 export const ESSAY_MIN_WORDS = 200;
 export const ESSAY_MAX_WORDS = 300;
+
+export 
+  const instructionsSections = [
+    {
+      title: 'Task Overview',
+      items: ['Write an essay of 200-300 words based on the prompt.'],
+    },
+    {
+      title: 'Time Allocation',
+      items: ['20 minutes total.'],
+    },
+    {
+      title: 'Tips',
+      items: [
+        'Plan your essay before writing.',
+        'Use clear paragraphs.',
+        'Support arguments with examples.',
+        'Proofread for grammar.',
+      ],
+    },
+    {
+      title: 'Scoring',
+      items: [
+        'Content (40%)',
+        'Form & Development (25%)',
+        'Grammar (25%)',
+        'Vocabulary (5%)',
+        'Spelling (5%)',
+      ],
+    },
+  ];

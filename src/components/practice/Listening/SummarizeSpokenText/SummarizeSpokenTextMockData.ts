@@ -6,8 +6,7 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "Self-domestication",
     taskType: 'SST',
     type: 'listening',
-    audioUrl: '/audio/self-domestication.mp3',
-    audioDuration: 90, // 1:30 minutes
+    audioText: "Self-domestication is a fascinating concept in human evolution. Research suggests that early humans underwent a process similar to animal domestication, but without an external domesticator. This process led to reduced aggression, increased cooperation, and physical changes such as smaller teeth and jaws. Scientists believe this self-domestication may have been crucial in the development of language and complex societies. The evidence includes fossil records showing these physical changes and behavioral studies of modern humans compared to our closest primate relatives.",
     wordLimit: {
       min: 50,
       max: 70
@@ -38,8 +37,7 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "Climate Change and Ocean Currents",
     taskType: 'SST',
     type: 'listening',
-    audioUrl: '/audio/ocean-currents.mp3',
-    audioDuration: 95,
+    audioText: "Climate change is having profound effects on ocean currents around the world. The global ocean conveyor belt, which helps regulate our planet's temperature and weather patterns, is being disrupted by rising temperatures and melting ice caps. This disruption could lead to more frequent and severe weather events, including storms and droughts. Additionally, changes in ocean currents affect marine ecosystems, potentially disrupting food chains and threatening species that depend on specific water temperatures and nutrient levels.",
     wordLimit: {
       min: 50,
       max: 70
@@ -70,8 +68,7 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "The Impact of Social Media on Learning",
     taskType: 'SST',
     type: 'listening',
-    audioUrl: '/audio/social-media-learning.mp3',
-    audioDuration: 85,
+    audioText: "Social media's impact on learning is complex and multifaceted. On the positive side, these platforms can enhance collaboration among students and provide access to vast educational resources and expert knowledge. However, social media also presents significant challenges for learning. The constant notifications and entertainment content can be highly distracting, making it difficult for students to focus on their studies. Research suggests that frequent social media use may also contribute to shortened attention spans, potentially affecting students' ability to engage in deep, concentrated learning.",
     wordLimit: {
       min: 50,
       max: 70
@@ -102,8 +99,7 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "Artificial Intelligence in Healthcare",
     taskType: 'SST',
     type: 'listening',
-    audioUrl: '/audio/ai-healthcare.mp3',
-    audioDuration: 100,
+    audioText: "Artificial intelligence is revolutionizing healthcare in unprecedented ways. AI systems can now analyze medical images with greater accuracy than human radiologists in some cases, leading to earlier disease detection and better patient outcomes. Additionally, AI enables personalized medicine by analyzing patient data to create customized treatment plans. The technology is also accelerating drug discovery, reducing the time and cost of bringing new medications to market. However, implementation faces challenges including data privacy concerns, the need to train medical professionals in AI use, and ensuring these systems remain free from bias that could affect patient care.",
     wordLimit: {
       min: 50,
       max: 70
@@ -134,8 +130,7 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "Urban Planning and Sustainable Cities",
     taskType: 'SST',
     type: 'listening',
-    audioUrl: '/audio/urban-planning.mp3',
-    audioDuration: 92,
+    audioText: "Modern urban planning is increasingly focused on sustainability and creating cities that can support growing populations while minimizing environmental impact. This involves implementing green building standards, developing efficient public transportation systems to reduce car dependency, and integrating renewable energy sources throughout the urban infrastructure. Planners also prioritize creating community spaces that encourage social interaction and improve quality of life for residents. The goal is to build cities that are not only environmentally sustainable but also socially and economically viable for future generations.",
     wordLimit: {
       min: 50,
       max: 70
@@ -163,7 +158,6 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
   }
 ];
 
-// Function to generate more SST topics
 const generateMoreSSTTopics = (): SummarizeSpokenTextTopic[] => {
   const categories = ['Science', 'Technology', 'Environment', 'Education', 'Healthcare', 'Economics', 'Psychology', 'Literature'];
   const difficulties: ('Beginner' | 'Intermediate' | 'Advanced')[] = ['Beginner', 'Intermediate', 'Advanced'];
@@ -175,14 +169,14 @@ const generateMoreSSTTopics = (): SummarizeSpokenTextTopic[] => {
     const category = categories[Math.floor(Math.random() * categories.length)];
     const difficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
     const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const transcript = `This is the transcript for ${category.toLowerCase()} topic ${i}. It contains detailed information about the subject matter, including key concepts, research findings, and their implications. The content is designed to test the listener's ability to identify and summarize the most important points within the given word limit.`;
     
     moreTopics.push({
       id: i,
       title: `${category} Research Topic ${i}`,
       taskType: 'SST',
       type: 'listening',
-      audioUrl: `/audio/topic-${i}.mp3`,
-      audioDuration: 80 + Math.floor(Math.random() * 30),
+      audioText: transcript,
       wordLimit: {
         min: 50,
         max: 70
@@ -197,7 +191,7 @@ const generateMoreSSTTopics = (): SummarizeSpokenTextTopic[] => {
         `Related applications`,
         `Concluding insights`
       ],
-      transcript: `This is the transcript for ${category.toLowerCase()} topic ${i}. It contains detailed information about the subject matter, including key concepts, research findings, and their implications. The content is designed to test the listener's ability to identify and summarize the most important points within the given word limit.`,
+      transcript,
       difficulty,
       category,
       tags: [category.toLowerCase(), 'research', 'academic'],

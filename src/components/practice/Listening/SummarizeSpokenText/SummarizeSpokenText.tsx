@@ -24,16 +24,15 @@ import {
     ListItemText,
     Paper,
     Chip,
-    LinearProgress,
-    Slider,
-    TextareaAutosize
+    LinearProgress
 } from '@mui/material';
-import { PlayArrow, Pause, VolumeUp, Close } from '@mui/icons-material';
+import { Close } from '@mui/icons-material';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
+import TextToSpeech from '../../common/TextToSpeech';
 import { allSummarizeSpokenTextTopics } from './SummarizeSpokenTextMockData';
 import { SummarizeSpokenTextTopic, SummaryResponse } from './SummarizeSpokenTextType';
 
@@ -50,12 +49,6 @@ const SummarizeSpokenText: React.FC = () => {
     const [timeLeft, setTimeLeft] = useState<number>(0); // in seconds
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-
-    // Audio state
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0);
-    const [volume, setVolume] = useState(100);
     const [audioError, setAudioError] = useState<string | null>(null);
 
     // Performance tracking
@@ -68,7 +61,6 @@ const SummarizeSpokenText: React.FC = () => {
 
     // Refs
     const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Initialize timer and reset state when topic changes
     useEffect(() => {
@@ -78,8 +70,6 @@ const SummarizeSpokenText: React.FC = () => {
         setWordCount(0);
         setIsSubmitted(false);
         setShowAnswer(false);
-        setIsPlaying(false);
-        setCurrentTime(0);
         setAudioError(null);
 
         // Clear existing timer
@@ -107,60 +97,6 @@ const SummarizeSpokenText: React.FC = () => {
             }
         };
     }, [selectedTopic.id]);
-
-    // Audio functions
-    const togglePlayback = () => {
-        if (audioRef.current) {
-            if (isPlaying) {
-                audioRef.current.pause();
-                setIsPlaying(false);
-            } else {
-                audioRef.current
-                    .play()
-                    .then(() => {
-                        setIsPlaying(true);
-                        setAudioError(null);
-                    })
-                    .catch((error) => {
-                        console.error('Audio playback failed:', error);
-                        setAudioError('Failed to play the audio. Please check your connection and try again.');
-                    });
-            }
-        }
-    };
-
-    const handleVolumeChange = (event: any, newValue: any) => {
-        const newVolume = Array.isArray(newValue) ? newValue[0] : newValue;
-        setVolume(newVolume);
-        if (audioRef.current) {
-            audioRef.current.volume = newVolume / 100;
-        }
-    };
-
-    const handleLoadedMetadata = () => {
-        if (audioRef.current) {
-            setDuration(audioRef.current.duration);
-        }
-    };
-
-    const handleAudioError = (event: any) => {
-        console.error('Audio error:', event.nativeEvent);
-        setAudioError('Failed to load the audio. Please try again.');
-    };
-
-    // Audio progress tracking
-    useEffect(() => {
-        if (isPlaying && audioRef.current) {
-            const interval = setInterval(() => {
-                setCurrentTime(audioRef.current?.currentTime || 0);
-                if (audioRef.current?.ended) {
-                    setIsPlaying(false);
-                    setCurrentTime(audioRef.current?.duration || 0);
-                }
-            }, 1000);
-            return () => clearInterval(interval);
-        }
-    }, [isPlaying]);
 
     // Format time display
     const formatTime = (seconds: number): string => {
@@ -192,7 +128,7 @@ const SummarizeSpokenText: React.FC = () => {
     // Handle submit
     const handleSubmit = () => {
         if (summaryText.trim().length === 0 && !isSubmitted) {
-            //   alert('Please write a summary before submitting.');
+            //     alert('Please write a summary before submitting.');
             return;
         }
 
@@ -244,8 +180,6 @@ const SummarizeSpokenText: React.FC = () => {
         setShowAnswer(false);
         setTimeLeft(selectedTopic.timeLimit * 60);
         setCurrentTaskStartTime(Date.now());
-        setIsPlaying(false);
-        setCurrentTime(0);
 
         // Restart timer
         if (timerRef.current) {
@@ -255,6 +189,9 @@ const SummarizeSpokenText: React.FC = () => {
         timerRef.current = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
+                    if (!isSubmitted) {
+                        handleSubmit();
+                    }
                     return 0;
                 }
                 return prev - 1;
@@ -331,7 +268,7 @@ const SummarizeSpokenText: React.FC = () => {
                                 <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>
                                     Summarize Spoken Text (PTEA)
                                 </Typography>
-                                <Chip label="Study Guide" color="primary" size="small"  onClick={() => {}} />
+                                <Chip label="Study Guide" color="primary" size="small" onClick={() => {}} />
                             </Stack>
                             <Typography variant="body2" sx={{ color: '#666', mt: 1 }}>
                                 You will hear a short report. Write a summary for a fellow student who was not present. You should write 50-70 words.
@@ -380,73 +317,20 @@ const SummarizeSpokenText: React.FC = () => {
                         />
                     </Paper>
 
-                    {/* Audio Player */}
-                    <Paper sx={{ p: 3, mb: 3, bgcolor: '#fafafa' }}>
-                        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-                            <IconButton
-                                onClick={togglePlayback}
-                                sx={{
-                                    bgcolor: isPlaying ? '#ff5722' : '#4caf50',
-                                    color: 'white',
-                                    '&:hover': { bgcolor: isPlaying ? '#e64a19' : '#388e3c' },
-                                }}
-                            >
-                                {isPlaying ? <Pause /> : <PlayArrow />}
-                            </IconButton>
+                    {/* Text-to-Speech Player */}
+                    <TextToSpeech
+                        text={selectedTopic.audioText}
+                        autoPlay={false}
+                        onStart={() => console.log('Audio started')}
+                        onEnd={() => console.log('Audio ended')}
+                        onError={(error) => setAudioError(error)}
+                    />
 
-                            <Box sx={{ flexGrow: 1 }}>
-                                <LinearProgress
-                                    variant="determinate"
-                                    value={(currentTime / duration) * 100}
-                                    sx={{
-                                        height: 8,
-                                        borderRadius: 4,
-                                        bgcolor: '#e0e0e0',
-                                        '& .MuiLinearProgress-bar': {
-                                            bgcolor: '#4caf50',
-                                        },
-                                    }}
-                                />
-                                <Stack direction="row" justifyContent="space-between" sx={{ mt: 1 }}>
-                                    <Typography variant="caption" color="textSecondary">
-                                        {formatTime(currentTime)}
-                                    </Typography>
-                                    <Typography variant="caption" color="textSecondary">
-                                        {formatTime(duration)}
-                                    </Typography>
-                                </Stack>
-                            </Box>
-
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                                <VolumeUp />
-                                <Slider
-                                    value={volume}
-                                    onChange={handleVolumeChange}
-                                    sx={{ width: 100 }}
-                                    size="small"
-                                    min={0}
-                                    max={100}
-                                    step={1}
-                                />
-                                <Typography variant="caption" sx={{ minWidth: 40 }}>
-                                    X{(volume / 100).toFixed(1)}
-                                </Typography>
-                                <Typography variant="caption" sx={{ color: '#666' }}>
-                                    Blake (US)
-                                </Typography>
-                            </Stack>
-                        </Stack>
-
-                        {audioError && (
-                            <Alert severity="error" sx={{ mt: 2 }}>
-                                {audioError}
-                            </Alert>
-                        )}
-
-                        <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', mt: 1 }}>
-                            <strong>Current Topic:</strong> {selectedTopic.title} (Difficulty: {selectedTopic.difficulty})
-                        </Typography>
-                    </Paper>
+                    {audioError && (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                            {audioError}
+                        </Alert>
+                    )}
 
                     {/* Text Input Area */}
                     <Paper sx={{ p: 3, mb: 3, bgcolor: '#fafafa' }}>
@@ -491,15 +375,8 @@ const SummarizeSpokenText: React.FC = () => {
                                     }
                                     onClick={() => { }}
                                 />
-
                                 <Chip
                                     label={selectedTopic.category}
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={() => { }}
-                                />
-                                <Chip
-                                    label={`Audio: ${formatTime(selectedTopic.audioDuration)}`}
                                     size="small"
                                     variant="outlined"
                                     onClick={() => { }}
@@ -527,7 +404,7 @@ const SummarizeSpokenText: React.FC = () => {
                                         label={`${wordCount} words`}
                                         size="small"
                                         color="success"
-                                         onClick={() => {}}
+                                        onClick={() => {}}
                                     />
                                 </Typography>
 
@@ -546,13 +423,12 @@ const SummarizeSpokenText: React.FC = () => {
 
                     {/* Action Buttons */}
                     <ActionButtons
-                        // selectedAnswer={summaryText.trim().length > 0 ? 1 : null}
                         hasResponse={isSubmitted || (summaryText.trim().length > 0 ? true : false)}
                         onSubmit={handleSubmit}
                         onRedo={handleRedo}
                         onTranslate={handleTranslate}
                         onShowAnswer={handleShowAnswer}
-                        recordedBlob={null}            // disabled={timeLeft === 0}
+                        recordedBlob={null}
                     />
 
                     {/* Navigation Section */}
@@ -561,8 +437,6 @@ const SummarizeSpokenText: React.FC = () => {
                         onPrevious={handlePrevious}
                         onNext={handleNext}
                         questionNumber={questionNumber}
-                    // totalQuestions={allSummarizeSpokenTextTopics.length}
-                    // correctAnswers={correctAnswers}
                     />
                 </CardContent>
             </Card>
@@ -678,7 +552,7 @@ const SummarizeSpokenText: React.FC = () => {
                                 >
                                     <ListItemText
                                         primary={topic.title}
-                                        secondary={`${topic.category} • ${topic.difficulty} • ${formatTime(topic.audioDuration)}`}
+                                        secondary={`${topic.category} • ${topic.difficulty}`}
                                     />
                                 </ListItemButton>
                             </ListItem>
@@ -689,17 +563,6 @@ const SummarizeSpokenText: React.FC = () => {
                     <Button onClick={() => setShowSearch(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
-
-            {/* Audio Element */}
-            <audio
-                ref={audioRef}
-                onLoadedMetadata={handleLoadedMetadata}
-                onError={handleAudioError}
-            >
-                <source src={selectedTopic.audioUrl} type="audio/mpeg" />
-                <source src={selectedTopic.audioUrl?.replace('.mp3', '.ogg')} type="audio/ogg" />
-                <p>Your browser does not support the audio element.</p>
-            </audio>
         </Box>
     );
 };

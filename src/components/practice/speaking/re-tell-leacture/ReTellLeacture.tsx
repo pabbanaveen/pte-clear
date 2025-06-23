@@ -4,8 +4,8 @@
 
 
 import { Close } from "@mui/icons-material";
-import { Card, CardContent, Typography, Chip, Divider, Alert, Dialog, DialogTitle, IconButton, DialogContent, DialogActions, Button, FormControl, InputLabel, Select, MenuItem, TextField, List, ListItem, ListItemButton, ListItemText } from "@mui/material";
-import { Box, Stack } from "@mui/system";
+import { Card, CardContent, Typography, Chip, Divider, Alert, Dialog, DialogTitle, IconButton, DialogContent, DialogActions, Button, FormControl, InputLabel, Select, MenuItem, TextField, List, ListItem, ListItemButton, ListItemText, LinearProgress, Paper } from "@mui/material";
+import { Box, Stack, useMediaQuery, useTheme } from "@mui/system";
 import { useState, useRef, useEffect } from "react";
 import { User } from "../../../../types/user";
 import TopicSelectionDrawer from "../../../common/TopicSelectionDrawer";
@@ -16,6 +16,8 @@ import NavigationSection from "../../common/NavigationSection";
 import QuestionHeader from "../../common/QuestionHeader";
 import RecordingSection from "../../common/RecordingSection";
 import StageGoalBanner from "../../common/StageGoalBanner";
+import TextToSpeech from "../../common/TextToSpeech";
+import { LectureTopic, UserAttempt } from "./ReTellLeactureType";
 // import RetellLectureModal from "./ReTellLeacturePopup";
 
 // interface PracticeTestsProps {
@@ -1336,20 +1338,15 @@ import StageGoalBanner from "../../common/StageGoalBanner";
 // export default ReTellLeacture;
 
 interface PracticeTestsProps {
-    user: User | null;
-      lectureTitle?: string;
-  lectureAudioUrl?: string; // Placeholder for the audio URL
+  user: User | null;
 }
 
-
-
-// Custom hooks for audio functionality
-const useAudioRecording = (preparationTime:any, recordingTime = 40000) => {
+const useAudioRecording = (preparationTime: number | null, recordingTime = 40000) => {
   const [isRecording, setIsRecording] = useState(false);
-  const [recordedBlob, setRecordedBlob] = useState(null);
-  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string>('');
-  const [micPermission, setMicPermission] = useState<boolean>(false);
-  
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [micPermission, setMicPermission] = useState<boolean | null>(null);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1380,7 +1377,7 @@ const useAudioRecording = (preparationTime:any, recordingTime = 40000) => {
         const mediaRecorder = new MediaRecorder(stream);
         mediaRecorderRef.current = mediaRecorder;
 
-        const chunks:any = [];
+        const chunks: Blob[] = [];
         mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             chunks.push(event.data);
@@ -1388,7 +1385,7 @@ const useAudioRecording = (preparationTime:any, recordingTime = 40000) => {
         };
 
         mediaRecorder.onstop = () => {
-          const blob = new Blob(chunks, { type: 'audio/webm' }) as any;
+          const blob = new Blob(chunks, { type: 'audio/webm' });
           setRecordedBlob(blob);
           const url = URL.createObjectURL(blob);
           setRecordedAudioUrl(url);
@@ -1424,7 +1421,7 @@ const useAudioRecording = (preparationTime:any, recordingTime = 40000) => {
 
   const resetRecording = () => {
     setRecordedBlob(null);
-    setRecordedAudioUrl('');
+    setRecordedAudioUrl(null);
     setIsRecording(false);
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -1449,93 +1446,8 @@ const useAudioRecording = (preparationTime:any, recordingTime = 40000) => {
   };
 };
 
-const useAudioPlayback = (selectedTopic:any) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(40);
-  const [volume, setVolume] = useState(100);
-  const [audioError, setAudioError] = useState<string | null>(null);
-  
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const formatTime = (seconds:any) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const togglePlayback = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        audioRef.current
-          .play()
-          .then(() => {
-            setIsPlaying(true);
-            setAudioError(null);
-          })
-          .catch((error) => {
-            console.error('Audio playback failed:', error);
-            setAudioError('Failed to play the lecture audio. Please ensure the audio file is accessible and try again.');
-          });
-      }
-    }
-  };
-
-  const handleVolumeChange = (event:any, newValue:any) => {
-    const newVolume = Array.isArray(newValue) ? newValue[0] : newValue;
-    setVolume(newVolume);
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume / 100;
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-      console.log('Audio metadata loaded, duration set to:', audioRef.current.duration);
-    }
-  };
-
-  const handleAudioError = (event:any) => {
-    console.error('Audio error:', event.nativeEvent);
-    setAudioError('Failed to load the lecture audio. Please ensure the audio file is accessible and try again.');
-  };
-
-  const resetAudio = () => {
-    setCurrentTime(0);
-    setIsPlaying(false);
-    setAudioError(null);
-    if (audioRef.current) {
-      audioRef.current.src = selectedTopic.link;
-      audioRef.current.currentTime = 0;
-    }
-  };
-
-  return {
-    isPlaying,
-    currentTime,
-    duration,
-    volume,
-    audioError,
-    audioRef,
-    formatTime,
-    togglePlayback,
-    handleVolumeChange,
-    handleLoadedMetadata,
-    handleAudioError,
-    resetAudio,
-    setCurrentTime,
-    setIsPlaying,
-    setDuration
-  };
-};
-
-
-export const ReTellLeacture = ({ user, lectureTitle, lectureAudioUrl }: PracticeTestsProps) => {
-const [selectedTopic, setSelectedTopic] = useState(audioTopics[0]);
+export const ReTellLeacture: React.FC<PracticeTestsProps> = ({ user }) => {
+  const [selectedTopic, setSelectedTopic] = useState<LectureTopic>(audioTopics[0]);
   const [showTopicSelector, setShowTopicSelector] = useState(false);
   const [questionNumber, setQuestionNumber] = useState(655);
   const [studentName] = useState('Rachel Carson');
@@ -1543,35 +1455,69 @@ const [selectedTopic, setSelectedTopic] = useState(audioTopics[0]);
   const [showAnswer, setShowAnswer] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showAttempts, setShowAttempts] = useState(false);
   const [preparationTime, setPreparationTime] = useState<number | null>(null);
-const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
+  const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [attempts, setAttempts] = useState<UserAttempt[]>([]);
 
-  const prepTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Custom hooks
-  const audioPlayback = useAudioPlayback(selectedTopic);
   const audioRecording = useAudioRecording(preparationTime, selectedTopic.recordingTime * 1000);
+  const prepTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const completedQuestions = attempts.length;
+
+  // Load attempts from localStorage on mount
+  useEffect(() => {
+    const savedAttempts = localStorage.getItem('retellLectureAttempts');
+    if (savedAttempts) {
+      try {
+        setAttempts(JSON.parse(savedAttempts));
+      } catch (error) {
+        console.error('Failed to parse retellLectureAttempts from localStorage:', error);
+        localStorage.removeItem('retellLectureAttempts');
+      }
+    }
+  }, []);
+
+  // Save attempt to localStorage when recording is available
+  useEffect(() => {
+    if (audioRecording.recordedBlob && audioRecording.recordedAudioUrl) {
+      const attempt: UserAttempt = {
+        questionId: selectedTopic.id,
+        recordedAudioUrl: audioRecording.recordedAudioUrl,
+        timestamp: new Date().toISOString(),
+      };
+      setAttempts((prev) => {
+        const newAttempts = [...prev, attempt];
+        try {
+          localStorage.setItem('retellLectureAttempts', JSON.stringify(newAttempts));
+        } catch (error) {
+          console.error('Failed to save retellLectureAttempts to localStorage:', error);
+        }
+        return newAttempts;
+      });
+    }
+  }, [audioRecording.recordedBlob, audioRecording.recordedAudioUrl, selectedTopic.id]);
 
   // Handle topic selection
-  const handleTopicSelect = (topic:any) => {
+  const handleTopicSelect = (topic: any) => {
     setSelectedTopic(topic);
-    const [minutes, seconds] = topic.duration.split(':').map(Number);
-    audioPlayback.setDuration(minutes * 60 + seconds);
-    audioPlayback.resetAudio();
     setPreparationTime(null);
     setShowRecordingPrompt(false);
     audioRecording.resetRecording();
+    setAudioError(null);
+    setQuestionNumber(audioTopics.findIndex(t => t.id === topic.id) + 655);
   };
 
   // Handle submit
   const handleSubmit = () => {
+    console.log('handleSubmit called');
     if (audioRecording.recordedBlob) {
-      console.log('Submitting recording:', audioRecording.recordedBlob);
-      alert('Recording submitted successfully! Score: 87/100');
+      alert('Recording submitted successfully! Score will be available after processing.');
       setQuestionNumber((prev) => prev + 1);
       audioRecording.resetRecording();
-      audioPlayback.resetAudio();
       setPreparationTime(null);
       setShowRecordingPrompt(false);
     } else {
@@ -1580,22 +1526,43 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
   };
 
   // Action handlers
-  const handleShowAnswer = () => setShowAnswer(true);
-  const handleTranslate = () => setShowTranslate(true);
-  const handleSearch = () => setShowSearch(true);
-  
+  const handleShowAnswer = () => {
+    console.log('handleShowAnswer called');
+    setShowAnswer(true);
+  };
+  const handleTranslate = () => {
+    console.log('handleTranslate called');
+    setShowTranslate(true);
+  };
+  const handleSearch = () => {
+    console.log('handleSearch called');
+    setShowTopicSelector(true);
+  };
+  const handleViewAttempts = () => {
+    console.log('handleViewAttempts called');
+    setShowAttempts(true);
+  };
+
   const handlePrevious = () => {
-    if (questionNumber > 1) {
-      setQuestionNumber((prev) => prev - 1);
-      audioPlayback.resetAudio();
-      audioRecording.resetRecording();
-      setPreparationTime(null);
-      setShowRecordingPrompt(false);
+    console.log('handlePrevious called');
+    const currentIndex = audioTopics.findIndex(t => t.id === selectedTopic.id);
+    if (currentIndex > 0) {
+      handleTopicSelect(audioTopics[currentIndex - 1]);
+    }
+  };
+
+  const handleNext = () => {
+    console.log('handleNext called');
+    const currentIndex = audioTopics.findIndex(t => t.id === selectedTopic.id);
+    if (currentIndex < audioTopics.length - 1) {
+      handleTopicSelect(audioTopics[currentIndex + 1]);
+    } else {
+      setShowTopicSelector(true);
     }
   };
 
   const handleRedo = () => {
-    audioPlayback.resetAudio();
+    console.log('handleRedo called');
     audioRecording.resetRecording();
     setPreparationTime(null);
     setShowRecordingPrompt(false);
@@ -1604,22 +1571,6 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
     }
     console.log('Re-do triggered, state reset');
   };
-
-  // Audio progress tracking
-  useEffect(() => {
-    if (audioPlayback.isPlaying && audioPlayback.audioRef.current) {
-      const interval = setInterval(() => {
-        audioPlayback.setCurrentTime(audioPlayback.audioRef.current?.currentTime || 0);
-        if (audioPlayback.audioRef.current?.ended) {
-          audioPlayback.setIsPlaying(false);
-          audioPlayback.setCurrentTime(audioPlayback.audioRef.current?.duration || 0);
-          setPreparationTime(selectedTopic.preparationTime);
-          console.log(`Lecture audio ended, starting ${selectedTopic.preparationTime}-second preparation timer`);
-        }
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [audioPlayback.isPlaying, selectedTopic.preparationTime]);
 
   // Preparation timer
   useEffect(() => {
@@ -1642,19 +1593,29 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
   // Filter topics for search
   const filteredTopics = audioTopics.filter(topic =>
     topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    topic?.speaker?.toLowerCase()?.includes(searchQuery?.toLowerCase())
+    topic.speaker.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: 2 }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: isMobile ? 1 : 2 }}>
       {/* Stage Goal Banner */}
       <StageGoalBanner />
 
+      {/* Progress Display */}
+      <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }}>
+        Progress: {completedQuestions}/{audioTopics.length} lectures attempted
+      </Typography>
+
       {/* Main Content */}
-      <Card sx={{ maxWidth: 1200, mx: 'auto', mb: 3 }}>
-        <CardContent sx={{ p: 4 }}>
+      <Card sx={{ maxWidth: isMobile ? '100%' : 1200, mx: 'auto', mb: 3 }}>
+        <CardContent sx={{ p: isMobile ? 2 : 4 }}>
           {/* Header */}
-          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+          <Stack
+            direction={isMobile ? 'column' : 'row'}
+            alignItems={isMobile ? 'flex-start' : 'center'}
+            spacing={2}
+            sx={{ mb: 3 }}
+          >
             <Box
               sx={{
                 width: 60,
@@ -1673,13 +1634,13 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
             </Box>
             <Box sx={{ flexGrow: 1 }}>
               <Stack direction="row" alignItems="center" spacing={2}>
-                <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>
+                <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: '#333' }}>
                   Re-tell Lecture
                 </Typography>
-                <Chip label="Study Guide" color="primary" size="small" />
+                <Chip onClick={() => {}} label="Study Guide" color="primary" size="small" />
               </Stack>
               <Typography variant="body2" sx={{ color: '#666', mt: 1 }}>
-                You will hear a lecture. After listening to the lecture, in 10 seconds, please speak into the microphone and retell what you have just heard from the lecture in your own words. You will have 40 seconds to give your response.
+                You will hear a lecture. After listening to the lecture, in {selectedTopic.preparationTime} seconds, please speak into the microphone and retell what you have just heard in your own words. You will have {selectedTopic.recordingTime} seconds to give your response.
               </Typography>
             </Box>
           </Stack>
@@ -1694,50 +1655,116 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
           />
 
           {/* Audio Error Alert */}
-          {audioPlayback.audioError && (
+          {audioError && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              <Typography>{audioPlayback.audioError}</Typography>
+              <Typography>{audioError}</Typography>
             </Alert>
           )}
 
-          {/* Audio Player */}
-          <AudioPlayer
-            selectedTopic={selectedTopic}
-            isPlaying={audioPlayback.isPlaying}
-            currentTime={audioPlayback.currentTime}
-            duration={audioPlayback.duration}
-            volume={audioPlayback.volume}
-            audioError={audioPlayback.audioError}
-            onTogglePlayback={audioPlayback.togglePlayback}
-            onVolumeChange={audioPlayback.handleVolumeChange}
-            formatTime={audioPlayback.formatTime}
-          />
+          {/* Scoring Unavailable Notice */}
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography>Scoring is currently unavailable and will be processed after submission.</Typography>
+          </Alert>
+
+          {/* Text-to-Speech Player */}
+          <Paper sx={{ p: isMobile ? 2 : 3, mb: 3, bgcolor: '#fafafa' }}>
+            <Stack spacing={2}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333' }}>
+                Lecture: {selectedTopic.title}
+              </Typography>
+              <TextToSpeech
+                text={selectedTopic.audioText}
+                autoPlay={false}
+                onStart={() => console.log('Lecture audio started')}
+                onEnd={() => {
+                  setPreparationTime(selectedTopic.preparationTime);
+                  console.log(`Lecture audio ended, starting ${selectedTopic.preparationTime}-second preparation timer`);
+                }}
+                onError={(error) => {
+                  setAudioError(error);
+                  console.error('TextToSpeech error:', error);
+                }}
+              />
+              <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
+                Transcript: {selectedTopic.audioText}
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                <Chip
+                  label={selectedTopic.difficulty}
+                  size="small"
+                  color={
+                    selectedTopic.difficulty === 'Beginner' ? 'success' :
+                    selectedTopic.difficulty === 'Intermediate' ? 'warning' : 'error'
+                  }
+                />
+                <Chip
+                  label={selectedTopic.category}
+                  size="small"
+                  variant="outlined"
+                />
+                <Chip
+                  label={`Speaker: ${selectedTopic.speaker}`}
+                  size="small"
+                  variant="outlined"
+                />
+              </Stack>
+            </Stack>
+          </Paper>
+
+          {/* Preparation Timer */}
+          {preparationTime !== null && preparationTime > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography>Preparation Time: {preparationTime} seconds</Typography>
+              <LinearProgress
+                variant="determinate"
+                value={(preparationTime / selectedTopic.preparationTime) * 100}
+                sx={{ mt: 1 }}
+              />
+            </Box>
+          )}
 
           {/* Recording Section */}
           <RecordingSection
             isRecording={audioRecording.isRecording}
             recordedBlob={audioRecording.recordedBlob}
+            recordedAudioUrl={audioRecording.recordedAudioUrl}
             micPermission={audioRecording.micPermission}
             showRecordingPrompt={showRecordingPrompt}
             preparationTime={preparationTime}
             recordingType="retelling"
+            recordingTime={selectedTopic.recordingTime}
             onToggleRecording={audioRecording.toggleRecording}
           />
 
           {/* Action Buttons */}
-          <ActionButtons
-            recordedBlob={audioRecording.recordedBlob}
-            onSubmit={handleSubmit}
-            onRedo={handleRedo}
-            onTranslate={handleTranslate}
-            onShowAnswer={handleShowAnswer}
-          />
+          <Stack
+            direction={isMobile ? 'column' : 'row'}
+            spacing={isMobile ? 1 : 2}
+            sx={{ mt: 2, flexWrap: 'wrap' }}
+          >
+            <ActionButtons
+              recordedBlob={audioRecording.recordedBlob}
+              onSubmit={handleSubmit}
+              onRedo={handleRedo}
+              onTranslate={handleTranslate}
+              onShowAnswer={handleShowAnswer}
+            />
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handleViewAttempts}
+              aria-label="View past attempts"
+              sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+            >
+              View Attempts
+            </Button>
+          </Stack>
 
           {/* Navigation Section */}
           <NavigationSection
             onSearch={handleSearch}
             onPrevious={handlePrevious}
-            onNext={() => setShowTopicSelector(true)}
+            onNext={handleNext}
             questionNumber={questionNumber}
           />
         </CardContent>
@@ -1749,7 +1776,7 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
         onClose={() => setShowTopicSelector(false)}
         onSelect={handleTopicSelect}
         topics={audioTopics}
-        title="Select Audio Topic"
+        title="Select Lecture Topic"
         type="lecture"
       />
 
@@ -1765,13 +1792,14 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
         </DialogTitle>
         <DialogContent>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            <strong>Topic:</strong> {selectedTopic.title}
+            <strong>Lecture:</strong> {selectedTopic.title}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            <strong>Expected Answer:</strong> {selectedTopic.expectedAnswer}
           </Typography>
           <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
             This is a sample answer for the selected lecture topic. In a real implementation, 
-            this would contain the reference answer or key points that students should cover 
-            in their retelling. The answer would be specific to each lecture topic and provide 
-            guidance on what constitutes a complete response.
+            this would contain key points or guidance for a complete retelling.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -1811,10 +1839,10 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
       </Dialog>
 
       {/* Search Dialog */}
-      <Dialog open={showSearch} onClose={() => setShowSearch(false)} maxWidth="sm" fullWidth>
+      {/* <Dialog open={showSearch} onClose={() => setShowSearch(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Search Topics</Typography>
+            <Typography variant="h6">Search Lectures</Typography>
             <IconButton onClick={() => setShowSearch(false)}>
               <Close />
             </IconButton>
@@ -1823,7 +1851,7 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
         <DialogContent>
           <TextField
             fullWidth
-            placeholder="Search by topic or speaker..."
+            placeholder="Search by lecture or speaker..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             sx={{ mb: 2 }}
@@ -1850,18 +1878,61 @@ const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
         <DialogActions>
           <Button onClick={() => setShowSearch(false)}>Close</Button>
         </DialogActions>
-      </Dialog>
+      </Dialog> */}
 
-      {/* Audio Element */}
-      <audio
-        ref={audioPlayback.audioRef}
-        onLoadedMetadata={audioPlayback.handleLoadedMetadata}
-        onError={audioPlayback.handleAudioError}
-      >
-        <source src={selectedTopic.link} type="audio/mpeg" />
-        <source src={selectedTopic?.link?.replace('.mp3', '.ogg')} type="audio/ogg" />
-        <p>Your browser does not support the audio element.</p>
-      </audio>
+      {/* Past Attempts Dialog */}
+      <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Past Attempts</Typography>
+            <IconButton onClick={() => setShowAttempts(false)}>
+              <Close />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {attempts.length === 0 ? (
+            <Typography variant="body2">No attempts recorded yet.</Typography>
+          ) : (
+            <List>
+              {attempts.map((attempt, index) => {
+                const lecture = audioTopics.find(q => q.id === attempt.questionId);
+                return (
+                  <ListItem key={index}>
+                    <ListItemText
+                      primary={`Lecture: ${lecture?.title || 'Unknown'}`}
+                      secondary={
+                        <>
+                          <Typography component="span" variant="body2">
+                            Time: {new Date(attempt.timestamp).toLocaleString()}
+                          </Typography>
+                          {attempt.recordedAudioUrl && (
+                            <audio controls src={attempt.recordedAudioUrl} style={{ width: '100%', marginTop: '8px' }}>
+                              Your browser does not support the audio element.
+                            </audio>
+                          )}
+                        </>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            color="error"
+            onClick={() => {
+              setAttempts([]);
+              localStorage.removeItem('retellLectureAttempts');
+            }}
+          >
+            Clear Attempts
+          </Button>
+          <Button onClick={() => setShowAttempts(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
