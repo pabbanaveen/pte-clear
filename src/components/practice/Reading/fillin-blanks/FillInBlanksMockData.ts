@@ -1,3 +1,4 @@
+import { BaseTopic } from "../../common/types";
 
 
 export const instructionsSections = [
@@ -36,6 +37,15 @@ export const questions: Question[] = [
       { id: 4, correctAnswer: 'making', options: ['making', 'avoiding', 'preventing', 'reducing'], userAnswer: '' },
       { id: 5, correctAnswer: 'footprint', options: ['footprint', 'emissions', 'pollution', 'waste'], userAnswer: '' },
     ],
+    difficulty: "Beginner",
+    category: "",
+    tags: [],
+    isNew: false,
+    isMarked: false,
+    pracStatus: "Undone",
+    hasExplanation: false,
+    createdAt: "",
+    updatedAt: ""
   },
   {
     id: 2,
@@ -48,6 +58,15 @@ export const questions: Question[] = [
       { id: 4, correctAnswer: 'potential', options: ['potential', 'inability', 'restriction', 'disadvantage'], userAnswer: '' },
       { id: 5, correctAnswer: 'improve', options: ['improve', 'worsen', 'maintain', 'ignore'], userAnswer: '' },
     ],
+    difficulty: "Beginner",
+    category: "",
+    tags: [],
+    isNew: false,
+    isMarked: false,
+    pracStatus: "Undone",
+    hasExplanation: false,
+    createdAt: "",
+    updatedAt: ""
   },
   {
     id: 3,
@@ -60,6 +79,15 @@ export const questions: Question[] = [
       { id: 4, correctAnswer: 'effectively', options: ['effectively', 'poorly', 'rarely', 'slowly'], userAnswer: '' },
       { id: 5, correctAnswer: 'grown', options: ['grown', 'declined', 'remained', 'disappeared'], userAnswer: '' },
     ],
+    difficulty: "Beginner",
+    category: "",
+    tags: [],
+    isNew: false,
+    isMarked: false,
+    pracStatus: "Undone",
+    hasExplanation: false,
+    createdAt: "",
+    updatedAt: ""
   },
   {
     id: 4,
@@ -72,6 +100,15 @@ export const questions: Question[] = [
       { id: 4, correctAnswer: 'improved', options: ['improved', 'reduced', 'outdated', 'limited'], userAnswer: '' },
       { id: 5, correctAnswer: 'enhance', options: ['enhance', 'worsen', 'ignore', 'maintain'], userAnswer: '' },
     ],
+    difficulty: "Beginner",
+    category: "",
+    tags: [],
+    isNew: false,
+    isMarked: false,
+    pracStatus: "Undone",
+    hasExplanation: false,
+    createdAt: "",
+    updatedAt: ""
   },
   {
     id: 5,
@@ -84,6 +121,15 @@ export const questions: Question[] = [
       { id: 4, correctAnswer: 'available', options: ['available', 'unavailable', 'costly', 'rare'], userAnswer: '' },
       { id: 5, correctAnswer: 'robust', options: ['robust', 'weak', 'old', 'insufficient'], userAnswer: '' },
     ],
+    difficulty: "Beginner",
+    category: "",
+    tags: [],
+    isNew: false,
+    isMarked: false,
+    pracStatus: "Undone",
+    hasExplanation: false,
+    createdAt: "",
+    updatedAt: ""
   },
 ];
 
@@ -95,7 +141,7 @@ export const questions: Question[] = [
     options: string[];
   }
   
-  export interface Question {
+  export interface Question extends BaseTopic{
     id: number;
     title: string;
     text: string;

@@ -35,6 +35,7 @@ import { emailScenarios } from './emailMockData';
 import { EmailScenario } from './emailTypes';
 import { User } from '../../../../types/user';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
+import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
 
 
 interface WriteEmailProps {
@@ -56,9 +57,8 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
   // Dialog states
   const [showAnswer, setShowAnswer] = useState<boolean>(false);
   const [showTranslate, setShowTranslate] = useState<boolean>(false);
-  const [showSearch, setShowSearch] = useState<boolean>(false);
+  const [showResults, setShowResults] = useState<boolean>(false);
   const [showScenarioSelector, setShowScenarioSelector] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -96,18 +96,6 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
       setIsTimerActive(true);
     }
   }, [userEmail, isTimerActive]);
-
-  // Format time for display
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Calculate progress percentage
-  const getProgressPercentage = (): number => {
-    return ((540 - timeRemaining) / 540) * 100;
-  };
 
   // Email scoring algorithm
   const calculateEmailScore = (emailText: string, scenario: EmailScenario): number => {
@@ -161,13 +149,7 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
     const calculatedScore = calculateEmailScore(userEmail, selectedScenario);
     setScore(calculatedScore);
     setIsTimerActive(false);
-    
-    alert(`Email submitted successfully! Score: ${calculatedScore}/100`);
-    
-    // Move to next question
-    setTimeout(() => {
-      handleNext();
-    }, 2000);
+    setShowResults(true);
   };
 
   // Handle auto submit when timer expires
@@ -175,11 +157,9 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
     if (userEmail.trim()) {
       const calculatedScore = calculateEmailScore(userEmail, selectedScenario);
       setScore(calculatedScore);
-      alert(`Time's up! Auto-submitted. Score: ${calculatedScore}/100`);
-    } else {
-      alert("Time's up! No email submitted.");
     }
     setIsTimerActive(false);
+    setShowResults(true);
   };
 
   // Action handlers
@@ -189,6 +169,7 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
     setTimeRemaining(540);
     setIsTimerActive(false);
     setScore(null);
+    setShowResults(false);
   };
 
   const handleShowAnswer = (): void => {
@@ -222,13 +203,6 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
     handleRedo();
   };
 
-  // Filter scenarios for search
-  const filteredScenarios = emailScenarios.filter(scenario =>
-    scenario.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    scenario.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    scenario.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
   // Get word count status color
   const getWordCountColor = (): string => {
     if (wordCount === 0) return '#666';
@@ -236,288 +210,183 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
     return '#4caf50';
   };
 
-  return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: { xs: 1, sm: 2 } }}>
-      {/* Stage Goal Banner */}
-      <StageGoalBanner />
+  // Create result object for dialog
+  const currentResult = score !== null ? {
+    questionId: String(selectedScenario.id),
+    score: score,
+    maxScore: 100,
+    correctAnswers: score >= 70 ? 1 : 0,
+    totalQuestions: 1,
+    completedAt: new Date(),
+    timeSpent: 540 - timeRemaining,
+    percentage: score,
+    answers: [{
+      id: 'email-response',
+      selectedAnswer: `${wordCount} words written`,
+      correctAnswer: `${selectedScenario.wordLimit.min}+ words required`,
+      isCorrect: wordCount >= selectedScenario.wordLimit.min
+    }]
+  } : null;
 
-      {/* Main Content */}
-      <Card sx={{ maxWidth: 1200, mx: 'auto', mb: 3 }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          {/* Header */}
+  return (
+    <GradientBackground>
+      <PracticeCard
+        icon="WE"
+        title="Write Email"
+        instructions="Read a description of a situation. Then write an email about the situation. You will have 9 minutes. You should aim to write at least 100 words. Write using complete sentences."
+        difficulty={selectedScenario.difficulty}
+      >
+        {/* Question Header */}
+        <QuestionHeader 
+          questionNumber={questionNumber}
+          studentName={studentName}
+          testedCount={testedCount}
+        />
+
+        {/* Timer */}
+        <TimerDisplay
+          timeRemaining={timeRemaining}
+          isRunning={isTimerActive}
+          warningThreshold={60}
+          showStartMessage={!isTimerActive}
+          startMessage="Timer will start when you begin typing"
+          autoSubmit={true}
+        />
+
+        {/* Scenario Display */}
+        <ContentDisplay
+          title={`#${questionNumber} ${selectedScenario.title}`}
+          content={
+            <Box>
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  lineHeight: 1.8, 
+                  color: '#333',
+                  mb: 2
+                }}
+              >
+                {selectedScenario.situation}
+              </Typography>
+
+              {/* Key Points */}
+              <Box sx={{ mt: 2 }}>
+                {selectedScenario.keyPoints.map((point, index) => (
+                  <Typography
+                    key={index}
+                    variant="body2"
+                    sx={{
+                      color: '#d32f2f',
+                      mb: 1,
+                      fontWeight: 500,
+                      pl: 1,
+                      borderLeft: '3px solid #d32f2f'
+                    }}
+                  >
+                    - {point}
+                  </Typography>
+                ))}
+              </Box>
+            </Box>
+          }
+          category={selectedScenario.category}
+          difficulty={selectedScenario.difficulty}
+          tags={selectedScenario.tags}
+          showMetadata={true}
+        />
+
+        {/* Email Input */}
+        <Paper sx={{ p: 3, mb: 3 }}>
           <Stack 
             direction={{ xs: 'column', sm: 'row' }} 
             alignItems={{ xs: 'flex-start', sm: 'center' }} 
-            spacing={2} 
-            sx={{ mb: 3 }}
+            justifyContent="space-between" 
+            sx={{ mb: 2 }}
+            spacing={{ xs: 1, sm: 0 }}
           >
-            <Box
-              sx={{
-                width: { xs: 50, sm: 55, md: 60 },
-                height: { xs: 50, sm: 55, md: 60 },
-                bgcolor: '#4caf50',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: { xs: '12px', sm: '14px', md: '16px' },
-                fontWeight: 'bold',
-                flexShrink: 0,
-                lineHeight: 1.2
+            <Typography variant="h6" sx={{ color: '#333' }}>
+              Your Email:
+            </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: getWordCountColor(),
+                fontWeight: 'bold'
               }}
             >
-              WE<br/>Core
-            </Box>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
-                <Typography 
-                  variant="h5" 
-                  sx={{ 
-                    fontWeight: 'bold', 
-                    color: '#333',
-                    fontSize: { xs: '18px', sm: '20px', md: '24px' },
-                    lineHeight: 1.3,
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  Write Email
-                </Typography>
-                <Chip onClick={() => { }} label="Study Guide" color="primary" size="small" />
-              </Stack>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: '#666', 
-                  mt: 1,
-                  fontSize: { xs: '12px', sm: '13px', md: '14px' },
-                  lineHeight: 1.5,
-                  wordBreak: 'break-word'
-                }}
-              >
-                Read a description of a situation. Then write an email about the situation. You will have 9 minutes. 
-                You should aim to write at least 100 words. Write using complete sentences.
-              </Typography>
-            </Box>
+              Word Count: {wordCount}
+            </Typography>
           </Stack>
-
-          <Divider sx={{ my: 3 }} />
-
-          {/* Question Header */}
-          <QuestionHeader 
-            questionNumber={questionNumber}
-            studentName={studentName}
-            testedCount={testedCount}
+          
+          {wordCount > 0 && wordCount < selectedScenario.wordLimit.min && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography>
+                Your email should be at least {selectedScenario.wordLimit.min} words. Current count: {wordCount}
+              </Typography>
+            </Alert>
+          )}
+          
+          <TextField
+            fullWidth
+            multiline
+            rows={12}
+            value={userEmail}
+            onChange={handleEmailChange}
+            placeholder="Write your email here..."
+            disabled={timeRemaining === 0 || score !== null}
           />
+        </Paper>
 
-          {/* Timer and Progress */}
-          <Paper 
-            sx={{ 
-              p: { xs: 1.5, sm: 2 }, 
-              mb: 3, 
-              bgcolor: timeRemaining < 60 ? '#ffebee' : '#e8f5e8' 
-            }}
-          >
-            <Stack 
-              direction={{ xs: 'column', sm: 'row' }} 
-              alignItems={{ xs: 'flex-start', sm: 'center' }} 
-              spacing={2}
-            >
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  color: timeRemaining < 60 ? '#f44336' : '#4caf50', 
-                  fontWeight: 'bold',
-                  fontSize: { xs: '16px', sm: '18px', md: '20px' },
-                  flexShrink: 0
-                }}
-              >
-                Time: {formatTime(timeRemaining)}
-              </Typography>
-              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                <LinearProgress
-                  variant="determinate"
-                  value={getProgressPercentage()}
-                  sx={{
-                    height: { xs: 6, sm: 8 },
-                    borderRadius: 4,
-                    bgcolor: '#e0e0e0',
-                    '& .MuiLinearProgress-bar': {
-                      bgcolor: timeRemaining < 60 ? '#f44336' : '#4caf50',
-                    },
-                  }}
-                />
-              </Box>
-              {score && (
-                <Chip 
-                onClick={() => { }}
-                  label={`Score: ${score}/100`} 
-                  color={score >= 70 ? 'success' : score >= 50 ? 'warning' : 'error'} 
-                  size="small"
-                  sx={{ flexShrink: 0 }}
-                />
-              )}
-            </Stack>
-          </Paper>
+        {/* Progress Indicators */}
+        <ProgressIndicator
+          current={wordCount}
+          total={selectedScenario.wordLimit.min}
+          label="words written"
+          color="primary"
+          showPercentage={true}
+        />
 
-          {/* Scenario Display */}
-          <Paper 
-            sx={{ 
-              p: { xs: 2, sm: 3 }, 
-              mb: 3, 
-              bgcolor: '#fafafa' 
-            }}
-          >
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                color: '#333', 
-                mb: 2, 
-                fontWeight: 'bold',
-                fontSize: { xs: '16px', sm: '18px', md: '20px' },
-                wordBreak: 'break-word'
-              }}
-            >
-              #{questionNumber} {selectedScenario.title}
+        <ProgressIndicator
+          current={540 - timeRemaining}
+          total={540}
+          label="time elapsed"
+          color="warning"
+          customLabel={`${Math.floor((540 - timeRemaining) / 60)}:${((540 - timeRemaining) % 60).toString().padStart(2, '0')} of 9:00`}
+        />
+
+        {/* Score Display */}
+        {score !== null && (
+          <Paper sx={{ p: 3, mb: 3, textAlign: 'center', bgcolor: score >= 70 ? '#e8f5e9' : '#fff3e0' }}>
+            <Typography variant="h4" color={score >= 70 ? 'success.main' : 'warning.main'} fontWeight="bold">
+              {score}/100
             </Typography>
-            <Stack 
-              direction="row" 
-              spacing={1} 
-              sx={{ 
-                mb: 2,
-                flexWrap: 'wrap',
-                gap: 1
-              }}
-            >
-              <Chip onClick={() => { }} label={selectedScenario.category} size="small" color="primary" />
-              <Chip 
-              onClick={() => { }}
-                label={selectedScenario.difficulty} 
-                size="small" 
-                color={
-                  selectedScenario.difficulty === 'Beginner' ? 'success' : 
-                  selectedScenario.difficulty === 'Intermediate' ? 'warning' : 'error'
-                }
-              />
-            </Stack>
-            
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                lineHeight: 1.8, 
-                color: '#333',
-                fontSize: { xs: '14px', sm: '15px', md: '16px' },
-                wordBreak: 'break-word',
-                mb: 2
-              }}
-            >
-              {selectedScenario.situation}
+            <Typography color="text.secondary">
+              {score >= 70 ? '🎉 Great job!' : '📝 Keep practicing!'}
             </Typography>
-
-            {/* Key Points */}
-            <Box sx={{ mt: 2 }}>
-              {selectedScenario.keyPoints.map((point, index) => (
-                <Typography
-                  key={index}
-                  variant="body2"
-                  sx={{
-                    color: '#d32f2f',
-                    mb: 1,
-                    fontSize: { xs: '13px', sm: '14px', md: '15px' },
-                    fontWeight: 500,
-                    pl: 1,
-                    borderLeft: '3px solid #d32f2f'
-                  }}
-                >
-                  - {point}
-                </Typography>
-              ))}
-            </Box>
           </Paper>
+        )}
 
-          {/* Email Input */}
-          <Paper 
-            sx={{ 
-              p: { xs: 2, sm: 3 }, 
-              mb: 3 
-            }}
-          >
-            <Stack 
-              direction={{ xs: 'column', sm: 'row' }} 
-              alignItems={{ xs: 'flex-start', sm: 'center' }} 
-              justifyContent="space-between" 
-              sx={{ mb: 2 }}
-              spacing={{ xs: 1, sm: 0 }}
-            >
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  color: '#333',
-                  fontSize: { xs: '16px', sm: '18px', md: '20px' }
-                }}
-              >
-                Your Email:
-              </Typography>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: getWordCountColor(),
-                  fontWeight: 'bold',
-                  fontSize: { xs: '14px', sm: '15px', md: '16px' }
-                }}
-              >
-                Word Count: {wordCount}
-              </Typography>
-            </Stack>
-            
-            {wordCount > 0 && wordCount < selectedScenario.wordLimit.min && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                <Typography sx={{ fontSize: { xs: '13px', sm: '14px' } }}>
-                  Your email should be at least {selectedScenario.wordLimit.min} words. Current count: {wordCount}
-                </Typography>
-              </Alert>
-            )}
-            
-            <TextField
-              fullWidth
-              multiline
-            //   rows={{ xs: 8, sm: 10, md: 12 }}
-              value={userEmail}
-              onChange={handleEmailChange}
-              placeholder="Write your email here..."
-              disabled={timeRemaining === 0}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  fontSize: { xs: '14px', sm: '15px', md: '16px' },
-                  lineHeight: 1.6,
-                },
-                '& .MuiInputBase-input': {
-                  resize: 'vertical'
-                }
-              }}
-            />
-          </Paper>
+        {/* Action Buttons */}
+        <ActionButtons
+          hasResponse={userEmail.trim().length > 0}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={handleTranslate}
+          onShowAnswer={handleShowAnswer}
+          recordedBlob={null}
+        />
 
-          {/* Action Buttons */}
-          <ActionButtons
-                      hasResponse={userEmail.trim().length > 0}
-                      onSubmit={handleSubmit}
-                      onRedo={handleRedo}
-                      onTranslate={handleTranslate}
-                      onShowAnswer={handleShowAnswer}
-                       recordedBlob={null}          />
+        {/* Navigation */}
+        <NavigationSection
+          onSearch={handleSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          questionNumber={questionNumber}
+        />
+      </PracticeCard>
 
-          {/* Navigation Section */}
-          <NavigationSection
-            onSearch={handleSearch}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            questionNumber={questionNumber}
-          />
-        </CardContent>
-      </Card>
-
-<TopicSelectionDrawer
+      {/* Topic Selection Drawer */}
+      <TopicSelectionDrawer
         open={showScenarioSelector}
         onClose={() => setShowScenarioSelector(false)}
         onSelect={handleScenarioSelect}
@@ -526,74 +395,56 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
         type="lecture"
       />
 
+      {/* Results Dialog */}
+      <ResultsDialog
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={currentResult}
+        onTryAgain={handleRedo}
+        showAnswerReview={false}
+        customContent={
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>Email Analysis:</Typography>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Word Count:</Typography>
+                <Typography variant="body2" color={wordCount >= selectedScenario.wordLimit.min ? 'success.main' : 'error.main'}>
+                  {wordCount} / {selectedScenario.wordLimit.min} minimum words
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Score Breakdown:</Typography>
+                <Typography variant="body2">
+                  • Word Count: {wordCount >= selectedScenario.wordLimit.min ? '30/30' : `${Math.round((wordCount / selectedScenario.wordLimit.min) * 30)}/30`}
+                </Typography>
+                <Typography variant="body2">• Structure & Format: Variable based on content</Typography>
+                <Typography variant="body2">• Key Points Coverage: Variable based on content</Typography>
+                <Typography variant="body2">• Professional Tone: Variable based on language use</Typography>
+              </Box>
+            </Stack>
+          </Box>
+        }
+      />
 
       {/* Answer Dialog */}
-      <Dialog open={showAnswer} onClose={() => setShowAnswer(false)} maxWidth="lg" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Sample Email</Typography>
-            <IconButton onClick={() => setShowAnswer(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            <strong>Scenario:</strong> {selectedScenario.title}
-          </Typography>
-          <Paper sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 1, mb: 2 }}>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                lineHeight: 1.6, 
-                whiteSpace: 'pre-line',
-                fontFamily: 'monospace',
-                fontSize: '14px'
-              }}
-            >
-              {selectedScenario.sampleEmail}
-            </Typography>
-          </Paper>
-          <Typography variant="caption" sx={{ mt: 2, display: 'block' }}>
-            Word count: {countWords(selectedScenario.sampleEmail)} words
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowAnswer(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={`Sample Email: ${selectedScenario.title}`}
+        answers={[{
+          id: 'sample-email',
+          correctAnswer: selectedScenario.sampleEmail,
+          label: `Sample Response (${countWords(selectedScenario.sampleEmail)} words)`
+        }]}
+      />
 
       {/* Translation Dialog */}
-      <Dialog open={showTranslate} onClose={() => setShowTranslate(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Translation Options</Typography>
-            <IconButton onClick={() => setShowTranslate(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Select Language</InputLabel>
-            <Select defaultValue="spanish" label="Select Language">
-              <MenuItem value="spanish">Spanish</MenuItem>
-              <MenuItem value="french">French</MenuItem>
-              <MenuItem value="german">German</MenuItem>
-              <MenuItem value="chinese">Chinese</MenuItem>
-              <MenuItem value="japanese">Japanese</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="body2" sx={{ color: '#666' }}>
-            Translation feature will help you understand the email scenario in your preferred language.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowTranslate(false)}>Cancel</Button>
-          <Button variant="contained">Translate</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the email scenario in your preferred language."
+      />
+    </GradientBackground>
   );
 };
 

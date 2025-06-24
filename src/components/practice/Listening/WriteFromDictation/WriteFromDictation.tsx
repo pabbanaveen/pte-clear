@@ -1,39 +1,33 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
-  Typography,
-  Chip,
-  Stack,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Divider,
-  Paper,
-  IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  LinearProgress,
   TextField,
+  Typography,
+  Stack,
+  Chip,
+  Paper
 } from '@mui/material';
-import { Close, Timer } from '@mui/icons-material';
+import {
+  PracticeCard,
+  TimerDisplay,
+  ProgressIndicator,
+  ResultsDialog,
+  AnswerDialog,
+  TranslationDialog,
+  ContentDisplay,
+  GradientBackground,
+  TopicSelectionDrawer,
+} from '../../../common';
 import { mockWriteFromDictationQuestions, mockStudentProgress } from './WriteFromDictationMockData';
 import { WriteFromDictationQuestion, TimerState, WriteFromDictationResult, WordAnalysis } from './WriteFromDictationTypes';
-import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
-import StageGoalBanner from '../../common/StageGoalBanner';
 import TextToSpeech from '../../common/TextToSpeech';
 
 interface WriteFromDictationProps {}
 
-const WriteFromDictation: React.FC<WriteFromDictationProps> = () => {
+const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [question, setQuestion] = useState<WriteFromDictationQuestion>(mockWriteFromDictationQuestions[currentQuestionIndex]);
   const [showQuestionSelector, setShowQuestionSelector] = useState(false);
@@ -106,7 +100,6 @@ const WriteFromDictation: React.FC<WriteFromDictationProps> = () => {
     }
   }, [timer.isRunning, isSubmitted]);
 
-  const [results, setResults] = useState<WriteFromDictationResult[]>([]);
   const studentProgress = mockStudentProgress;
 
   const handleNext = () => {
@@ -126,7 +119,6 @@ const WriteFromDictation: React.FC<WriteFromDictationProps> = () => {
   };
 
   const handleSearch = () => {
-    console.log('Search functionality triggered');
     setShowQuestionSelector(true);
   };
 
@@ -137,12 +129,6 @@ const WriteFromDictation: React.FC<WriteFromDictationProps> = () => {
       setQuestion(option);
     }
     setShowQuestionSelector(false);
-  };
-
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   const hasResponse = useCallback((): boolean => {
@@ -255,7 +241,6 @@ const WriteFromDictation: React.FC<WriteFromDictationProps> = () => {
 
     setCurrentResult(result);
     setShowResults(true);
-    setResults(prev => [...prev, result]);
   };
 
   const handleRedo = () => {
@@ -280,179 +265,129 @@ const WriteFromDictation: React.FC<WriteFromDictationProps> = () => {
     setHasPlayedAudio(true);
   };
 
+  // Create custom result object for dialog
+  const resultForDialog = currentResult ? {
+    questionId: currentResult.questionId,
+    score: currentResult.score,
+    maxScore: currentResult.maxScore,
+    correctAnswers: currentResult.wordsCorrect,
+    totalQuestions: currentResult.totalWords,
+    completedAt: currentResult.completedAt,
+    timeSpent: currentResult.timeSpent,
+    percentage: currentResult.accuracy,
+    answers: currentResult.detailedAnalysis?.map(analysis => ({
+      id: String(analysis.position),
+      selectedAnswer: analysis.userWord,
+      correctAnswer: analysis.expectedWord,
+      isCorrect: analysis.isCorrect
+    })) || []
+  } : null;
+
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: { xs: 1, sm: 2 } }}>
-      <StageGoalBanner />
+    <GradientBackground>
+      <PracticeCard
+        icon="WFD"
+        title="Write From Dictation"
+        instructions={question.instructions}
+        difficulty={question.difficulty}
+      >
+        {/* Question Header */}
+        <QuestionHeader 
+          questionNumber={questionNumber}
+          studentName={studentProgress.studentName}
+          testedCount={studentProgress.testedCount}
+        />
 
-      <Card sx={{ maxWidth: 1200, mx: 'auto', mb: 3 }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 3 }}>
-            <Box
-              sx={{
-                width: { xs: 50, sm: 55, md: 60 },
-                height: { xs: 50, sm: 55, md: 60 },
-                bgcolor: '#e91e63',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: { xs: '11px', sm: '13px', md: '14px' },
-                fontWeight: 'bold',
-                flexShrink: 0,
-                lineHeight: 1.2
-              }}
-            >
-              WFD
-            </Box>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
-                <Typography 
-                  variant="h5" 
-                  sx={{ 
-                    fontWeight: 'bold', 
-                    color: '#333',
-                    fontSize: { xs: '18px', sm: '20px', md: '24px' },
-                    lineHeight: 1.3,
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  Write From Dictation
+        {/* Timer */}
+        <TimerDisplay
+          timeRemaining={timer.timeRemaining}
+          isRunning={timer.isRunning}
+          warningThreshold={timer.warningThreshold}
+          showStartMessage={!timer.isRunning && !isSubmitted}
+          startMessage="Timer will start when you begin typing"
+          autoSubmit={timer.autoSubmit}
+        />
+
+        {/* Text-to-Speech Player */}
+        <TextToSpeech 
+          text={question.audioText}
+          autoPlay={false}
+          onStart={handleAudioStart}
+          onEnd={() => console.log('Audio ended')}
+        />
+
+        {/* Writing Area */}
+        <ContentDisplay
+          title="Type the sentence you heard:"
+          content={
+            <Box>
+              <TextField
+                fullWidth
+                multiline
+                rows={6}
+                value={userInput}
+                onChange={handleInputChange}
+                disabled={isSubmitted}
+                placeholder="Type the sentence exactly as you heard it..."
+                variant="outlined"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: isSubmitted ? '#f5f5f5' : '#fff',
+                    fontSize: { xs: '14px', sm: '16px' },
+                    '& fieldset': {
+                      borderColor: '#e0e0e0',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: isSubmitted ? '#e0e0e0' : '#1976d2',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#1976d2',
+                    },
+                  },
+                }}
+              />
+              
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="textSecondary">
+                  Word Count: {wordCount}
                 </Typography>
-                <Chip label="Study Guide" color="primary" size="small" />
-              </Stack>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: '#666', 
-                  mt: 1,
-                  fontSize: { xs: '12px', sm: '13px', md: '14px' },
-                  lineHeight: 1.5,
-                  wordBreak: 'break-word'
-                }}
-              >
-                {question.instructions}
-              </Typography>
+                <Typography variant="caption" color="textSecondary">
+                  You will hear the sentence only once
+                </Typography>
+              </Box>
             </Box>
-          </Stack>
+          }
+          showMetadata={false}
+        />
 
-          <Divider sx={{ my: 3 }} />
+        {/* Progress Indicator */}
+        <ProgressIndicator
+          current={userInput.trim().length > 0 ? 1 : 0}
+          total={1}
+          label="response completed"
+          customLabel={userInput.trim().length > 0 ? 'Response in progress' : 'No response yet'}
+        />
 
-          <QuestionHeader 
-            questionNumber={questionNumber}
-            studentName={studentProgress.studentName}
-            testedCount={studentProgress.testedCount}
-          />
+        {/* Action Buttons */}
+        <ActionButtons
+          hasResponse={hasResponse()}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={() => setShowTranslate(true)}
+          onShowAnswer={() => setShowAnswer(true)}
+          recordedBlob={null}
+        />
 
-          {/* Timer Display */}
-          <Paper sx={{ p: 2, mb: 3, bgcolor: timer.timeRemaining <= timer.warningThreshold ? '#ffebee' : '#e3f2fd' }}>
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <Timer sx={{ color: timer.timeRemaining <= timer.warningThreshold ? '#f44336' : '#2196f3' }} />
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  fontWeight: 'bold',
-                  color: timer.timeRemaining <= timer.warningThreshold ? '#f44336' : '#2196f3'
-                }}
-              >
-                Time: {formatTime(timer.timeRemaining)}
-              </Typography>
-              {timer.timeRemaining <= timer.warningThreshold && (
-                <Chip label="Hurry Up!" color="error" size="small" />
-              )}
-              {!timer.isRunning && !isSubmitted && (
-                <Chip label="Timer will start when you begin typing" color="info" size="small" />
-              )}
-            </Stack>
-          </Paper>
+        {/* Navigation */}
+        <NavigationSection
+          onSearch={handleSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          questionNumber={questionNumber}
+        />
+      </PracticeCard>
 
-          {/* Text-to-Speech Player */}
-          <TextToSpeech 
-            text={question.audioText}
-            autoPlay={false}
-            onStart={handleAudioStart}
-            onEnd={() => console.log('Audio ended')}
-          />
-
-          {/* Writing Area */}
-          <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-              Type the sentence you heard:
-            </Typography>
-            
-            <TextField
-              fullWidth
-              multiline
-              rows={6}
-              value={userInput}
-              onChange={handleInputChange}
-              disabled={isSubmitted}
-              placeholder="Type the sentence exactly as you heard it..."
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: isSubmitted ? '#f5f5f5' : '#fff',
-                  fontSize: { xs: '14px', sm: '16px' },
-                  '& fieldset': {
-                    borderColor: '#e0e0e0',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: isSubmitted ? '#e0e0e0' : '#1976d2',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#1976d2',
-                  },
-                },
-              }}
-            />
-            
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2" color="textSecondary">
-                Word Count: {wordCount}
-              </Typography>
-              <Typography variant="caption" color="textSecondary">
-                You will hear the sentence only once
-              </Typography>
-            </Box>
-          </Paper>
-
-          {/* Progress Indicator */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-              Progress: {userInput.trim().length > 0 ? 'In progress' : 'Not started'}
-            </Typography>
-            <LinearProgress
-              variant="determinate"
-              value={userInput.trim().length > 0 ? 50 : 0}
-              sx={{
-                height: 8,
-                borderRadius: 1,
-                bgcolor: '#e0e0e0',
-                '& .MuiLinearProgress-bar': {
-                  bgcolor: '#4caf50',
-                },
-              }}
-            />
-          </Box>
-
-          <ActionButtons
-            hasResponse={hasResponse()}
-            onSubmit={handleSubmit}
-            onRedo={handleRedo}
-            onTranslate={() => setShowTranslate(true)}
-            onShowAnswer={() => setShowAnswer(true)}
-            recordedBlob={null}
-          />
-
-          <NavigationSection
-            onSearch={handleSearch}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            questionNumber={questionNumber}
-          />
-        </CardContent>
-      </Card>
-
+      {/* Topic Selection Drawer */}
       <TopicSelectionDrawer
         open={showQuestionSelector}
         onClose={() => setShowQuestionSelector(false)}
@@ -462,33 +397,20 @@ const WriteFromDictation: React.FC<WriteFromDictationProps> = () => {
         type="question"
       />
 
-      {/* Results Dialog */}
-      <Dialog open={showResults} onClose={() => setShowResults(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Dictation Results</Typography>
-            <IconButton onClick={() => setShowResults(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          {currentResult && (
+      {/* Results Dialog with Custom Content */}
+      <ResultsDialog
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={resultForDialog}
+        onTryAgain={handleRedo}
+        showAnswerReview={false}
+        customContent={
+          currentResult && (
             <Box>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
                 <Chip 
-                  label={`Score: ${currentResult.score}/${currentResult.maxScore}`} 
-                  color={currentResult.score >= (currentResult.maxScore * 0.7) ? 'success' : 'error'}
-                  size="medium"
-                />
-                <Chip 
                   label={`Accuracy: ${currentResult.accuracy}%`} 
                   color={currentResult.accuracy >= 70 ? 'success' : 'error'}
-                  size="medium"
-                />
-                <Chip 
-                  label={`${currentResult.wordsCorrect}/${currentResult.totalWords} words`} 
-                  color="info"
                   size="medium"
                 />
                 <Chip 
@@ -521,51 +443,24 @@ const WriteFromDictation: React.FC<WriteFromDictationProps> = () => {
                   </Typography>
                 </Paper>
               </Box>
-
-              {question.explanation && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    Explanation:
-                  </Typography>
-                  <Typography variant="body2">
-                    {question.explanation}
-                  </Typography>
-                </Box>
-              )}
             </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowResults(false)}>Close</Button>
-          <Button variant="contained" onClick={handleRedo}>Try Again</Button>
-        </DialogActions>
-      </Dialog>
+          )
+        }
+      />
 
       {/* Answer Dialog */}
-      <Dialog open={showAnswer} onClose={() => setShowAnswer(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Correct Answer</Typography>
-            <IconButton onClick={() => setShowAnswer(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            <strong>Question:</strong> {question.title}
-          </Typography>
-          
-          <Box sx={{ mb: 3, p: 2, bgcolor: '#e8f5e9', borderRadius: 1 }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-              Correct sentence:
-            </Typography>
-            <Typography variant="body1" sx={{ fontSize: '16px', lineHeight: 1.6 }}>
-              "{question.audioText}"
-            </Typography>
-          </Box>
-
-          <Box sx={{ mb: 3 }}>
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={question.title}
+        answers={[{
+          id: 'correct-sentence',
+          correctAnswer: question.audioText,
+          label: "Correct sentence"
+        }]}
+        explanation={question.explanation}
+        guidance={
+          <Box>
             <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
               Key words to focus on:
             </Typography>
@@ -581,55 +476,17 @@ const WriteFromDictation: React.FC<WriteFromDictationProps> = () => {
               ))}
             </Stack>
           </Box>
-
-          {question.explanation && (
-            <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                Explanation:
-              </Typography>
-              <Typography variant="body2">
-                {question.explanation}
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowAnswer(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+        }
+      />
 
       {/* Translation Dialog */}
-      <Dialog open={showTranslate} onClose={() => setShowTranslate(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Translation Options</Typography>
-            <IconButton onClick={() => setShowTranslate(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Select Language</InputLabel>
-            <Select defaultValue="spanish" label="Select Language">
-              <MenuItem value="spanish">Spanish</MenuItem>
-              <MenuItem value="french">French</MenuItem>
-              <MenuItem value="german">German</MenuItem>
-              <MenuItem value="chinese">Chinese</MenuItem>
-              <MenuItem value="japanese">Japanese</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="body2" sx={{ color: '#666' }}>
-            Translation feature will help you understand the audio content in your preferred language.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowTranslate(false)}>Cancel</Button>
-          <Button variant="contained">Translate</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the audio content in your preferred language."
+      />
+    </GradientBackground>
   );
 };
 
-export default WriteFromDictation;
+export default WriteFromDictationRefactored;
