@@ -38,6 +38,8 @@ import { multipleChoiceQuestions } from './multipleChoiceQuestions';
 import { MultipleChoiceQuestion, SubmissionResult } from './multipleChoiceTypes';
 import { User } from '../../../../types/user';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
+import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import { TimerState, QuestionResult } from './multipleChoiceTypes';
 
 // Import types and data
 
@@ -47,60 +49,72 @@ interface MultipleChoiceProps {
 }
 
 const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
-  // State management
+   // State management
   const [selectedQuestion, setSelectedQuestion] = useState<MultipleChoiceQuestion>(multipleChoiceQuestions[0]);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [timeRemaining, setTimeRemaining] = useState<number>(300); // 5 minutes in seconds
-  const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
   const [questionNumber, setQuestionNumber] = useState<number>(118);
   const [studentName] = useState<string>('Rachel Carson');
   const [testedCount] = useState<number>(33);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   
+  // Timer state
+  const [timer, setTimer] = useState<TimerState>({
+    timeRemaining: 300, // 5 minutes
+    isRunning: false,
+    warningThreshold: 60,
+    autoSubmit: true,
+  });
+  
   // Dialog states
   const [showAnswer, setShowAnswer] = useState<boolean>(false);
   const [showTranslate, setShowTranslate] = useState<boolean>(false);
-  const [showSearch, setShowSearch] = useState<boolean>(false);
+  const [showResults, setShowResults] = useState<boolean>(false);
+  const [currentResult, setCurrentResult] = useState<QuestionResult | null>(null);
   const [showQuestionSelector, setShowQuestionSelector] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<Date>(new Date());
+
+  // Sync state when question changes
+  useEffect(() => {
+    setSelectedOptions([]);
+    setTimer({
+      timeRemaining: 300,
+      isRunning: false,
+      warningThreshold: 60,
+      autoSubmit: true,
+    });
+    setIsSubmitted(false);
+    setSubmissionResult(null);
+    setShowResults(false);
+    setCurrentResult(null);
+    startTimeRef.current = new Date();
+  }, [selectedQuestion]);
 
   // Timer functionality
   useEffect(() => {
-    if (isTimerActive && timeRemaining > 0) {
+    if (timer.isRunning && timer.timeRemaining > 0 && !isSubmitted) {
       timerRef.current = setTimeout(() => {
-        setTimeRemaining(prev => prev - 1);
+        setTimer(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
       }, 1000);
-    } else if (timeRemaining === 0) {
+    } else if (timer.timeRemaining === 0 && timer.autoSubmit && !isSubmitted) {
       handleAutoSubmit();
     }
+
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
     };
-  }, [isTimerActive, timeRemaining]);
+  }, [timer.timeRemaining, timer.isRunning, isSubmitted]);
 
   // Start timer when user starts selecting options
   useEffect(() => {
-    if (selectedOptions.length > 0 && !isTimerActive && !isSubmitted) {
-      setIsTimerActive(true);
+    if (selectedOptions.length > 0 && !timer.isRunning && !isSubmitted) {
+      setTimer(prev => ({ ...prev, isRunning: true }));
     }
-  }, [selectedOptions, isTimerActive, isSubmitted]);
-
-  // Format time for display
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Calculate progress percentage
-  const getProgressPercentage = (): number => {
-    return ((300 - timeRemaining) / 300) * 100;
-  };
+  }, [selectedOptions, timer.isRunning, isSubmitted]);
 
   // Handle option selection
   const handleOptionChange = (optionId: string) => {
@@ -161,12 +175,36 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
       return;
     }
     
+    if (isSubmitted) return;
+
+    setIsSubmitted(true);
+    setTimer(prev => ({ ...prev, isRunning: false }));
+
+    const endTime = new Date();
+    const timeSpent = Math.floor((endTime.getTime() - startTimeRef.current.getTime()) / 1000);
+    
     const result = calculateScore(selectedOptions, selectedQuestion);
     setSubmissionResult(result);
-    setIsSubmitted(true);
-    setIsTimerActive(false);
-    
-    alert(`Question submitted! Score: ${result.score}/100`);
+
+    const questionResult: QuestionResult = {
+      questionId: String(selectedQuestion.id),
+      score: result.score,
+      maxScore: 100,
+      correctAnswers: result.feedback.correct.length,
+      totalQuestions: selectedQuestion.options.filter(opt => opt.isCorrect).length,
+      completedAt: endTime,
+      timeSpent,
+      percentage: result.score,
+      answers: selectedQuestion.options.map(option => ({
+        id: option.id,
+        selectedAnswer: selectedOptions.includes(option.id) ? option.text : null,
+        correctAnswer: option.isCorrect ? option.text : null,
+        isCorrect: selectedOptions.includes(option.id) && option.isCorrect
+      }))
+    };
+
+    setCurrentResult(questionResult);
+    setShowResults(true);
   };
 
   // Handle auto submit when timer expires
@@ -175,21 +213,26 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
       const result = calculateScore(selectedOptions, selectedQuestion);
       setSubmissionResult(result);
       setIsSubmitted(true);
-      alert(`Time's up! Auto-submitted. Score: ${result.score}/100`);
     } else {
-      alert("Time's up! No answer submitted.");
       setIsSubmitted(true);
     }
-    setIsTimerActive(false);
+    setTimer(prev => ({ ...prev, isRunning: false }));
   };
 
   // Action handlers
   const handleRedo = (): void => {
     setSelectedOptions([]);
-    setTimeRemaining(300);
-    setIsTimerActive(false);
+    setTimer({
+      timeRemaining: 300,
+      isRunning: false,
+      warningThreshold: 60,
+      autoSubmit: true,
+    });
     setSubmissionResult(null);
     setIsSubmitted(false);
+    setShowResults(false);
+    setCurrentResult(null);
+    startTimeRef.current = new Date();
   };
 
   const handleShowAnswer = (): void => {
@@ -201,7 +244,7 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
   };
 
   const handleSearch = (): void => {
-    setShowSearch(true);
+    setShowQuestionSelector(true);
   };
 
   const handlePrevious = (): void => {
@@ -222,13 +265,6 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
     setShowQuestionSelector(false);
     handleRedo();
   };
-
-  // Filter questions for search
-  const filteredQuestions = multipleChoiceQuestions.filter(question =>
-    question.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    question.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    question.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
 
   // Get option color based on submission result
   const getOptionColor = (optionId: string): { bgcolor: string; color: string; border?: string } => {
@@ -251,166 +287,61 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: { xs: 1, sm: 2 } }}>
-      {/* Stage Goal Banner */}
+    <GradientBackground>
       <StageGoalBanner />
 
-      {/* Main Content */}
-      <Card sx={{ maxWidth: 1200, mx: 'auto', mb: 3 }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          {/* Header */}
-          <Stack 
-            direction={{ xs: 'column', sm: 'row' }} 
-            alignItems={{ xs: 'flex-start', sm: 'center' }} 
-            spacing={2} 
-            sx={{ mb: 3 }}
-          >
-            <Box
-              sx={{
-                width: { xs: 50, sm: 55, md: 60 },
-                height: { xs: 50, sm: 55, md: 60 },
-                bgcolor: '#00bcd4',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: { xs: '12px', sm: '14px', md: '16px' },
-                fontWeight: 'bold',
-                flexShrink: 0,
-                lineHeight: 1.2
-              }}
-            >
-              MCM
-            </Box>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
-                <Typography 
-                  variant="h5" 
-                  sx={{ 
-                    fontWeight: 'bold', 
-                    color: '#333',
-                    fontSize: { xs: '18px', sm: '20px', md: '24px' },
-                    lineHeight: 1.3,
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  Multiple Choice (Multiple)
-                </Typography>
-                <Chip onClick={() => { }} label="Study Guide" color="primary" size="small" />
-              </Stack>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: '#666', 
-                  mt: 1,
-                  fontSize: { xs: '12px', sm: '13px', md: '14px' },
-                  lineHeight: 1.5,
-                  wordBreak: 'break-word'
-                }}
-              >
-                Read the text and answer the question by selecting all the correct responses. More than one response is correct.
-              </Typography>
-            </Box>
-          </Stack>
+      <PracticeCard
+        icon="MCM"
+        title="Multiple Choice (Multiple)"
+        instructions="Read the text and answer the question by selecting all the correct responses. More than one response is correct."
+        difficulty={selectedQuestion.difficulty}
+      >
+        <QuestionHeader 
+          questionNumber={questionNumber}
+          studentName={studentName}
+          testedCount={testedCount}
+        />
 
-          <Divider sx={{ my: 3 }} />
+        <TimerDisplay
+          timeRemaining={timer.timeRemaining}
+          isRunning={timer.isRunning}
+          warningThreshold={timer.warningThreshold}
+          showStartMessage={!timer.isRunning}
+          startMessage="Timer will start when you begin selecting options"
+          autoSubmit={timer.autoSubmit}
+        />
 
-          {/* Question Header */}
-          <QuestionHeader 
-            questionNumber={questionNumber}
-            studentName={studentName}
-            testedCount={testedCount}
-          />
+        {/* Passage Display */}
+        <ContentDisplay
+          title={`#${questionNumber} ${selectedQuestion.testSensitivity || 'Test Sensitivity'}`}
+          content={selectedQuestion.passage}
+          category={selectedQuestion.category}
+          difficulty={selectedQuestion.difficulty}
+          tags={selectedQuestion.tags}
+          showMetadata={true}
+        />
 
-          {/* Test Sensitivity & Timer */}
-          <Stack 
-            direction={{ xs: 'column', sm: 'row' }} 
-            alignItems={{ xs: 'flex-start', sm: 'center' }} 
-            justifyContent="space-between"
-            spacing={2}
-            sx={{ mb: 3 }}
-          >
-            <Box>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: '#f44336',
-                  fontWeight: 'bold',
-                  fontSize: { xs: '13px', sm: '14px' }
-                }}
-              >
-                #{questionNumber} {selectedQuestion.testSensitivity || 'Test Sensitivity'}
-              </Typography>
-              <Chip onClick={() => { }} label="Text" color="error" variant="outlined" size="small" sx={{ mt: 1 }} />
-            </Box>
-            
-            <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  color: timeRemaining < 60 ? '#f44336' : '#4caf50', 
-                  fontWeight: 'bold',
-                  fontSize: { xs: '16px', sm: '18px', md: '20px' }
-                }}
-              >
-                Time: {formatTime(timeRemaining)}
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={getProgressPercentage()}
-                sx={{
-                  width: { xs: '100%', sm: '200px' },
-                  height: { xs: 6, sm: 8 },
-                  borderRadius: 4,
-                  bgcolor: '#e0e0e0',
-                  mt: 1,
-                  '& .MuiLinearProgress-bar': {
-                    bgcolor: timeRemaining < 60 ? '#f44336' : '#4caf50',
-                  },
-                }}
-              />
-            </Box>
-          </Stack>
-
-          {/* Passage Display */}
-          <Paper 
-            sx={{ 
-              p: { xs: 2, sm: 3 }, 
-              mb: 3, 
-              bgcolor: '#fafafa' 
-            }}
-          >
+        {/* Question */}
+        <ContentDisplay
+          content={
             <Typography 
-              variant="body1" 
+              variant="h6" 
               sx={{ 
-                lineHeight: 1.8, 
-                color: '#333',
-                fontSize: { xs: '14px', sm: '15px', md: '16px' },
-                wordBreak: 'break-word',
-                hyphens: 'auto'
+                color: '#333', 
+                fontWeight: 'bold',
+                fontSize: { xs: '16px', sm: '18px', md: '20px' },
+                wordBreak: 'break-word'
               }}
             >
-              {selectedQuestion.passage}
+              {selectedQuestion.question}
             </Typography>
-          </Paper>
+          }
+          showMetadata={false}
+        />
 
-          {/* Question */}
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              color: '#333', 
-              mb: 3, 
-              fontWeight: 'bold',
-              fontSize: { xs: '16px', sm: '18px', md: '20px' },
-              wordBreak: 'break-word'
-            }}
-          >
-            {selectedQuestion.question}
-          </Typography>
-
-          {/* Options */}
-          <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+        {/* Options */}
+        <ContentDisplay
+          content={
             <FormGroup>
               {selectedQuestion.options.map((option) => {
                 const optionStyle = getOptionColor(option.id);
@@ -456,46 +387,36 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
                 );
               })}
             </FormGroup>
-          </Paper>
+          }
+          showMetadata={false}
+        />
 
-          {/* Submission Result */}
-          {isSubmitted && submissionResult && (
-            <Alert 
-              severity={submissionResult.score >= 70 ? 'success' : submissionResult.score >= 50 ? 'warning' : 'error'} 
-              sx={{ mb: 3 }}
-            >
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                Score: {submissionResult.score}/100
-              </Typography>
-              <Typography variant="body2">
-                Correct: {submissionResult.feedback.correct.join(', ') || 'None'} | 
-                Incorrect: {submissionResult.feedback.incorrect.join(', ') || 'None'} | 
-                Missed: {submissionResult.feedback.missed.join(', ') || 'None'}
-              </Typography>
-            </Alert>
-          )}
+        <ProgressIndicator
+          current={selectedOptions.length}
+          total={selectedQuestion.options.filter(opt => opt.isCorrect).length}
+          label="options selected"
+          color="primary"
+          customLabel={`${selectedOptions.length} options selected`}
+        />
 
-          {/* Action Buttons */}
-          <ActionButtons
-                      hasResponse={selectedOptions.length > 0}
-                      onSubmit={handleSubmit}
-                      onRedo={handleRedo}
-                      onTranslate={handleTranslate}
-                      onShowAnswer={handleShowAnswer} recordedBlob={null}          />
+        <ActionButtons
+          hasResponse={selectedOptions.length > 0}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={handleTranslate}
+          onShowAnswer={handleShowAnswer}
+          recordedBlob={null}
+        />
 
-          {/* Navigation Section */}
-          <NavigationSection
-            onSearch={handleSearch}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            questionNumber={questionNumber}
-          />
-        </CardContent>
-      </Card>
+        <NavigationSection
+          onSearch={handleSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          questionNumber={questionNumber}
+        />
+      </PracticeCard>
 
-    
-
-<TopicSelectionDrawer
+      <TopicSelectionDrawer
         open={showQuestionSelector}
         onClose={() => setShowQuestionSelector(false)}
         onSelect={handleQuestionSelect}
@@ -504,119 +425,53 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
         type="lecture"
       />
 
-      {/* Answer Dialog */}
-      <Dialog open={showAnswer} onClose={() => setShowAnswer(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Correct Answers & Explanation</Typography>
-            <IconButton onClick={() => setShowAnswer(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            <strong>Question:</strong> {selectedQuestion.title}
-          </Typography>
-          
-          <Typography variant="h6" sx={{ mb: 2, color: '#4caf50' }}>
-            Correct Answers:
-          </Typography>
-          {selectedQuestion.options.filter(opt => opt.isCorrect).map(option => (
-            <Typography key={option.id} variant="body2" sx={{ mb: 1, p: 1, bgcolor: '#e8f5e8', borderRadius: 1 }}>
-              <strong>{option.id})</strong> {option.text}
-            </Typography>
-          ))}
-          
-          {selectedQuestion.explanation && (
-            <>
-              <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
-                Explanation:
-              </Typography>
-              <Typography variant="body2" sx={{ lineHeight: 1.6, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                {selectedQuestion.explanation}
-              </Typography>
-            </>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowAnswer(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+      <ResultsDialog
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={currentResult}
+        onTryAgain={handleRedo}
+        customContent={
+          submissionResult && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>Answer Analysis:</Typography>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Performance:</Typography>
+                  <Typography variant="body2" color="success.main">
+                    Correct: {submissionResult.feedback.correct.join(', ') || 'None'}
+                  </Typography>
+                  <Typography variant="body2" color="error.main">
+                    Incorrect: {submissionResult.feedback.incorrect.join(', ') || 'None'}
+                  </Typography>
+                  <Typography variant="body2" color="warning.main">
+                    Missed: {submissionResult.feedback.missed.join(', ') || 'None'}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+          )
+        }
+      />
 
-      {/* Translation Dialog */}
-      <Dialog open={showTranslate} onClose={() => setShowTranslate(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Translation Options</Typography>
-            <IconButton onClick={() => setShowTranslate(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Select Language</InputLabel>
-            <Select defaultValue="spanish" label="Select Language">
-              <MenuItem value="spanish">Spanish</MenuItem>
-              <MenuItem value="french">French</MenuItem>
-              <MenuItem value="german">German</MenuItem>
-              <MenuItem value="chinese">Chinese</MenuItem>
-              <MenuItem value="japanese">Japanese</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="body2" sx={{ color: '#666' }}>
-            Translation feature will help you understand the question content in your preferred language.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowTranslate(false)}>Cancel</Button>
-          <Button variant="contained">Translate</Button>
-        </DialogActions>
-      </Dialog>
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={`Question: ${selectedQuestion.title}`}
+        text={selectedQuestion.passage}
+        answers={selectedQuestion.options.filter(opt => opt.isCorrect).map(option => ({
+          id: option.id,
+          correctAnswer: option.text,
+          label: `Option ${option.id}`
+        }))}
+        explanation={selectedQuestion.explanation}
+      />
 
-      {/* Search Dialog */}
-      <Dialog open={showSearch} onClose={() => setShowSearch(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Search Questions</Typography>
-            <IconButton onClick={() => setShowSearch(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            placeholder="Search by title, category, or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-          <List>
-            {filteredQuestions.map((question) => (
-              <ListItem key={question.id} disablePadding>
-                <ListItemButton 
-                  onClick={() => {
-                    handleQuestionSelect(question);
-                    setShowSearch(false);
-                    setSearchQuery('');
-                  }}
-                >
-                  <ListItemText
-                    primary={question.title}
-                    secondary={`${question.category} • ${question.difficulty}`}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowSearch(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the question content in your preferred language."
+      />
+    </GradientBackground>
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Container,
@@ -6,13 +6,15 @@ import {
   Typography,
   Button,
   Paper,
-  Grid,
   Divider,
   LinearProgress,
   Chip,
   TextareaAutosize,
   useTheme,
   useMediaQuery,
+  Alert,
+  Stack,
+  TextField,
 } from '@mui/material';
 import {
   ESSAY_QUESTIONS,
@@ -20,621 +22,580 @@ import {
   ESSAY_TIME_LIMIT_SECONDS,
   ESSAY_MIN_WORDS,
   ESSAY_MAX_WORDS,
+  EssayFeedback,
+  QuestionResult,
+  TimerState,
 } from './constants';
+import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, TopicSelectionDrawer, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import ActionButtons from '../../common/ActionButtons';
+import NavigationSection from '../../common/NavigationSection';
+import QuestionHeader from '../../common/QuestionHeader';
+import StageGoalBanner from '../../common/StageGoalBanner';
 
-const WritingEssay: React.FC = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+const WritingEssay: React.FC=() => {
+  // State management
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
+  const [currentQuestion, setCurrentQuestion] = useState(ESSAY_QUESTIONS[currentQuestionIndex]);
+  const [essayText, setEssayText] = useState<string>('');
+  const [wordCount, setWordCount] = useState<number>(0);
+  const [questionNumber, setQuestionNumber] = useState<number>(85);
+  const [studentName] = useState<string>('Rachel Carson');
+  const [testedCount] = useState<number>(33);
+  const [feedback, setFeedback] = useState<EssayFeedback | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  // Timer state
+  const [timer, setTimer] = useState<TimerState>({
+    timeRemaining: ESSAY_TIME_LIMIT_SECONDS,
+    isRunning: false,
+    warningThreshold: 300, // 5 minutes
+    autoSubmit: true,
+  });
 
-  // State
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [essayText, setEssayText] = useState('');
-  const [timeLeft, setTimeLeft] = useState(ESSAY_TIME_LIMIT_SECONDS);
-  const [isStarted, setIsStarted] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
+  // Dialog states
+  const [showAnswer, setShowAnswer] = useState<boolean>(false);
+  const [showTranslate, setShowTranslate] = useState<boolean>(false);
+  const [showResults, setShowResults] = useState<boolean>(false);
+  const [currentResult, setCurrentResult] = useState<QuestionResult | null>(null);
+  const [showQuestionSelector, setShowQuestionSelector] = useState<boolean>(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<Date>(new Date());
 
-  // Handlers
-  const handleStartTimer = () => {
-    setIsStarted(true);
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  // Sync state when question changes
+  useEffect(() => {
+    const newQuestion = ESSAY_QUESTIONS[currentQuestionIndex];
+    setCurrentQuestion(newQuestion);
+    setEssayText('');
+    setWordCount(0);
+    setTimer({
+      timeRemaining: ESSAY_TIME_LIMIT_SECONDS,
+      isRunning: false,
+      warningThreshold: 300,
+      autoSubmit: true,
+    });
+    setFeedback(null);
+    setIsSubmitted(false);
+    setShowResults(false);
+    setCurrentResult(null);
+    startTimeRef.current = new Date();
+  }, [currentQuestionIndex]);
+
+  // Timer functionality
+  useEffect(() => {
+    if (timer.isRunning && timer.timeRemaining > 0 && !isSubmitted) {
+      timerRef.current = setTimeout(() => {
+        setTimer(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
+      }, 1000);
+    } else if (timer.timeRemaining === 0 && timer.autoSubmit && !isSubmitted) {
+      handleAutoSubmit();
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [timer.timeRemaining, timer.isRunning, isSubmitted]);
+
+  // Start timer when user starts typing
+  useEffect(() => {
+    if (essayText.length > 0 && !timer.isRunning && !isSubmitted) {
+      setTimer(prev => ({ ...prev, isRunning: true }));
+    }
+  }, [essayText, timer.isRunning, isSubmitted]);
+
+  // Handle text input change
+  const handleEssayChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const text = event.target.value;
+    setEssayText(text);
+    setWordCount(getWordCount(text));
   };
 
-  const handleSubmitEssay = () => {
-    setShowFeedback(true);
+  // Get word count
+  const getWordCount = (text: string): number => {
+    return text.trim().split(/\s+/).filter((word) => word.length > 0).length;
   };
 
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < ESSAY_QUESTIONS.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setEssayText('');
-      setTimeLeft(ESSAY_TIME_LIMIT_SECONDS);
-      setIsStarted(false);
-      setShowFeedback(false);
+  // Calculate essay score
+  const calculateEssayScore = (text: string): EssayFeedback => {
+    const currentWordCount = getWordCount(text);
+    
+    // Base scores
+    let contentScore = 65;
+    let formScore = 70;
+    let grammarScore = 75;
+    let vocabularyScore = 68;
+
+    // Word count impact
+    if (currentWordCount >= ESSAY_MIN_WORDS && currentWordCount <= ESSAY_MAX_WORDS) {
+      formScore += 10;
+    } else if (currentWordCount < ESSAY_MIN_WORDS) {
+      formScore -= 15;
+      contentScore -= 10;
+    } else if (currentWordCount > ESSAY_MAX_WORDS) {
+      formScore -= 5;
+    }
+
+    // Length and structure impact
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    if (sentences.length >= 8) {
+      formScore += 5;
+    }
+
+    const overallScore = Math.round((contentScore * 0.4 + formScore * 0.25 + grammarScore * 0.25 + vocabularyScore * 0.1));
+
+    return {
+      overallScore: Math.min(overallScore, 100),
+      contentScore,
+      formScore,
+      spellingScore:80,
+      grammarScore,
+      vocabularyScore,
+      wordCount: currentWordCount,
+      feedback: ESSAY_MOCK_FEEDBACK.feedback
+    };
+  };
+
+  // Handle submission
+  const handleSubmit = (): void => {
+    if (wordCount < ESSAY_MIN_WORDS) {
+      alert(`Please write at least ${ESSAY_MIN_WORDS} words. Current count: ${wordCount}`);
+      return;
+    }
+
+    if (isSubmitted) return;
+
+    setIsSubmitted(true);
+    setTimer(prev => ({ ...prev, isRunning: false }));
+
+    const endTime = new Date();
+    const timeSpent = Math.floor((endTime.getTime() - startTimeRef.current.getTime()) / 1000);
+    const essayFeedback = calculateEssayScore(essayText);
+    setFeedback(essayFeedback);
+
+    const result: QuestionResult = {
+      questionId: String(currentQuestion.id),
+      score: essayFeedback.overallScore,
+      maxScore: 100,
+      correctAnswers: essayFeedback.overallScore >= 70 ? 1 : 0,
+      totalQuestions: 1,
+      completedAt: endTime,
+      timeSpent,
+      percentage: essayFeedback.overallScore,
+      answers: [{
+        id: 'essay-response',
+        selectedAnswer: `${wordCount} words written`,
+        correctAnswer: `${ESSAY_MIN_WORDS}-${ESSAY_MAX_WORDS} words required`,
+        isCorrect: wordCount >= ESSAY_MIN_WORDS && wordCount <= ESSAY_MAX_WORDS
+      }]
+    };
+
+    setCurrentResult(result);
+    setShowResults(true);
+  };
+
+  // Handle auto submit when timer expires
+  const handleAutoSubmit = (): void => {
+    if (essayText.trim()) {
+      const essayFeedback = calculateEssayScore(essayText);
+      setFeedback(essayFeedback);
+    }
+    setIsSubmitted(true);
+    setTimer(prev => ({ ...prev, isRunning: false }));
+  };
+
+  // Action handlers
+  const handleRedo = (): void => {
+    setEssayText('');
+    setWordCount(0);
+    setTimer({
+      timeRemaining: ESSAY_TIME_LIMIT_SECONDS,
+      isRunning: false,
+      warningThreshold: 300,
+      autoSubmit: true,
+    });
+    setFeedback(null);
+    setIsSubmitted(false);
+    setShowResults(false);
+    setCurrentResult(null);
+    startTimeRef.current = new Date();
+  };
+
+  const handleShowAnswer = (): void => {
+    setShowAnswer(true);
+  };
+
+  const handleTranslate = (): void => {
+    setShowTranslate(true);
+  };
+
+  const handleSearch = (): void => {
+    setShowQuestionSelector(true);
+  };
+
+  const handlePrevious = (): void => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const handleNext = (): void => {
+    if (currentQuestionIndex < ESSAY_QUESTIONS.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    } else {
+      setShowQuestionSelector(true);
+    }
   };
 
-  const getWordCount = () => {
-    return essayText.trim().split(/\s+/).filter((word) => word.length > 0).length;
+  // Handle question selection
+  const handleQuestionSelect = (question: any) => {
+    const newIndex = ESSAY_QUESTIONS.findIndex(q => q.id === question.id);
+    if (newIndex !== -1) {
+      setCurrentQuestionIndex(newIndex);
+    }
+    setShowQuestionSelector(false);
   };
 
-  // Mock feedback with dynamic word count
-  const feedback = {
-    ...ESSAY_MOCK_FEEDBACK,
-    wordCount: getWordCount(),
+  // Get word count status color
+  const getWordCountColor = (): string => {
+    if (wordCount === 0) return '#666';
+    if (wordCount < ESSAY_MIN_WORDS) return '#ff9800';
+    if (wordCount > ESSAY_MAX_WORDS) return '#f44336';
+    return '#4caf50';
   };
+
+  // Convert questions to topic format
+  const questionTopics = ESSAY_QUESTIONS.map((q, index) => ({
+    id: q.id,
+    title: q.prompt.substring(0, 80) + '...',
+    duration: '20m',
+    speaker: 'Essay',
+    difficulty: 'Advanced',
+    category: 'Writing',
+    tags: [q.type, q.wordLimit],
+    isNew: false,
+    isMarked: false,
+    pracStatus: 'Undone',
+    hasExplanation: true,
+    createdAt: '',
+    updatedAt: '',
+  }));
 
   return (
-    <Container
-      maxWidth={isMobile ? 'sm' : 'lg'}
-      sx={{ py: { xs: 2, sm: 4 } }}
-    >
-      {/* Header */}
-      <Box mb={{ xs: 2, sm: 6 }}>
-        <Box
-          display="flex"
-          flexDirection={{ xs: 'column', sm: 'row' }}
-          alignItems={{ xs: 'start', sm: 'center' }}
-          gap={2}
-          mb={2}
-        >
-          <Link to="/practice-tests" style={{ textDecoration: 'none' }}>
-            <Typography
-              color="primary"
-              variant={isMobile ? 'body2' : 'body1'}
-              sx={{ '&:hover': { color: 'primary.dark' } }}
-            >
-              ← Back to Practice
-            </Typography>
-          </Link>
-          <Divider
-            orientation={isMobile ? 'horizontal' : 'vertical'}
-            flexItem
-            sx={{ my: isMobile ? 1 : 0 }}
-          />
-          <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="bold">
-            Write Essay
-          </Typography>
-          <Chip onClick={() => { }} label="PTA" color="secondary" size={isMobile ? 'small' : 'medium'} />
-        </Box>
-        <Typography
-          variant={isMobile ? 'caption' : 'body2'}
-          color="text.secondary"
-          sx={{ lineHeight: 1.5 }}
-        >
-          Write an essay of 200-300 words in response to the prompt below. You have 20 minutes.
-        </Typography>
-      </Box>
+    <GradientBackground>
+      <StageGoalBanner />
 
-      {/* Progress */}
-      <Box mb={{ xs: 2, sm: 4 }}>
-        <Box
-          display="flex"
-          flexDirection={{ xs: 'column', sm: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ xs: 'start', sm: 'center' }}
-          gap={{ xs: 1, sm: 2 }}
-          mb={2}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Question {currentQuestionIndex + 1} of {ESSAY_QUESTIONS.length}
-          </Typography>
-          <Chip
-          onClick={() => { }}
-            label="Writing • Essay"
-            size={isMobile ? 'small' : 'medium'}
-          />
-        </Box>
-        <LinearProgress
-          variant="determinate"
-          value={((currentQuestionIndex + 1) / ESSAY_QUESTIONS.length) * 100}
-          sx={{ height: { xs: 6, sm: 8 } }}
+      <PracticeCard
+        icon="WE"
+        title="Write Essay"
+        instructions={`Write an essay of ${ESSAY_MIN_WORDS}-${ESSAY_MAX_WORDS} words in response to the prompt below. You have 20 minutes. Your response will be judged on content, form, grammar, vocabulary, and spelling.`}
+        difficulty="Advanced"
+      >
+        <QuestionHeader 
+          questionNumber={questionNumber}
+          studentName={studentName}
+          testedCount={testedCount}
         />
-      </Box>
 
-      {/* Main Content */}
-      <Grid container spacing={{ xs: 2, sm: 4 }}>
-        {/* Writing Area */}
-        <Box sx={{ width: { xs: '100%', lg: '72%' }, pr: { lg: 2 } }}>
-          {/* Question Panel */}
-          <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 } }}>
-            <Box
-              display="flex"
-              flexDirection={{ xs: 'column', sm: 'row' }}
-              justifyContent="space-between"
-              alignItems={{ xs: 'start', sm: 'center' }}
-              mb={2}
-            >
-              <Typography variant={isMobile ? 'h6' : 'h5'} fontWeight="medium">
-                Essay Question
-              </Typography>
-              <Box
-                display="flex"
-                flexDirection={{ xs: 'column', sm: 'row' }}
-                gap={2}
-                alignItems={{ xs: 'start', sm: 'center' }}
-              >
-                <Chip onClick={() => { }} label={ESSAY_QUESTIONS[currentQuestionIndex].type} size="small" />
-                <Typography variant="caption" color="text.secondary">
-                  {ESSAY_QUESTIONS[currentQuestionIndex].wordLimit}
-                </Typography>
-              </Box>
-            </Box>
-            <Paper
-              variant="outlined"
-              sx={{ p: { xs: 2, sm: 3 }, bgcolor: 'grey.50', mb: { xs: 2, sm: 3 } }}
-            >
-              <Typography variant={isMobile ? 'body2' : 'body1'} sx={{ lineHeight: 1.6 }}>
-                {ESSAY_QUESTIONS[currentQuestionIndex].prompt}
-              </Typography>
-            </Paper>
-            <Box
-              display="flex"
-              flexDirection={{ xs: 'column', sm: 'row' }}
-              justifyContent="space-between"
-              alignItems={{ xs: 'start', sm: 'center' }}
-              gap={2}
-            >
-              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="center">
-                <Typography
-                  color={timeLeft < 300 ? 'error.main' : 'primary.main'}
-                  fontWeight="medium"
-                  variant={isMobile ? 'caption' : 'body2'}
-                >
-                  Time: {formatTime(timeLeft)}
-                </Typography>
-                {!isStarted && (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size={isMobile ? 'small' : 'medium'}
-                    onClick={handleStartTimer}
-                  >
-                    Start Timer
-                  </Button>
-                )}
-              </Box>
-              <Typography
-                color={
-                  getWordCount() < ESSAY_MIN_WORDS
-                    ? 'warning.main'
-                    : getWordCount() > ESSAY_MAX_WORDS
-                    ? 'error.main'
-                    : 'success.main'
-                }
-                fontWeight="medium"
-                variant={isMobile ? 'caption' : 'body2'}
-              >
-                Words: {getWordCount()}/{ESSAY_MAX_WORDS}
-              </Typography>
-            </Box>
-          </Paper>
+        <TimerDisplay
+          timeRemaining={timer.timeRemaining}
+          isRunning={timer.isRunning}
+          warningThreshold={timer.warningThreshold}
+          showStartMessage={!timer.isRunning}
+          startMessage="Timer will start when you begin typing"
+          autoSubmit={timer.autoSubmit}
+        />
 
-          {/* Writing Area */}
-          <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 } }}>
-            <Typography variant={isMobile ? 'h6' : 'h5'} fontWeight="medium" mb={2}>
-              Your Essay
-            </Typography>
-            <TextareaAutosize
-              value={essayText}
-              onChange={(e) => setEssayText(e.target.value)}
-              placeholder="Start writing your essay here..."
-              minRows={12}
-              disabled={timeLeft === 0 || showFeedback}
-              style={{
-                width: '100%',
-                padding: '16px',
-                border: '1px solid rgba(0, 0, 0, 0.23)',
-                borderRadius: '4px',
-                fontFamily: 'monospace',
-                fontSize: '14px',
-                lineHeight: '1.5',
-                resize: 'vertical',
-              }}
-              aria-label="Essay text area"
-            />
-            <Box textAlign="center" mt={2}>
-              {timeLeft > 0 && !showFeedback && getWordCount() >= ESSAY_MIN_WORDS && (
-                <Button
-                  variant="contained"
-                  color="success"
-                  size={isMobile ? 'medium' : 'large'}
-                  onClick={handleSubmitEssay}
-                  fullWidth={isMobile}
+        {/* Question Prompt */}
+        <ContentDisplay
+          title={`Essay Question (#${questionNumber})`}
+          content={
+            <Box>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  color: '#333', 
+                  mb: 2, 
+                  fontWeight: 'bold',
+                  fontSize: { xs: '16px', sm: '18px', md: '20px' }
+                }}
+              >
+                {currentQuestion.prompt}
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Type:</strong> {currentQuestion.type}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Word Limit:</strong> {currentQuestion.wordLimit}
+                </Typography>
+              </Stack>
+            </Box>
+          }
+          category="Writing"
+          difficulty="Advanced"
+          tags={[currentQuestion.type, currentQuestion.wordLimit]}
+          showMetadata={true}
+        />
+
+        {/* Essay Input */}
+        <ContentDisplay
+          title="Your Essay:"
+          content={
+            <Box>
+              <Stack 
+                direction={{ xs: 'column', sm: 'row' }} 
+                alignItems={{ xs: 'flex-start', sm: 'center' }} 
+                justifyContent="space-between" 
+                sx={{ mb: 2 }}
+                spacing={{ xs: 1, sm: 0 }}
+              >
+                <Typography variant="h6" sx={{ color: '#333' }}>
+                  Essay Response:
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: getWordCountColor(),
+                    fontWeight: 'bold',
+                    fontSize: '16px'
+                  }}
                 >
-                  Submit Essay
-                </Button>
+                  Words: {wordCount}/{ESSAY_MAX_WORDS}
+                </Typography>
+              </Stack>
+              
+              {wordCount > 0 && (wordCount < ESSAY_MIN_WORDS || wordCount > ESSAY_MAX_WORDS) && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  {wordCount < ESSAY_MIN_WORDS 
+                    ? `Write at least ${ESSAY_MIN_WORDS} words. Current: ${wordCount}`
+                    : `Exceeds maximum ${ESSAY_MAX_WORDS} words. Current: ${wordCount}`
+                  }
+                </Alert>
               )}
-              {timeLeft === 0 && !showFeedback && (
-                <Button
-                  variant="contained"
-                  color="error"
-                  size={isMobile ? 'medium' : 'large'}
-                  onClick={handleSubmitEssay}
-                  fullWidth={isMobile}
-                >
-                  Time's Up - Submit Essay
-                </Button>
-              )}
+              
+              <TextField
+                fullWidth
+                multiline
+                rows={15}
+                value={essayText}
+                onChange={handleEssayChange}
+                placeholder="Start writing your essay here..."
+                disabled={isSubmitted || timer.timeRemaining === 0}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    fontSize: '16px',
+                    lineHeight: 1.6,
+                    fontFamily: 'monospace',
+                  },
+                }}
+              />
             </Box>
-          </Paper>
-        </Box>
+          }
+          showMetadata={false}
+        />
 
-        {/* Instructions/Feedback Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '25%' }, pl: { lg: 2 } }}>
-          {!showFeedback ? (
-            <Paper
-              elevation={3}
-              sx={{
-                p: { xs: 2, sm: 4 },
-                position: { lg: 'sticky' },
-                top: { lg: '1.5rem' },
-              }}
-            >
-              <Typography
-                variant={isMobile ? 'h6' : 'h5'}
-                fontWeight="medium"
-                mb={2}
-              >
-                📝 Essay Guidelines
-              </Typography>
-              <Box display="flex" flexDirection="column" gap={2}>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="medium">
-                    Structure:
-                  </Typography>
-                  <Box component="ul" sx={{ pl: 2, color: 'text.secondary' }}>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Introduction with thesis
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        2-3 body paragraphs
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Clear conclusion
-                      </Typography>
-                    </li>
-                  </Box>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="medium">
-                    Content Tips:
-                  </Typography>
-                  <Box component="ul" sx={{ pl: 2, color: 'text.secondary' }}>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Address the question directly
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Use specific examples
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Present clear arguments
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Show different perspectives
-                      </Typography>
-                    </li>
-                  </Box>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="medium">
-                    Language:
-                  </Typography>
-                  <Box component="ul" sx={{ pl: 2, color: 'text.secondary' }}>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Use varied sentence structures
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Include transitional phrases
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Use academic vocabulary
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Check grammar and spelling
-                      </Typography>
-                    </li>
-                  </Box>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="medium">
-                    Scoring:
-                  </Typography>
-                  <Box component="ul" sx={{ pl: 2, color: 'text.secondary' }}>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Content (40%)
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Form & Development (25%)
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Grammar (25%)
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Vocabulary (5%)
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant={isMobile ? 'caption' : 'body2'}>
-                        Spelling (5%)
-                      </Typography>
-                    </li>
-                  </Box>
-                </Box>
-              </Box>
-            </Paper>
-          ) : (
-            <Box display="flex" flexDirection="column" gap={2}>
-              {/* AI Feedback */}
-              <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 } }}>
-                <Typography
-                  variant={isMobile ? 'h6' : 'h5'}
-                  fontWeight="medium"
-                  mb={2}
+        {/* Detailed Feedback after submission */}
+        {feedback && (
+          <ContentDisplay
+            title="🤖 AI Feedback & Analysis"
+            content={
+              <Box>
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: 2, 
+                    mb: 3 
+                  }}
                 >
-                  🤖 AI Feedback
-                </Typography>
-                <Box textAlign="center" mb={3}>
-                  <Typography variant="h4" color="primary.main" fontWeight="bold">
-                    {feedback.overallScore}
-                  </Typography>
-                  <Typography
-                    variant={isMobile ? 'caption' : 'body2'}
-                    color="text.secondary"
+                  <Box
+                    sx={{
+                      flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 18%' },
+                      minWidth: 120,
+                    }}
                   >
-                    Overall Score
-                  </Typography>
-                </Box>
-                <Grid container spacing={0.5}>
-                  <Grid container sx={{ width: { xs: '100%', md: '48%' }}}>
-                    <Paper
-                      elevation={0}
-                      sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.light', width: '100%' }}
-                    >
+                    <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.light' }}>
                       <Typography variant="h6" color="primary.main" fontWeight="bold">
+                        {feedback.overallScore}
+                      </Typography>
+                      <Typography variant="caption">Overall</Typography>
+                    </Paper>
+                  </Box>
+                  <Box
+                    sx={{
+                      flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 18%' },
+                      minWidth: 120,
+                    }}
+                  >
+                    <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.light' }}>
+                      <Typography variant="h6" color="info.main" fontWeight="bold">
                         {feedback.contentScore}
                       </Typography>
-                      <Typography
-                        variant={isMobile ? 'caption' : 'body2'}
-                        color="text.secondary"
-                      >
-                        Content
-                      </Typography>
+                      <Typography variant="caption">Content</Typography>
                     </Paper>
-                  </Grid>
-                  <Grid container sx={{ width: { xs: '100%', md: '48%' }}}>
-                    <Paper
-                      elevation={0}
-                      sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', width: '100%' }}
-                    >
+                  </Box>
+                  <Box
+                    sx={{
+                      flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 18%' },
+                      minWidth: 120,
+                    }}
+                  >
+                    <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'success.light' }}>
                       <Typography variant="h6" color="success.main" fontWeight="bold">
                         {feedback.formScore}
                       </Typography>
-                      <Typography
-                        variant={isMobile ? 'caption' : 'body2'}
-                        color="text.secondary"
-                      >
-                        Form
-                      </Typography>
+                      <Typography variant="caption">Form</Typography>
                     </Paper>
-                  </Grid>
-                  <Grid container sx={{ width: { xs: '100%', md: '48%' }}}>
-                    <Paper
-                      elevation={0}
-                      sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', width: '100%' }}
-                    >
+                  </Box>
+                  <Box
+                    sx={{
+                      flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 18%' },
+                      minWidth: 120,
+                    }}
+                  >
+                    <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'warning.light' }}>
                       <Typography variant="h6" color="warning.main" fontWeight="bold">
                         {feedback.grammarScore}
                       </Typography>
-                      <Typography
-                        variant={isMobile ? 'caption' : 'body2'}
-                        color="text.secondary"
-                      >
-                        Grammar
-                      </Typography>
+                      <Typography variant="caption">Grammar</Typography>
                     </Paper>
-                  </Grid>
-                  <Grid container sx={{ width: { xs: '100%', md: '48%' }}}>
-                    <Paper
-                      elevation={0}
-                      sx={{ textAlign: 'center', p: 2, bgcolor: 'secondary.light', width: '100%' }}
-                    >
+                  </Box>
+                  <Box
+                    sx={{
+                      flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 18%' },
+                      minWidth: 120,
+                    }}
+                  >
+                    <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'secondary.light' }}>
                       <Typography variant="h6" color="secondary.main" fontWeight="bold">
                         {feedback.vocabularyScore}
                       </Typography>
-                      <Typography
-                        variant={isMobile ? 'caption' : 'body2'}
-                        color="text.secondary"
-                      >
-                        Vocabulary
-                      </Typography>
+                      <Typography variant="caption">Vocabulary</Typography>
                     </Paper>
-                  </Grid>
-                </Grid>
-                <Paper
-                  variant="outlined"
-                  sx={{ p: { xs: 2, sm: 3 }, bgcolor: 'grey.50', mt: 2 }}
-                >
-                  <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                    Word Count:
-                  </Typography>
-                  <Typography>
-                    {feedback.wordCount} words
-                  </Typography>
-                  <Typography
-                    color={
-                      feedback.wordCount >= ESSAY_MIN_WORDS && feedback.wordCount <= ESSAY_MAX_WORDS
-                        ? 'success.main'
-                        : 'warning.main'
-                    }
-                    variant="caption"
-                  >
-                    {feedback.wordCount >= ESSAY_MIN_WORDS && feedback.wordCount <= ESSAY_MAX_WORDS
-                      ? '✓ Within recommended range'
-                      : '⚠ Outside recommended range (200-300)'}
-                  </Typography>
-                </Paper>
-                <Box textAlign="center" mt={2}>
-                  {currentQuestionIndex < ESSAY_QUESTIONS.length - 1 ? (
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      size={isMobile ? 'medium' : 'large'}
-                      onClick={handleNextQuestion}
-                      fullWidth={isMobile}
-                    >
-                      Next Question →
-                    </Button>
-                  ) : (
-                    <Box
-                      display="flex"
-                      flexDirection={{ xs: 'column', sm: 'row' }}
-                      justifyContent="center"
-                      gap={{ xs: 1, sm: 2 }}
-                    >
-                      <Link to="/practice-tests" style={{ textDecoration: 'none' }}>
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          size={isMobile ? 'medium' : 'large'}
-                          fullWidth={isMobile}
-                        >
-                          Back to Practice
-                        </Button>
-                      </Link>
-                      <Link to="/progress" style={{ textDecoration: 'none' }}>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          size={isMobile ? 'medium' : 'large'}
-                          fullWidth={isMobile}
-                        >
-                          View Progress
-                        </Button>
-                      </Link>
-                    </Box>
-                  )}
+                  </Box>
                 </Box>
-              </Paper>
 
-              {/* Detailed Feedback */}
-              <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, mt: 2 }}>
-                <Typography variant="subtitle1" fontWeight="medium" mb={2}>
-                  Detailed Analysis
-                </Typography>
-                <Box display="flex" flexDirection="column" gap={2}>
+                <Stack spacing={2}>
                   <Box>
-                    <Typography
-                      variant="subtitle2"
-                      fontWeight="medium"
-                      color="success.main"
-                      mb={1}
-                    >
+                    <Typography variant="subtitle2" fontWeight="bold" color="success.main" sx={{ mb: 1 }}>
                       ✅ Strengths:
                     </Typography>
                     {feedback.feedback.strengths.map((item, index) => (
-                      <Box key={index} display="flex" alignItems="flex-start" gap={1}>
-                        <Typography color="success.main">•</Typography>
-                        <Typography variant={isMobile ? 'caption' : 'body2'}>{item}</Typography>
-                      </Box>
+                      <Typography key={index} variant="body2" sx={{ mb: 0.5 }}>
+                        • {item}
+                      </Typography>
                     ))}
                   </Box>
+                  
                   <Box>
-                    <Typography
-                      variant="subtitle2"
-                      fontWeight="medium"
-                      color="warning.main"
-                      mb={1}
-                    >
-                      💡 Improvements:
+                    <Typography variant="subtitle2" fontWeight="bold" color="warning.main" sx={{ mb: 1 }}>
+                      💡 Areas for Improvement:
                     </Typography>
                     {feedback.feedback.improvements.map((item, index) => (
-                      <Box key={index} display="flex" alignItems="flex-start" gap={1}>
-                        <Typography color="warning.main">•</Typography>
-                        <Typography variant={isMobile ? 'caption' : 'body2'}>{item}</Typography>
-                      </Box>
+                      <Typography key={index} variant="body2" sx={{ mb: 0.5 }}>
+                        • {item}
+                      </Typography>
                     ))}
                   </Box>
-                  <Box>
-                    <Typography
-                      variant="subtitle2"
-                      fontWeight="medium"
-                      color="primary.main"
-                      mb={1}
-                    >
-                      Grammar:
-                    </Typography>
-                    {feedback.feedback.grammar.map((item, index) => (
-                      <Box key={index} display="flex" alignItems="flex-start" gap={1}>
-                        <Typography color="primary.main">•</Typography>
-                        <Typography variant={isMobile ? 'caption' : 'body2'}>{item}</Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                  <Box>
-                    <Typography
-                      variant="subtitle2"
-                      fontWeight="medium"
-                      color="secondary.main"
-                      mb={1}
-                    >
-                      Vocabulary:
-                    </Typography>
-                    {feedback.feedback.vocabulary.map((item, index) => (
-                      <Box key={index} display="flex" alignItems="flex-start" gap={1}>
-                        <Typography color="secondary.main">•</Typography>
-                        <Typography variant={isMobile ? 'caption' : 'body2'}>{item}</Typography>
-                      </Box>
-                    ))}
-                  </Box>
+                </Stack>
+              </Box>
+            }
+            showMetadata={false}
+          />
+        )}
+
+        <ProgressIndicator
+          current={wordCount}
+          total={ESSAY_MAX_WORDS}
+          label="words written"
+          color={wordCount >= ESSAY_MIN_WORDS && wordCount <= ESSAY_MAX_WORDS ? 'success' : wordCount > ESSAY_MAX_WORDS ? 'error' : 'warning'}
+          showPercentage={false}
+          customLabel={`${wordCount} of ${ESSAY_MIN_WORDS}-${ESSAY_MAX_WORDS} words required`}
+        />
+
+        <ActionButtons
+          hasResponse={essayText.trim().length > 0}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={handleTranslate}
+          onShowAnswer={handleShowAnswer}
+          recordedBlob={null}
+        />
+
+        <NavigationSection
+          onSearch={handleSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          questionNumber={questionNumber}
+        />
+      </PracticeCard>
+
+      <TopicSelectionDrawer
+        open={showQuestionSelector}
+        onClose={() => setShowQuestionSelector(false)}
+        onSelect={handleQuestionSelect}
+        topics={questionTopics}
+        title="Select Essay Question"
+        type="lecture"
+      />
+
+      <ResultsDialog
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={currentResult}
+        onTryAgain={handleRedo}
+        customContent={
+          feedback && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>Essay Performance:</Typography>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Word Count Analysis:</Typography>
+                  <Typography variant="body2" color={wordCount >= ESSAY_MIN_WORDS && wordCount <= ESSAY_MAX_WORDS ? 'success.main' : 'error.main'}>
+                    {wordCount} words (Target: {ESSAY_MIN_WORDS}-{ESSAY_MAX_WORDS} words)
+                  </Typography>
                 </Box>
-              </Paper>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Score Breakdown:</Typography>
+                  <Typography variant="body2">• Content: {feedback.contentScore}/100 (40% weight)</Typography>
+                  <Typography variant="body2">• Form & Development: {feedback.formScore}/100 (25% weight)</Typography>
+                  <Typography variant="body2">• Grammar: {feedback.grammarScore}/100 (25% weight)</Typography>
+                  <Typography variant="body2">• Vocabulary: {feedback.vocabularyScore}/100 (10% weight)</Typography>
+                </Box>
+              </Stack>
             </Box>
-          )}
-        </Box>
-      </Grid>
-    </Container>
+          )
+        }
+      />
+
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={`Essay Guidelines & Tips`}
+        answers={[{
+          id: 'essay-structure',
+          correctAnswer: 'Introduction with thesis → 2-3 body paragraphs with examples → Clear conclusion',
+          label: 'Recommended Structure'
+        }]}
+        guidance={
+          <Box>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              <strong>Scoring Criteria:</strong>
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>• Content (40%): Address the question directly, use specific examples</Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>• Form & Development (25%): Clear structure, logical flow</Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>• Grammar (25%): Varied sentence structures, correct usage</Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>• Vocabulary (10%): Academic vocabulary, appropriate word choice</Typography>
+          </Box>
+        }
+      />
+
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the essay prompt in your preferred language."
+      />
+    </GradientBackground>
   );
 };
-
 export default WritingEssay;

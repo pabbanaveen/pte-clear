@@ -152,3 +152,22 @@ export const questions: Question[] = [
   export interface FeedbackCardProps {
     isCorrect: boolean;
   }
+
+  
+export interface TimerState {
+  timeRemaining: number;
+  isRunning: boolean;
+  warningThreshold: number;
+  autoSubmit: boolean;
+}
+
+export interface QuestionResult {
+  questionId: string;
+  score: number;
+  maxScore: number;
+  correctAnswers: number;
+  totalBlanks: number;
+  completedAt: Date;
+  timeSpent: number;
+  answers: any[];
+}

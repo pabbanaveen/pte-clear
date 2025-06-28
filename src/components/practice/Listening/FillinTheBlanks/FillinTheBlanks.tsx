@@ -20,7 +20,7 @@ import NavigationSection from '../../common/NavigationSection';
 import AudioPlayer from '../../common/AudioPlayer';
 import StageGoalBanner from '../../common/StageGoalBanner';
 
-interface ListeningFillBlanksProps {}
+interface ListeningFillBlanksProps { }
 
 const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -35,14 +35,14 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     warningThreshold: 30,
     autoSubmit: true,
   });
-  
+
   // Audio state
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolume] = useState<number>(100);
   const [audioError, setAudioError] = useState<string | null>(null);
-  
+
   const [showAnswer, setShowAnswer] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -57,31 +57,31 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
   useEffect(() => {
     if (passage.audioUrl) {
       audioRef.current = new Audio(passage.audioUrl);
-      
+
       const audio = audioRef.current;
-      
+
       const handleLoadedMetadata = () => {
         setDuration(audio.duration);
       };
-      
+
       const handleTimeUpdate = () => {
         setCurrentTime(audio.currentTime);
       };
-      
+
       const handleEnded = () => {
         setIsPlaying(false);
         setCurrentTime(0);
       };
-      
+
       const handleError = () => {
         setAudioError('Failed to load audio file');
       };
-      
+
       audio.addEventListener('loadedmetadata', handleLoadedMetadata);
       audio.addEventListener('timeupdate', handleTimeUpdate);
       audio.addEventListener('ended', handleEnded);
       audio.addEventListener('error', handleError);
-      
+
       return () => {
         audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
         audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -106,12 +106,12 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     setCurrentResult(null);
     setCurrentTime(0);
     setIsPlaying(false);
-    
+
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.pause();
     }
-    
+
     startTimeRef.current = new Date();
   }, [passage]);
 
@@ -184,7 +184,7 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
   // Audio controls
   const handleTogglePlayback = () => {
     if (!audioRef.current) return;
-    
+
     if (isPlaying) {
       audioRef.current.pause();
     } else {
@@ -205,9 +205,9 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
   const handleBlankInputChange = (blankId: string, value: string) => {
     // Start timer on first input
     startTimerIfNeeded();
-    
-    setBlanks(prev => prev.map(blank => 
-      blank.id === blankId 
+
+    setBlanks(prev => prev.map(blank =>
+      blank.id === blankId
         ? { ...blank, filledWord: value }
         : blank
     ));
@@ -266,12 +266,12 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     setCurrentResult(null);
     setCurrentTime(0);
     setIsPlaying(false);
-    
+
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.pause();
     }
-    
+
     startTimeRef.current = new Date();
   };
 
@@ -280,7 +280,7 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
   // Render text with input fields for blanks
   const renderTextWithBlanks = () => {
     let textParts = passage.text.split(/(\[BLANK_\d+\])/);
-    
+
     return textParts.map((part, index) => {
       const blankMatch = part.match(/\[BLANK_(\d+)\]/);
       if (blankMatch) {
@@ -308,8 +308,8 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
 
   return (
     <GradientBackground>
-            <StageGoalBanner />
-      
+      <StageGoalBanner />
+
       <PracticeCard
         icon="FIB"
         title="Listening: Fill in the Blanks"
@@ -317,7 +317,7 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
         difficulty={passage.difficulty}
       >
         {/* Question Header */}
-        <QuestionHeader 
+        <QuestionHeader
           questionNumber={questionNumber}
           studentName={studentProgress.studentName}
           testedCount={studentProgress.testedCount}

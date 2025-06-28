@@ -20,6 +20,7 @@ import {
   useMediaQuery,
   Stack,
   styled,
+  Alert,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
@@ -32,125 +33,263 @@ import InstructionsCard from '../../common/InstructionsCard';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
+import { GradientBackground } from '../../../common/CommonStyles';
+import TranslationDialog from '../../../common/TranslationDialog';
+import { DragStartEvent, DragEndEvent, DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
+import { DragIndicator } from '@mui/icons-material';
+import { PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog } from '../../../common';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  borderRadius: 8,
-  boxShadow: theme.shadows[2],
-  transition: 'transform 0.3s ease, box-shadow 0.2s',
-  '&:hover': { boxShadow: theme.shadows[4] },
-}));
+interface TimerState {
+  timeRemaining: number;
+  isRunning: boolean;
+  warningThreshold: number;
+  autoSubmit: boolean;
+}
 
-const FeedbackCard = styled(Card, {
-  shouldForwardProp: (prop) => prop !== 'isCorrect',
-})<{ isCorrect?: boolean }>(({ theme, isCorrect }) => ({
-  border: `2px solid ${isCorrect ? theme.palette.success.light : theme.palette.error.light}`,
-  backgroundColor: isCorrect ? theme.palette.success.light : theme.palette.error.light,
-  borderRadius: 8,
-}));
+interface QuestionResult {
+  questionId: string;
+  score: number;
+  maxScore: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  completedAt: Date;
+  timeSpent: number;
+  answers: any[];
+  percentage: number;
+}
 
-const DropZone = styled(Box)(({ theme }) => ({
-  height: 10,
-  backgroundColor: theme.palette.primary.light,
-  opacity: 0.5,
-  margin: '0 -16px', // Span card width
-  transition: 'height 0.3s ease',
-  '&.active': { height: 20, opacity: 0.7 },
-}));
+// Sortable paragraph item component
+interface SortableParagraphItemProps {
+  paragraph: Paragraph;
+  index: number;
+  isSubmitted: boolean;
+  onMoveUp: (index: number) => void;
+  onMoveDown: (index: number) => void;
+  totalItems: number;
+}
+
+const SortableParagraphItem: React.FC<SortableParagraphItemProps> = ({
+  paragraph,
+  index,
+  isSubmitted,
+  onMoveUp,
+  onMoveDown,
+  totalItems
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: paragraph.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const isCorrectPosition = isSubmitted && paragraph.originalOrder === index + 1;
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      sx={{
+        mb: 1,
+        border: isSubmitted 
+          ? (isCorrectPosition ? '2px solid #4caf50' : '2px solid #f44336')
+          : '1px solid #e0e0e0',
+        bgcolor: isSubmitted 
+          ? (isCorrectPosition ? '#e8f5e9' : '#ffebee')
+          : 'white',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          boxShadow: 2
+        }
+      }}
+    >
+      <CardContent sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box display="flex" flexDirection="column" gap={0.5} alignItems="center">
+          <IconButton
+            onClick={() => onMoveUp(index)}
+            disabled={index === 0 || isSubmitted}
+            size="small"
+          >
+            <ArrowUpwardIcon fontSize="small" />
+          </IconButton>
+          
+          <Chip 
+            label={index + 1} 
+            size="small" 
+            color={isSubmitted ? (isCorrectPosition ? 'success' : 'error') : 'default'}
+          />
+          
+          <IconButton
+            onClick={() => onMoveDown(index)}
+            disabled={index === totalItems - 1 || isSubmitted}
+            size="small"
+          >
+            <ArrowDownwardIcon fontSize="small" />
+          </IconButton>
+        </Box>
+         <Box
+            className="drag-handle"
+            {...listeners}
+            sx={{ 
+              cursor: 'grab',
+              display: 'flex',
+              alignItems: 'center',
+              mr: 1,
+              // color: theme.palette.text.secondary,
+              '&:active': { cursor: 'grabbing' }
+            }}
+          >
+            <DragIndicator sx={{ fontSize: 24 }} />
+          </Box>
+        
+        <Box sx={{ flex: 1 }}>
+          <Typography
+            variant="body1"
+            sx={{ 
+              wordBreak: 'break-word',
+              fontSize: { xs: '14px', sm: '16px' }
+            }}
+          >
+            {paragraph.text}
+          </Typography>
+          
+          {isSubmitted && !isCorrectPosition && (
+            <Typography 
+              variant="caption" 
+              color="error.main" 
+              sx={{ mt: 1, display: 'block' }}
+            >
+              Should be in position {paragraph.originalOrder}
+            </Typography>
+          )}
+        </Box>
+        
+        {isSubmitted && (
+          <Typography variant="h6" sx={{ ml: 1 }}>
+            {isCorrectPosition ? '✅' : '❌'}
+          </Typography>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 const ReorderParagraphs: React.FC = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState<Question>(QUESTIONS[currentQuestionIndex]);
   const [orderedParagraphs, setOrderedParagraphs] = useState<Paragraph[]>([]);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes
-  const [isTimerStarted, setIsTimerStarted] = useState(false);
   const [showTopicSelector, setShowTopicSelector] = useState(false);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const dragRef = useRef<HTMLDivElement | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Timer state
+  const [timer, setTimer] = useState<TimerState>({
+    timeRemaining: 600, // 10 minutes
+    isRunning: false,
+    warningThreshold: 120,
+    autoSubmit: true,
+  });
+
+  // Dialog states
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [currentResult, setCurrentResult] = useState<QuestionResult | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<Date>(new Date());
+
+  // Initialize question
   useEffect(() => {
-    const shuffledParagraphs = [...QUESTIONS[currentQuestionIndex].paragraphs].sort(() => Math.random() - 0.5);
+    const newQuestion = QUESTIONS[currentQuestionIndex];
+    setCurrentQuestion(newQuestion);
+    const shuffledParagraphs = [...newQuestion.paragraphs].sort(() => Math.random() - 0.5);
     setOrderedParagraphs(shuffledParagraphs);
+    setTimer({
+      timeRemaining: 600,
+      isRunning: false,
+      warningThreshold: 120,
+      autoSubmit: true,
+    });
+    setIsSubmitted(false);
+    setShowResults(false);
+    setCurrentResult(null);
+    startTimeRef.current = new Date();
   }, [currentQuestionIndex]);
 
+  // Timer functionality
   useEffect(() => {
-    if (isTimerStarted) {
-      const timer = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
+    if (timer.isRunning && timer.timeRemaining > 0 && !isSubmitted) {
+      timerRef.current = setTimeout(() => {
+        setTimer(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
       }, 1000);
-      return () => clearInterval(timer);
+    } else if (timer.timeRemaining === 0 && timer.autoSubmit && !isSubmitted) {
+      handleSubmit();
     }
-  }, [isTimerStarted]);
 
-  const startTimer = () => setIsTimerStarted(true);
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [timer.timeRemaining, timer.isRunning, isSubmitted]);
 
-  const handleDragStart = (event: React.DragEvent<HTMLDivElement>, paragraphId: string) => {
-    const paragraph = orderedParagraphs.find(p => p.id === paragraphId);
-    if (paragraph && dragRef.current) {
-      const dragImg = dragRef.current.cloneNode(true) as HTMLDivElement;
-      dragImg.style.position = 'absolute';
-      dragImg.style.pointerEvents = 'none';
-      dragImg.style.opacity = '0.7';
-      dragImg.style.boxShadow = theme.shadows[4];
-      dragImg.style.borderRadius = '8px';
-      dragImg.style.transform = 'scale(1.02)';
-      dragImg.style.zIndex = '1000';
-      document.body.appendChild(dragImg);
-      event.dataTransfer.setDragImage(dragImg, 10, 10);
-      event.dataTransfer.setData('text/plain', paragraphId);
-
-      // Clean up the drag image after drag ends
-      const cleanup = () => {
-        document.body.removeChild(dragImg);
-        document.removeEventListener('dragend', cleanup);
-      };
-      document.addEventListener('dragend', cleanup);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+    if (!timer.isRunning && !isSubmitted) {
+      setTimer(prev => ({ ...prev, isRunning: true }));
     }
   };
 
-  const handleDragEnter = (index: number) => setDragOverIndex(index);
-  const handleDragLeave = () => setDragOverIndex(null);
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => event.preventDefault();
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>, targetIndex: number) => {
-    event.preventDefault();
-    const draggedId = event.dataTransfer.getData('text/plain');
-    const draggedIndex = orderedParagraphs.findIndex((p) => p.id === draggedId);
+    if (!over) return;
 
-    if (draggedIndex !== -1 && draggedIndex !== targetIndex) {
-      const updatedParagraphs = [...orderedParagraphs];
-      const [draggedItem] = updatedParagraphs.splice(draggedIndex, 1);
-      updatedParagraphs.splice(targetIndex, 0, draggedItem);
-      setOrderedParagraphs(updatedParagraphs);
+    const activeIndex = orderedParagraphs.findIndex(p => p.id === active.id);
+    const overIndex = orderedParagraphs.findIndex(p => p.id === over.id);
+
+    if (activeIndex !== overIndex) {
+      setOrderedParagraphs(prev => arrayMove(prev, activeIndex, overIndex));
     }
-    setDragOverIndex(null);
   };
 
   const moveParagraphUp = (index: number) => {
-    if (index > 0) {
-      const updatedParagraphs = [...orderedParagraphs];
-      [updatedParagraphs[index - 1], updatedParagraphs[index]] = [updatedParagraphs[index], updatedParagraphs[index - 1]];
-      setOrderedParagraphs(updatedParagraphs);
+    if (index > 0 && !isSubmitted) {
+      const newParagraphs = [...orderedParagraphs];
+      [newParagraphs[index - 1], newParagraphs[index]] = [newParagraphs[index], newParagraphs[index - 1]];
+      setOrderedParagraphs(newParagraphs);
+      
+      if (!timer.isRunning) {
+        setTimer(prev => ({ ...prev, isRunning: true }));
+      }
     }
   };
 
   const moveParagraphDown = (index: number) => {
-    if (index < orderedParagraphs.length - 1) {
-      const updatedParagraphs = [...orderedParagraphs];
-      [updatedParagraphs[index], updatedParagraphs[index + 1]] = [updatedParagraphs[index + 1], updatedParagraphs[index]];
-      setOrderedParagraphs(updatedParagraphs);
+    if (index < orderedParagraphs.length - 1 && !isSubmitted) {
+      const newParagraphs = [...orderedParagraphs];
+      [newParagraphs[index], newParagraphs[index + 1]] = [newParagraphs[index + 1], newParagraphs[index]];
+      setOrderedParagraphs(newParagraphs);
+      
+      if (!timer.isRunning) {
+        setTimer(prev => ({ ...prev, isRunning: true }));
+      }
     }
   };
-
-  const submitAnswer = () => setShowFeedback(true);
 
   const calculateScore = (): number => {
     let correctPairs = 0;
@@ -162,37 +301,85 @@ const ReorderParagraphs: React.FC = () => {
     return Math.round((correctPairs / (orderedParagraphs.length - 1)) * 100);
   };
 
-  const getCorrectOrder = (): Paragraph[] => [...QUESTIONS[currentQuestionIndex].paragraphs].sort((a, b) => a.originalOrder - b.originalOrder);
+  const getCorrectOrder = (): Paragraph[] => 
+    [...currentQuestion.paragraphs].sort((a, b) => a.originalOrder - b.originalOrder);
 
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  const handleSubmit = () => {
+    if (isSubmitted) return;
+
+    setIsSubmitted(true);
+    setTimer(prev => ({ ...prev, isRunning: false }));
+
+    const endTime = new Date();
+    const timeSpent = Math.floor((endTime.getTime() - startTimeRef.current.getTime()) / 1000);
+    const score = calculateScore();
+    const correctOrder = getCorrectOrder();
+
+    const result: QuestionResult = {
+      questionId: String(currentQuestion.id),
+      score,
+      maxScore: 100,
+      correctAnswers: orderedParagraphs.filter((p, i) => p.originalOrder === i + 1).length,
+      totalQuestions: orderedParagraphs.length,
+      completedAt: endTime,
+      timeSpent,
+      percentage: score,
+      answers: orderedParagraphs.map((paragraph, index) => ({
+        id: paragraph.id,
+        position: index + 1,
+        selectedAnswer: paragraph.text.substring(0, 50) + '...',
+        correctAnswer: `Position ${paragraph.originalOrder}`,
+        isCorrect: paragraph.originalOrder === index + 1
+      }))
+    };
+
+    setCurrentResult(result);
+    setShowResults(true);
   };
 
-  const goToNextQuestion = () => {
+  const handleRedo = () => {
+    const shuffledParagraphs = [...currentQuestion.paragraphs].sort(() => Math.random() - 0.5);
+    setOrderedParagraphs(shuffledParagraphs);
+    setTimer({
+      timeRemaining: 600,
+      isRunning: false,
+      warningThreshold: 120,
+      autoSubmit: true,
+    });
+    setIsSubmitted(false);
+    setShowResults(false);
+    setCurrentResult(null);
+    startTimeRef.current = new Date();
+  };
+
+  const handleNext = () => {
     if (currentQuestionIndex < QUESTIONS.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setShowFeedback(false);
-      setTimeRemaining(600);
-      setIsTimerStarted(false);
     }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  const handleSearch = () => {
+    setShowTopicSelector(true);
   };
 
   const handleTopicSelect = (topic: any) => {
     const index = QUESTIONS.findIndex(q => q.id === topic.id);
     if (index !== -1) {
       setCurrentQuestionIndex(index);
-      setShowFeedback(false);
-      setTimeRemaining(600);
-      setIsTimerStarted(false);
-      setShowTopicSelector(false);
     }
+    setShowTopicSelector(false);
   };
 
+  // Convert questions to topic format
   const questionTopics = QUESTIONS.map(q => ({
     id: q.id,
-    title: q.title.substring(0, 50) + (q.title.length > 50 ? '...' : ''),
+    title: q.title,
     duration: '10m',
     speaker: 'Narrator',
     difficulty: 'Medium',
@@ -202,324 +389,127 @@ const ReorderParagraphs: React.FC = () => {
     isMarked: false,
     pracStatus: 'In Progress',
     hasExplanation: true,
+    createdAt: '',
+    updatedAt: '',
   }));
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Stage Goal Banner */}
+    <GradientBackground>
       <StageGoalBanner />
 
-      {/* Progress Display */}
-      <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }}>
-        Progress: {currentQuestionIndex + 1}/{QUESTIONS.length} questions attempted
-      </Typography>
-
-      {/* Navigation Card (First Card) */}
-      <StyledCard sx={{ mb: 4 }}>
-        <CardContent>
-          <NavigationSection
-            onSearch={() => setShowTopicSelector(true)}
-            onPrevious={() => {
-              if (currentQuestionIndex > 0) {
-                setCurrentQuestionIndex(currentQuestionIndex - 1);
-                setShowFeedback(false);
-                setTimeRemaining(600);
-                setIsTimerStarted(false);
-              }
-            }}
-            onNext={goToNextQuestion}
-            questionNumber={currentQuestionIndex + 1}
-          />
-        </CardContent>
-      </StyledCard>
-
-      {/* Header */}
-      <Box mb={4}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 2 }} alignItems={{ xs: 'flex-start', sm: 'center' }} mb={2}>
-          <Button
-            component={RouterLink}
-            to="/practice-tests"
-            color="primary"
-            startIcon={<span style={{ marginRight: '8px' }}>←</span>}
-            size={isMobile ? 'small' : 'medium'}
-          >
-            Back to Practice
-          </Button>
-          {/* <Divider orientation={{ xs: 'horizontal', sm: 'vertical' }} flexItem sx={{ my: { xs: 1, sm: 0 } }} /> */}
-          <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="bold">
-            Reading & Writing: Re-order Paragraphs
-          </Typography>
-        </Stack>
-        <Typography color="text.secondary" variant={isMobile ? 'caption' : 'body2'}>
-          Drag and drop the paragraphs to arrange them in the correct logical order.
-        </Typography>
-      </Box>
-
-      {/* Progress and Timer */}
-      <Box mb={4}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          spacing={{ xs: 1, sm: 2 }}
-          mb={2}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Question {currentQuestionIndex + 1} of {QUESTIONS.length}
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems="center" spacing={1}>
-            <Chip
-              label="Reading & Writing • Re-order Paragraphs"
-              size={isMobile ? 'small' : 'medium'}
-              sx={{ width: { xs: '100%', sm: 'auto' } }}
-            />
-            <Stack direction="row" alignItems="center" spacing={1}>
-              {/* <TimerIcon color={timeRemaining < 120 ? 'error' : 'primary'} /> */}
-              <Typography color={timeRemaining < 120 ? 'error.main' : 'primary.main'} variant={isMobile ? 'caption' : 'body2'}>
-                {formatTime(timeRemaining)}
-              </Typography>
-            </Stack>
-            {!isTimerStarted && (
-              <Button
-                variant="contained"
-                size={isMobile ? 'small' : 'medium'}
-                onClick={startTimer}
-                sx={{ width: { xs: '100%', sm: 'auto' } }}
-              >
-                Start Timer
-              </Button>
-            )}
-          </Stack>
-        </Stack>
-        <LinearProgress
-          variant="determinate"
-          value={((currentQuestionIndex + 1) / QUESTIONS.length) * 100}
-          sx={{ height: 8, borderRadius: 4 }}
+      <PracticeCard
+        icon="ROP"
+        title="Reading & Writing: Re-order Paragraphs"
+        instructions="Drag and drop the paragraphs to arrange them in the correct logical order."
+        difficulty="Intermediate"
+      >
+        <QuestionHeader 
+          questionNumber={currentQuestionIndex + 1}
+          studentName="Student Name"
+          testedCount={30}
         />
-      </Box>
 
-      {/* Main Content */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: { xs: 2, sm: 4 } }}>
-        {/* Question Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '63%' } }}>
-          <StyledCard>
-            <CardContent>
-              {/* Question Header */}
-              <QuestionHeader questionNumber={currentQuestionIndex + 1} studentName="Student Name" testedCount={30} />
+        <TimerDisplay
+          timeRemaining={timer.timeRemaining}
+          isRunning={timer.isRunning}
+          warningThreshold={timer.warningThreshold}
+          showStartMessage={!timer.isRunning}
+          startMessage="Timer will start when you begin reordering"
+          autoSubmit={timer.autoSubmit}
+        />
 
-              {!showFeedback ? (
+        <ContentDisplay
+          title={currentQuestion.title}
+          content={
+            <Typography variant="body2" color="text.secondary">
+              Drag and drop the paragraphs to reorder them, or use the arrow buttons to move them up and down.
+            </Typography>
+          }
+          category="Reading & Writing"
+          difficulty="Intermediate"
+          tags={['Reorder Paragraphs']}
+          showMetadata={true}
+        />
+
+        {/* Reorder Interface */}
+        <ContentDisplay
+          content={
+            <DndContext 
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext 
+                items={orderedParagraphs.map(p => p.id)} 
+                strategy={verticalListSortingStrategy}
+              >
                 <Box>
-                  <Typography variant="body2" color="text.secondary" mb={4}>
-                    Drag and drop the paragraphs to reorder them, or use the arrow buttons to move them up and down.
-                  </Typography>
-                  <Box display="flex" flexDirection="column" gap={1}>
-                    {orderedParagraphs.map((paragraph, index) => (
-                      <Box key={paragraph.id} ref={index === 0 ? dragRef : null}>
-                        {dragOverIndex === index && (
-                          <DropZone className="active" sx={{ mb: 1 }} />
-                        )}
-                        {index > 0 && dragOverIndex === index - 1 && (
-                          <DropZone className="active" sx={{ mt: 1, mb: -1 }} />
-                        )}
-                        <Card
-                          variant="outlined"
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, paragraph.id)}
-                          onDragOver={handleDragOver}
-                          onDragEnter={() => handleDragEnter(index)}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => handleDrop(e, index)}
-                          sx={{
-                            cursor: 'move',
-                            transition: 'transform 0.3s ease, box-shadow 0.2s',
-                            '&:active': { transform: 'translateY(-2px)', boxShadow: theme.shadows[6] },
-                            padding: { xs: 1, sm: 2 },
-                            minHeight: { xs: 80, sm: 100 },
-                          }}
-                        >
-                          <CardContent sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box display="flex" flexDirection="column" gap={0.5} alignItems="center">
-                              <IconButton
-                                onClick={() => moveParagraphUp(index)}
-                                disabled={index === 0}
-                                size="small"
-                                sx={{ padding: { xs: 0.5, sm: 1 } }}
-                              >
-                                <ArrowUpwardIcon fontSize={isMobile ? 'small' : 'medium'} />
-                              </IconButton>
-                              <Chip label={index + 1} size="small" />
-                              <IconButton
-                                onClick={() => moveParagraphDown(index)}
-                                disabled={index === orderedParagraphs.length - 1}
-                                size="small"
-                                sx={{ padding: { xs: 0.5, sm: 1 } }}
-                              >
-                                <ArrowDownwardIcon fontSize={isMobile ? 'small' : 'medium'} />
-                              </IconButton>
-                            </Box>
-                            <Typography
-                              variant={isMobile ? 'body2' : 'body1'}
-                              sx={{ flex: 1, wordBreak: 'break-word' }}
-                            >
-                              {paragraph.text}
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      </Box>
-                    ))}
-                    {dragOverIndex === orderedParagraphs.length && (
-                      <DropZone className="active" sx={{ mt: 1 }} />
-                    )}
-                  </Box>
-                  <Box textAlign="center" mt={4}>
-                    <ActionButtons
-                      hasResponse={true}
-                      recordedBlob={null}
-                      onSubmit={submitAnswer}
-                      onRedo={() => {
-                        setOrderedParagraphs([...QUESTIONS[currentQuestionIndex].paragraphs].sort(() => Math.random() - 0.5));
-                        setShowFeedback(false);
-                        setTimeRemaining(600);
-                        setIsTimerStarted(false);
-                      }}
-                      onTranslate={() => console.log('Translate clicked')}
-                      onShowAnswer={() => {
-                        setOrderedParagraphs(getCorrectOrder());
-                        setShowFeedback(true);
-                      }}
+                  {orderedParagraphs.map((paragraph, index) => (
+                    <SortableParagraphItem
+                      key={paragraph.id}
+                      paragraph={paragraph}
+                      index={index}
+                      isSubmitted={isSubmitted}
+                      onMoveUp={moveParagraphUp}
+                      onMoveDown={moveParagraphDown}
+                      totalItems={orderedParagraphs.length}
                     />
-                  </Box>
+                  ))}
                 </Box>
-              ) : (
-                <Stack spacing={4}>
-                  {/* Score */}
-                  <Paper elevation={2} sx={{ p: 4, textAlign: 'center', bgcolor: 'primary.light' }}>
-                    <Typography variant="h3" color="primary" fontWeight="bold">
-                      {calculateScore()}%
-                    </Typography>
-                    <Typography color="text.secondary">
-                      Score
-                    </Typography>
-                  </Paper>
+              </SortableContext>
 
-                  {/* Correct Order */}
-                  <Box>
-                    <Typography variant="h6" fontWeight="medium" mb={2}>
-                      Correct Order:
-                    </Typography>
-                    <Box display="flex" flexDirection="column" gap={2}>
-                      {getCorrectOrder().map((paragraph, index) => (
-                        <FeedbackCard key={paragraph.id} isCorrect={true}>
-                          <CardContent sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Chip label={index + 1} color="success" size="small" />
-                            <Typography variant="body1">
-                              {paragraph.text}
-                            </Typography>
-                          </CardContent>
-                        </FeedbackCard>
-                      ))}
-                    </Box>
-                  </Box>
+              <DragOverlay>
+                {activeId && (
+                  <Card sx={{ opacity: 0.8, transform: 'rotate(5deg)' }}>
+                    <CardContent>
+                      <Typography>
+                        {orderedParagraphs.find(p => p.id === activeId)?.text.substring(0, 50)}...
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                )}
+              </DragOverlay>
+            </DndContext>
+          }
+          showMetadata={false}
+        />
 
-                  {/* Your Order Comparison */}
-                  <Box>
-                    <Typography variant="h6" fontWeight="medium" mb={2}>
-                      Your Order:
-                    </Typography>
-                    <Box display="flex" flexDirection="column" gap={2}>
-                      {orderedParagraphs.map((paragraph, index) => {
-                        const isCorrect = paragraph.originalOrder === index + 1;
-                        return (
-                          <FeedbackCard key={paragraph.id} isCorrect={isCorrect}>
-                            <CardContent sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <Chip label={index + 1} color={isCorrect ? 'success' : 'error'} size="small" />
-                              <Box sx={{ flex: 1 }}>
-                                <Typography variant="body1">
-                                  {paragraph.text}
-                                </Typography>
-                                {!isCorrect && (
-                                  <Typography variant="caption" color="error.main" mt={1}>
-                                    Should be in position {paragraph.originalOrder}
-                                  </Typography>
-                                )}
-                              </Box>
-                              <Typography variant="h6">{isCorrect ? '✅' : '❌'}</Typography>
-                            </CardContent>
-                          </FeedbackCard>
-                        );
-                      })}
-                    </Box>
-                  </Box>
+        {/* Score Display after submission */}
+        {isSubmitted && (
+          <Alert severity={calculateScore() >= 70 ? 'success' : 'warning'} sx={{ mb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 1 }}>
+              Score: {calculateScore()}/100
+            </Typography>
+            <Typography variant="body2">
+              {orderedParagraphs.filter((p, i) => p.originalOrder === i + 1).length} out of {orderedParagraphs.length} paragraphs in correct position
+            </Typography>
+          </Alert>
+        )}
 
-                  {/* Next Question */}
-                  <Box textAlign="center">
-                    {currentQuestionIndex < QUESTIONS.length - 1 ? (
-                      <Button
-                        variant="contained"
-                        size="large"
-                        onClick={goToNextQuestion}
-                        endIcon={<span style={{ marginLeft: '8px' }}>→</span>}
-                      >
-                        Next Question
-                      </Button>
-                    ) : (
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 2 }} justifyContent="center">
-                        <Button
-                          component={RouterLink}
-                          to="/practice-tests"
-                          variant="contained"
-                          color="secondary"
-                          size={isMobile ? 'medium' : 'large'}
-                          fullWidth={isMobile}
-                        >
-                          Back to Practice
-                        </Button>
-                        <Button
-                          component={RouterLink}
-                          to="/progress"
-                          variant="contained"
-                          color="success"
-                          size={isMobile ? 'medium' : 'large'}
-                          fullWidth={isMobile}
-                        >
-                          View Progress
-                        </Button>
-                      </Stack>
-                    )}
-                  </Box>
-                </Stack>
-              )}
-            </CardContent>
-          </StyledCard>
-        </Box>
+        <ProgressIndicator
+          current={orderedParagraphs.filter((p, i) => p.originalOrder === i + 1).length}
+          total={orderedParagraphs.length}
+          label="paragraphs in correct position"
+          color={isSubmitted ? (calculateScore() >= 70 ? 'success' : 'warning') : 'primary'}
+        />
 
-        {/* Instructions Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '33.333%' }, pl: { lg: 2 } }}>
-          <InstructionsCard
-            title="Instructions"
-            sections={[
-              {
-                title: 'Task Overview',
-                items: ['Arrange the paragraphs in logical order to form a coherent text.'],
-              },
-              {
-                title: 'How to Reorder',
-                items: ['Drag and drop paragraphs', 'Use ↑↓ buttons to move', 'Look for logical connections', 'Consider chronological order'],
-              },
-              {
-                title: 'Strategy Tips',
-                items: ['Identify the introduction', 'Look for topic sentences', 'Find connecting words', 'Check pronoun references', 'Consider cause and effect'],
-              },
-              {
-                title: 'Scoring',
-                items: ['Points for correct adjacent pairs', 'Maximum points for perfect order', 'Partial credit available'],
-              },
-            ]}
-          />
-        </Box>
-      </Box>
+        <ActionButtons
+          hasResponse={true}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={() => setShowTranslate(true)}
+          onShowAnswer={() => setShowAnswer(true)}
+          recordedBlob={null}
+        />
 
-      {/* Topic Selection Drawer */}
+        <NavigationSection
+          onSearch={handleSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          questionNumber={currentQuestionIndex + 1}
+        />
+      </PracticeCard>
+
       <TopicSelectionDrawer
         open={showTopicSelector}
         onClose={() => setShowTopicSelector(false)}
@@ -528,7 +518,58 @@ const ReorderParagraphs: React.FC = () => {
         title="Select Question Topic"
         type="question"
       />
-    </Container>
+
+      <ResultsDialog
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={currentResult}
+        onTryAgain={handleRedo}
+        customContent={
+          currentResult && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>Paragraph Analysis:</Typography>
+              <Stack spacing={1}>
+                {orderedParagraphs.map((paragraph, index) => {
+                  const isCorrect = paragraph.originalOrder === index + 1;
+                  return (
+                    <Box key={paragraph.id} sx={{ 
+                      p: 1, 
+                      bgcolor: isCorrect ? '#e8f5e9' : '#ffebee',
+                      borderRadius: 1,
+                      border: isCorrect ? '1px solid #4caf50' : '1px solid #f44336'
+                    }}>
+                      <Typography variant="body2">
+                        <strong>Position {index + 1}:</strong> {paragraph.text.substring(0, 60)}...
+                        {!isCorrect && ` (Should be position ${paragraph.originalOrder})`}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Stack>
+            </Box>
+          )
+        }
+      />
+
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={currentQuestion.title}
+        answers={getCorrectOrder().map((paragraph, index) => ({
+          id: paragraph.id,
+          position: index,
+          correctAnswer: paragraph.text,
+          label: `Position ${index + 1}`
+        }))}
+        guidance="The paragraphs should be arranged in logical order to form a coherent text."
+      />
+
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the paragraph content in your preferred language."
+      />
+    </GradientBackground>
   );
 };
 

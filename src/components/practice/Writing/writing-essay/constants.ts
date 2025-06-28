@@ -6,6 +6,42 @@ export interface EssayQuestion {
   wordLimit: string;
 }
 
+// export interface EssayFeedback {
+//   overallScore: number;
+//   contentScore: number;
+//   formScore: number;
+//   grammarScore: number;
+//   vocabularyScore: number;
+//   spellingScore: number;
+//   wordCount: number;
+//   feedback: {
+//     strengths: string[];
+//     improvements: string[];
+//     grammar: string[];
+//     vocabulary: string[];
+//   };
+// }
+
+
+export interface TimerState {
+  timeRemaining: number;
+  isRunning: boolean;
+  warningThreshold: number;
+  autoSubmit: boolean;
+}
+
+export interface QuestionResult {
+  questionId: string;
+  score: number;
+  maxScore: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  completedAt: Date;
+  timeSpent: number;
+  answers: any[];
+  percentage: number;
+}
+
 export interface EssayFeedback {
   overallScore: number;
   contentScore: number;
@@ -21,6 +57,7 @@ export interface EssayFeedback {
     vocabulary: string[];
   };
 }
+
 
 export const ESSAY_QUESTIONS: EssayQuestion[] = [
   {

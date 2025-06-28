@@ -44,3 +44,22 @@ export interface MultipleChoiceOption {
       missed: string[];
     };
   }
+
+export interface TimerState {
+  timeRemaining: number;
+  isRunning: boolean;
+  warningThreshold: number;
+  autoSubmit: boolean;
+}
+
+export interface QuestionResult {
+  questionId: string;
+  score: number;
+  maxScore: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  completedAt: Date;
+  timeSpent: number;
+  answers: any[];
+  percentage: number;
+}
