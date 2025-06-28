@@ -1,79 +1,237 @@
-import React, { useState, useEffect } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemText, Typography, IconButton, Stack, CardContent } from '@mui/material';
+import { Close } from '@mui/icons-material';
 import {
-  Container, Box, Typography, Card, CardContent, Button,
-  Chip, Paper, Stack, List, ListItem, ListItemText, LinearProgress
-} from '@mui/material';
-import { styled, Theme } from '@mui/material/styles';
-import TimerIcon from '@mui/icons-material/Timer';
-import MicIcon from '@mui/icons-material/Mic';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { questions, mockFeedback } from './constants';
+  PracticeCard,
+  TimerDisplay,
+  ContentDisplay,
+  ProgressIndicator,
+  AnswerDialog,
+  TranslationDialog,
+  GradientBackground,
+  StyledCard
+} from '../../../common';
+import ActionButtons from '../../common/ActionButtons';
+import NavigationSection from '../../common/NavigationSection';
+import QuestionHeader from '../../common/QuestionHeader';
+import RecordingSection from '../../common/RecordingSection';
+import StageGoalBanner from '../../common/StageGoalBanner';
+import InstructionsCard from '../../common/InstructionsCard';
+import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
+import { questions, mockFeedback, Question, Feedback } from './constants';
 
+interface UserAttempt {
+  questionId: number;
+  recordedAudioUrl?: string;
+  timestamp: string;
+}
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  borderRadius: Number(theme.shape.borderRadius) * 2, // Type-safe conversion
-  boxShadow: theme.shadows[3],
-  [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(2),
+const instructionsSections = [
+  {
+    title: 'Task Overview',
+    items: ['You have 25 seconds to prepare and 40 seconds to describe the image in detail.'],
   },
-}));
-
-const RecordingIndicator = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 64,
-  height: 64,
-  borderRadius: '50%',
-  backgroundColor: theme.palette.error.main,
-  animation: 'pulse 1.5s ease-in-out infinite',
-  '@keyframes pulse': {
-    '0%': { transform: 'scale(1)', opacity: 1 },
-    '50%': { transform: 'scale(1.2)', opacity: 0.7 },
-    '100%': { transform: 'scale(1)', opacity: 1 },
+  {
+    title: 'What to Include',
+    items: [
+      'Type of chart/diagram',
+      'Main trends or patterns',
+      'Key data points',
+      'Comparisons between elements',
+      'Overall conclusion',
+    ],
   },
-  [theme.breakpoints.down('sm')]: {
-    width: 48,
-    height: 48,
+  {
+    title: 'Useful Phrases',
+    items: [
+      '"This chart shows..."',
+      '"The highest/lowest point is..."',
+      '"There is an increase/decrease in..."',
+      '"In comparison to..."',
+      '"Overall, the data indicates..."',
+    ],
   },
-}));
+  {
+    title: 'Scoring Criteria',
+    items: [
+      'Content: Completeness and accuracy',
+      'Pronunciation: Clear articulation',
+      'Fluency: Natural speech flow',
+      'Vocabulary: Appropriate word choice',
+    ],
+  },
+];
 
-const DescribeImage: React.FC = () => {
-  const [currentQuestion, setCurrentQuestion] = useState<number>(0);
-  const [isRecording, setIsRecording] = useState<boolean>(false);
-  const [hasRecorded, setHasRecorded] = useState<boolean>(false);
-  const [showFeedback, setShowFeedback] = useState<boolean>(false);
-  const [preparationTime, setPreparationTime] = useState<number>(25);
+const useAudioRecording = (recordingTime = 40000) => {
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [micPermission, setMicPermission] = useState<boolean | null>(null);
 
-  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (preparationTime > 0) {
-      const timer = setInterval(() => {
-        setPreparationTime(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
+    const checkMicPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setMicPermission(true);
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (error) {
+        console.error('Microphone permission check failed:', error);
+        setMicPermission(false);
+      }
+    };
+    checkMicPermission();
+  }, []);
+
+  const toggleRecording = async () => {
+    if (micPermission === false) {
+      alert('Microphone permission is required. Please grant permission and try again.');
+      return;
+    }
+
+    if (!isRecording) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+
+        const chunks: Blob[] = [];
+        mediaRecorder.ondataavailable = (event) => chunks.push(event.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          setRecordedBlob(blob);
+          const url = URL.createObjectURL(blob);
+          setRecordedAudioUrl(url);
+          stream.getTracks().forEach((track) => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+
+        timerRef.current = setTimeout(() => {
+          if (mediaRecorderRef.current?.state === 'recording') {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
           }
-          return prev - 1;
-        });
+        }, recordingTime);
+      } catch (error) {
+        console.error('Microphone access denied:', error);
+        setMicPermission(false);
+        alert('Unable to access microphone. Please check permissions.');
+      }
+    } else if (isRecording && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    }
+  };
+
+  const resetRecording = () => {
+    setRecordedBlob(null);
+    setRecordedAudioUrl(null);
+    setIsRecording(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recordedAudioUrl) URL.revokeObjectURL(recordedAudioUrl);
+    };
+  }, [recordedAudioUrl]);
+
+  return { isRecording, recordedBlob, recordedAudioUrl, micPermission, toggleRecording, resetRecording };
+};
+
+const DescribeImage: React.FC = () => {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState<Question>(questions[currentQuestionIndex]);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [questionNumber, setQuestionNumber] = useState(655);
+  const [studentName] = useState('John Doe');
+  const [testedCount] = useState(25);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [showAttempts, setShowAttempts] = useState(false);
+  const [showTopicSelector, setShowTopicSelector] = useState(false);
+  const [preparationTime, setPreparationTime] = useState<number | null>(null);
+  const [attempts, setAttempts] = useState<UserAttempt[]>([]);
+
+  const audioRecording = useAudioRecording(40000);
+
+  // Timer state for preparation
+  const [timer, setTimer] = useState({
+    timeRemaining: 25,
+    isRunning: false,
+    warningThreshold: 5,
+    autoSubmit: false,
+  });
+
+  // Load attempts from localStorage
+  useEffect(() => {
+    const savedAttempts = localStorage.getItem('describeImageAttempts');
+    if (savedAttempts) {
+      try {
+        setAttempts(JSON.parse(savedAttempts));
+      } catch (error) {
+        console.error('Failed to parse describeImageAttempts:', error);
+        localStorage.removeItem('describeImageAttempts');
+      }
+    }
+  }, []);
+
+  // Save attempt to localStorage when recording is available
+  useEffect(() => {
+    if (audioRecording.recordedBlob && audioRecording.recordedAudioUrl) {
+      const attempt: UserAttempt = {
+        questionId: currentQuestion.id,
+        recordedAudioUrl: audioRecording.recordedAudioUrl,
+        timestamp: new Date().toISOString(),
+      };
+      setAttempts((prev) => {
+        const newAttempts = [...prev, attempt];
+        try {
+          localStorage.setItem('describeImageAttempts', JSON.stringify(newAttempts));
+        } catch (error) {
+          console.error('Failed to save describeImageAttempts:', error);
+        }
+        return newAttempts;
+      });
+    }
+  }, [audioRecording.recordedBlob, audioRecording.recordedAudioUrl, currentQuestion.id]);
+
+  // Sync state when question changes
+  useEffect(() => {
+    setCurrentQuestion(questions[currentQuestionIndex]);
+    setTimer({
+      timeRemaining: 25,
+      isRunning: false,
+      warningThreshold: 5,
+      autoSubmit: false,
+    });
+    audioRecording.resetRecording();
+    setPreparationTime(null);
+    setShowFeedback(false);
+  }, [currentQuestionIndex]);
+
+  // Preparation timer
+  useEffect(() => {
+    if (preparationTime !== null && preparationTime > 0) {
+      const prepTimerRef = setTimeout(() => {
+        setPreparationTime((prev) => (prev !== null ? prev - 1 : null));
+        setTimer(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
       }, 1000);
-      return () => clearInterval(timer);
+      return () => clearTimeout(prepTimerRef);
+    } else if (preparationTime === 0) {
+      setPreparationTime(null);
+      setTimer(prev => ({ ...prev, isRunning: false }));
     }
   }, [preparationTime]);
 
   const handleStartPreparation = () => {
     setPreparationTime(25);
-  };
-
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setTimeout(() => {
-      setIsRecording(false);
-      setHasRecorded(true);
-    }, 40000);
+    setTimer(prev => ({ ...prev, isRunning: true }));
   };
 
   const handleGetAIFeedback = () => {
@@ -81,333 +239,363 @@ const DescribeImage: React.FC = () => {
   };
 
   const handleNextQuestion = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setHasRecorded(false);
-      setShowFeedback(false);
-      setPreparationTime(25);
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setQuestionNumber(questionNumber + 1);
     }
   };
 
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+      setQuestionNumber(questionNumber - 1);
+    }
+  };
+
+  const handleNext = () => {
+    handleNextQuestion();
+  };
+
+  const handleSearch = () => {
+    setShowTopicSelector(true);
+  };
+
+  const handleTopicSelect = (topic: any) => {
+    const newIndex = questions.findIndex(q => q.id === topic.id);
+    if (newIndex !== -1) {
+      setCurrentQuestionIndex(newIndex);
+      setQuestionNumber(newIndex + 655);
+    }
+    setShowTopicSelector(false);
+  };
+
+  const handleSubmit = () => {
+    if (audioRecording.recordedBlob) {
+      handleGetAIFeedback();
+    } else {
+      alert('Please record your description before submitting.');
+    }
+  };
+
+  const handleRedo = () => {
+    audioRecording.resetRecording();
+    setPreparationTime(null);
+    setShowFeedback(false);
+    setTimer({
+      timeRemaining: 25,
+      isRunning: false,
+      warningThreshold: 5,
+      autoSubmit: false,
+    });
+  };
+
+  const handleViewAttempts = () => {
+    setShowAttempts(true);
+  };
+
+  // Feedback display component
+  const FeedbackDisplay = () => {
+    if (!showFeedback || !audioRecording.recordedBlob) return null;
+
+    return (
+      <ContentDisplay
+        title="AI Feedback Results"
+        content={
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
+              <Box sx={{ p: 2, bgcolor: 'primary.light', borderRadius: 1, textAlign: 'center' }}>
+                <Box sx={{ fontWeight: 'medium' }}>Overall</Box>
+                <Box sx={{ fontSize: '24px', fontWeight: 'bold' }}>{mockFeedback.overallScore}</Box>
+              </Box>
+              <Box sx={{ p: 2, bgcolor: 'success.light', borderRadius: 1, textAlign: 'center' }}>
+                <Box sx={{ fontWeight: 'medium' }}>Pronunciation</Box>
+                <Box sx={{ fontSize: '24px', fontWeight: 'bold' }}>{mockFeedback.pronunciation}</Box>
+              </Box>
+              <Box sx={{ p: 2, bgcolor: 'warning.light', borderRadius: 1, textAlign: 'center' }}>
+                <Box sx={{ fontWeight: 'medium' }}>Fluency</Box>
+                <Box sx={{ fontSize: '24px', fontWeight: 'bold' }}>{mockFeedback.fluency}</Box>
+              </Box>
+              <Box sx={{ p: 2, bgcolor: 'info.light', borderRadius: 1, textAlign: 'center' }}>
+                <Box sx={{ fontWeight: 'medium' }}>Content</Box>
+                <Box sx={{ fontSize: '24px', fontWeight: 'bold' }}>{mockFeedback.content}</Box>
+              </Box>
+            </Box>
+
+            <Box sx={{ p: 3, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Box sx={{ fontWeight: 'medium', mb: 2 }}>Content Elements Covered:</Box>
+              {mockFeedback.contentElements.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Box sx={{ color: 'success.main' }}>✓</Box>
+                  <Box sx={{ fontSize: '14px' }}>{item}</Box>
+                </Box>
+              ))}
+            </Box>
+
+            <Box>
+              <Box sx={{ fontWeight: 'medium', mb: 1, color: 'success.main' }}>✅ Strengths:</Box>
+              {mockFeedback.feedback.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
+                  <Box sx={{ color: 'success.main' }}>•</Box>
+                  <Box sx={{ fontSize: '14px' }}>{item}</Box>
+                </Box>
+              ))}
+            </Box>
+
+            <Box>
+              <Box sx={{ fontWeight: 'medium', mb: 1, color: 'warning.main' }}>💡 Areas for Improvement:</Box>
+              {mockFeedback.improvements.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
+                  <Box sx={{ color: 'warning.main' }}>•</Box>
+                  <Box sx={{ fontSize: '14px' }}>{item}</Box>
+                </Box>
+              ))}
+            </Box>
+
+            {currentQuestionIndex < questions.length - 1 && (
+              <Box sx={{ textAlign: 'center', mt: 2 }}>
+                <button
+                  onClick={handleNextQuestion}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#1976d2',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Next Question →
+                </button>
+              </Box>
+            )}
+          </Box>
+        }
+        showMetadata={false}
+      />
+    );
+  };
+
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
-      {/* Header */}
-      <Box mb={4}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} mb={2}>
-          <Button
-            component={RouterLink}
-            to="/practice-tests"
-            color="primary"
-            startIcon="←"
-            sx={{ textTransform: 'none' }}
+    <GradientBackground>
+      <StageGoalBanner />
+
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 4 }}>
+        {/* Main Content */}
+        <Box sx={{ width: { xs: '100%', lg: '70%' } }}>
+          <PracticeCard
+            icon="DI"
+            title="Describe Image"
+            subtitle={`Progress: ${attempts.length}/${questions.length} questions attempted`}
+            instructions="Describe the image including all relevant details, trends, and key information."
+            difficulty="Intermediate"
           >
-            Back to Practice
-          </Button>
-          <Box sx={{ display: { xs: 'none', sm: 'block' }, width: 1, height: 24, bgcolor: 'grey.300' }} />
-          <Typography variant="h4" fontWeight="bold" flexGrow={1}>
-            Describe Image
-          </Typography>
-          <Chip
-          onClick={() => { }}
-            label="AI Score Available"
-            color="success"
-            size="small"
-            sx={{ bgcolor: 'success.light', color: 'success.dark' }}
-          />
-        </Stack>
-        <Typography color="text.secondary" variant="body2">
-          Describe the image in detail. You have 25 seconds to prepare and 40 seconds to speak.
-        </Typography>
-      </Box>
+            <QuestionHeader
+              questionNumber={questionNumber}
+              studentName={studentName}
+              testedCount={testedCount}
+            />
 
-      {/* Progress */}
-      <Box mb={4}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} mb={2} spacing={1}>
-          <Typography variant="caption" color="text.secondary">
-            Question {currentQuestion + 1} of {questions.length}
-          </Typography>
-          <Chip onClick={() => { }} label="Speaking • Describe Image" size="small" />
-        </Stack>
-        <LinearProgress
-          variant="determinate"
-          value={((currentQuestion + 1) / questions.length) * 100}
-          sx={{ height: 8, borderRadius: 4 }}
-        />
-      </Box>
+            {preparationTime !== null && (
+              <TimerDisplay
+                timeRemaining={timer.timeRemaining}
+                isRunning={timer.isRunning}
+                warningThreshold={timer.warningThreshold}
+                autoSubmit={timer.autoSubmit}
+                showStartMessage={false}
+              />
+            )}
 
-      {/* Main Content */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
-        {/* Image Panel */}
-        <Box sx={{ flex: { md: 1 }, width: { xs: '100%', md: '50%' } }}>
-          <StyledCard>
-            <CardContent>
-              <Typography variant="h6" fontWeight="medium" mb={3}>
-                {questions[currentQuestion].title}
-              </Typography>
-              <Box mb={4}>
-                <img
-                  src={questions[currentQuestion].image}
-                  alt={questions[currentQuestion].title}
-                  style={{ width: '100%', height: 'auto', borderRadius: 8, border: '1px solid', borderColor: 'grey.200' }}
-                />
-              </Box>
-              <Box textAlign="center">
-                {preparationTime > 0 && (
-                  <Stack spacing={2} alignItems="center">
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <TimerIcon color="warning" />
-                      <Typography variant="h5" color="warning.main" fontWeight="bold">
-                        {preparationTime}s
-                      </Typography>
-                    </Stack>
-                    <Typography color="warning.main" variant="body2">
-                      Preparation time remaining
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      color="warning"
-                      onClick={handleStartPreparation}
-                      sx={{ px: 4 }}
-                    >
-                      Start Preparation
-                    </Button>
-                  </Stack>
-                )}
-                {preparationTime === 0 && !isRecording && !hasRecorded && (
-                  <Button
-                    variant="contained"
-                    color="error"
-                    size="large"
-                    startIcon={<MicIcon />}
-                    onClick={handleStartRecording}
-                    sx={{ px: 6, py: 2 }}
-                  >
-                    Start Recording (40s)
-                  </Button>
-                )}
-                {isRecording && (
-                  <Stack spacing={2} alignItems="center">
-                    <RecordingIndicator>
-                      <MicIcon sx={{ color: 'white', fontSize: 32 }} />
-                    </RecordingIndicator>
-                    <Typography color="error.main" fontWeight="medium">
-                      Recording... Describe the image
-                    </Typography>
-                    <LinearProgress
-                      variant="indeterminate"
-                      sx={{ width: '100%', maxWidth: 256, borderRadius: 4 }}
+            <ContentDisplay
+              title={currentQuestion.title}
+              content={
+                <Box>
+                  {!preparationTime && (
+                    <Box sx={{ mb: 2, textAlign: 'center' }}>
+                      <button
+                        onClick={handleStartPreparation}
+                        style={{
+                          padding: '12px 24px',
+                          backgroundColor: '#ff9800',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Start Preparation (25s)
+                      </button>
+                    </Box>
+                  )}
+                  <Box sx={{ mb: 3 }}>
+                    <img
+                      src={currentQuestion.image}
+                      alt={currentQuestion.title}
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        borderRadius: 8,
+                        border: '1px solid #ddd'
+                      }}
                     />
-                  </Stack>
-                )}
-                {hasRecorded && !showFeedback && (
-                  <Stack spacing={2} alignItems="center">
-                    <Typography color="success.main" fontWeight="medium">
-                      ✅ Recording Complete!
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handleGetAIFeedback}
-                      sx={{ px: 4 }}
-                    >
-                      Get AI Feedback
-                    </Button>
-                  </Stack>
-                )}
-              </Box>
+                  </Box>
+                  <Box sx={{ fontSize: '14px', color: 'text.secondary' }}>
+                    {currentQuestion.description}
+                  </Box>
+                </Box>
+              }
+              category="Image Description"
+              difficulty="Intermediate"
+              tags={['describe', 'image', 'analysis']}
+            />
+
+            <RecordingSection
+              isRecording={audioRecording.isRecording}
+              recordedBlob={audioRecording.recordedBlob}
+              recordedAudioUrl={audioRecording.recordedAudioUrl}
+              micPermission={audioRecording.micPermission}
+              showRecordingPrompt={preparationTime === 0}
+              preparationTime={preparationTime}
+              recordingType="Describe Image"
+              recordingTime={40}
+              onToggleRecording={audioRecording.toggleRecording}
+            />
+
+            <ProgressIndicator
+              current={audioRecording.recordedBlob ? 1 : 0}
+              total={1}
+              label="recording completed"
+            />
+
+            {!showFeedback && (
+              <ActionButtons
+                hasResponse={audioRecording.recordedBlob !== null}
+                recordedBlob={audioRecording.recordedBlob}
+                onSubmit={handleSubmit}
+                onRedo={handleRedo}
+                onTranslate={() => setShowTranslate(true)}
+                onShowAnswer={() => setShowAnswer(true)}
+                handleViewAttempts={handleViewAttempts}
+              />
+            )}
+            <FeedbackDisplay />
+          </PracticeCard>
+
+          {/* Navigation Card */}
+          <StyledCard sx={{ mb: 4, mt: 2 }}>
+            <CardContent>
+              <NavigationSection
+                onSearch={handleSearch}
+                onPrevious={handlePrevious}
+                onNext={handleNext}
+                questionNumber={questionNumber}
+              />
             </CardContent>
           </StyledCard>
         </Box>
 
-        {/* Instructions and Feedback Panel */}
-        <Box sx={{ flex: { md: 1 }, width: { xs: '100%', md: '50%' } }}>
-          {!showFeedback ? (
-            <StyledCard sx={{ position: { md: 'sticky' }, top: { md: 24 } }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="medium" mb={3}>
-                  📝 Instructions
-                </Typography>
-                <Stack spacing={3}>
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                      Task Overview:
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Describe the image including all relevant details, trends, and key information.
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                      What to Include:
-                    </Typography>
-                    <List dense>
-                      {['Type of chart/diagram', 'Main trends or patterns', 'Key data points', 'Comparisons between elements', 'Overall conclusion'].map((item) => (
-                        <ListItem key={item} disablePadding>
-                          <ListItemText primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}>
-                            • {item}
-                          </ListItemText>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                      Useful Phrases:
-                    </Typography>
-                    <List dense>
-                      {['"This chart shows..."', '"The highest/lowest point is..."', '"There is an increase/decrease in..."', '"In comparison to..."', '"Overall, the data indicates..."'].map((item) => (
-                        <ListItem key={item} disablePadding>
-                          <ListItemText primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}>
-                            • {item}
-                          </ListItemText>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                      Scoring Criteria:
-                    </Typography>
-                    <List dense>
-                      {['Content: Completeness and accuracy', 'Pronunciation: Clear articulation', 'Fluency: Natural speech flow', 'Vocabulary: Appropriate word choice'].map((item) => (
-                        <ListItem key={item} disablePadding>
-                          <ListItemText primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}>
-                            • {item}
-                          </ListItemText>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </StyledCard>
-          ) : (
-            <StyledCard>
-              <CardContent>
-                <Typography variant="h6" fontWeight="medium" mb={3}>
-                  🤖 AI Feedback
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 4 }}>
-                  {[
-                    { label: 'Overall', score: mockFeedback.overallScore, color: 'primary' },
-                    { label: 'Pronunciation', score: mockFeedback.pronunciation, color: 'success' },
-                    { label: 'Fluency', score: mockFeedback.fluency, color: 'warning' },
-                    { label: 'Content', score: mockFeedback.content, color: 'info' },
-                  ].map((item) => (
-                    <Box key={item.label} sx={{ flex: { xs: '1 1 45%', sm: '1 1 22%' } }}>
-                      <Paper elevation={1} sx={{ p: 2, textAlign: 'center', bgcolor: `${item.color}.light` }}>
-                        <Typography variant="h6" color={`${item.color}.main`} fontWeight="bold">
-                          {item.score}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.label}
-                        </Typography>
-                      </Paper>
-                    </Box>
-                  ))}
-                </Box>
-                <Paper elevation={1} sx={{ p: 3, mb: 4, bgcolor: 'grey.50' }}>
-                  <Typography variant="subtitle2" fontWeight="medium" mb={2}>
-                    Content Elements Covered:
-                  </Typography>
-                  <List dense>
-                    {mockFeedback.contentElements.map((item, index) => (
-                      <ListItem key={index} disablePadding>
-                        <ListItemText
-                          primaryTypographyProps={{ variant: 'body2' }}
-                          primary={
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                              <CheckCircleIcon color="success" fontSize="small" />
-                              <span>{item}</span>
-                            </Stack>
-                          }
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Paper>
-                <Stack spacing={3}>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight="medium" mb={2}>
-                      ✅ Strengths:
-                    </Typography>
-                    <List dense>
-                      {mockFeedback.feedback.map((item, index) => (
-                        <ListItem key={index} disablePadding>
-                          <ListItemText
-                            primaryTypographyProps={{ variant: 'body2' }}
-                            primary={
-                              <Stack direction="row" alignItems="flex-start" spacing={1}>
-                                <Typography color="success.main">•</Typography>
-                                <span>{item}</span>
-                              </Stack>
-                            }
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight="medium" mb={2}>
-                      💡 Areas for Improvement:
-                    </Typography>
-                    <List dense>
-                      {mockFeedback.improvements.map((item, index) => (
-                        <ListItem key={index} disablePadding>
-                          <ListItemText
-                            primaryTypographyProps={{ variant: 'body2' }}
-                            primary={
-                              <Stack direction="row" alignItems="flex-start" spacing={1}>
-                                <Typography color="warning.main">•</Typography>
-                                <span>{item}</span>
-                              </Stack>
-                            }
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                </Stack>
-                <Box mt={4} textAlign="center">
-                  {currentQuestion < questions.length - 1 ? (
-                    <Button
-                      variant="contained"
-                      size="large"
-                      onClick={handleNextQuestion}
-                      endIcon={<ArrowForwardIcon />}
-                      sx={{ px: 4 }}
-                    >
-                      Next Question
-                    </Button>
-                  ) : (
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
-                      <Button
-                        component={RouterLink}
-                        to="/practice-tests"
-                        variant="contained"
-                        color="secondary"
-                        sx={{ px: 4 }}
-                      >
-                        Back to Practice
-                      </Button>
-                      <Button
-                        component={RouterLink}
-                        to="/progress"
-                        variant="contained"
-                        color="success"
-                        sx={{ px: 4 }}
-                      >
-                        View Progress
-                      </Button>
-                    </Stack>
-                  )}
-                </Box>
-              </CardContent>
-            </StyledCard>
-          )}
+        {/* Instructions Panel */}
+        <Box sx={{ width: { xs: '100%', lg: '30%' } }}>
+          <InstructionsCard title="Instructions" sections={instructionsSections} />
         </Box>
       </Box>
-    </Container>
+
+      <TopicSelectionDrawer
+        open={showTopicSelector}
+        onClose={() => setShowTopicSelector(false)}
+        onSelect={handleTopicSelect}
+        topics={questions.map(q => ({
+          ...q,
+          title: q.title,
+          duration: '65s',
+          speaker: 'Visual',
+          difficulty: 'Intermediate',
+          category: 'Image',
+          tags: ['describe', 'image'],
+          isNew: false,
+          isMarked: false,
+          pracStatus: 'Undone' as const,
+          hasExplanation: true,
+          createdAt: '2024-01-15',
+          updatedAt: '2024-01-15'
+        }))}
+        title="Select Image to Describe"
+        type="question"
+      />
+
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={currentQuestion.title}
+        text={currentQuestion.description}
+        answers={[{
+          id: '1',
+          position: 1,
+          correctAnswer: 'This is a sample description that covers all key elements of the image.'
+        }]}
+      />
+
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the image content in your preferred language."
+      />
+
+      {/* Past Attempts Dialog */}
+      <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Past Attempts</Typography>
+            <IconButton onClick={() => setShowAttempts(false)}>
+              <Close />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {attempts.length === 0 ? (
+            <Typography variant="body2">No attempts recorded yet.</Typography>
+          ) : (
+            <List>
+              {attempts.map((attempt, index) => {
+                const question = questions.find(q => q.id === attempt.questionId);
+                return (
+                  <ListItem key={index}>
+                    <ListItemText
+                      primary={`Image: ${question?.title || 'Unknown'}`}
+                      secondary={
+                        <>
+                          <Typography component="span" variant="body2">
+                            Time: {new Date(attempt.timestamp).toLocaleString()}
+                          </Typography>
+                          {attempt.recordedAudioUrl && (
+                            <audio controls src={attempt.recordedAudioUrl} style={{ width: '100%', marginTop: '8px' }}>
+                              Your browser does not support the audio element.
+                            </audio>
+                          )}
+                        </>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            color="error"
+            onClick={() => {
+              setAttempts([]);
+              localStorage.removeItem('describeImageAttempts');
+            }}
+          >
+            Clear Attempts
+          </Button>
+          <Button onClick={() => setShowAttempts(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </GradientBackground>
   );
 };
 

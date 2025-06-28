@@ -23,7 +23,8 @@ export interface ListeningPassage extends BaseTopic {
   title: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   timeLimit: number; // in seconds
-  audioUrl: string;
+  audioUrl?: string;
+  audioText?: string; // For TextToSpeech
   duration: string;
   text: string;
   blanks: BlankPosition[];
@@ -65,4 +66,16 @@ export interface DragDropState {
   draggedWord: WordBankWord | null;
   targetBlank: BlankPosition | null;
   isDragging: boolean;
+}
+
+export interface UserAttempt {
+  questionId: number;
+  answers: Array<{
+    blankId: string;
+    userAnswer: string;
+    correctAnswer: string;
+    isCorrect: boolean;
+  }>;
+  score: number;
+  timestamp: string;
 }

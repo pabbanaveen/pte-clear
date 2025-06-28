@@ -1,49 +1,39 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemText, Typography, IconButton, Stack, CardContent } from '@mui/material';
+import { Close } from '@mui/icons-material';
 import {
-  Container,
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Grid,
-  Divider,
-  LinearProgress,
-  Chip,
-  useTheme,
-  useMediaQuery,
-  Alert,
-  Card,
-  CardContent,
-  Stack,
-} from '@mui/material';
-import {
-  RECORDING_DURATION_MS,
-  AUDIO_DURATION_MS,
-} from './constants';
-import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
+  PracticeCard,
+  TimerDisplay,
+  ContentDisplay,
+  ProgressIndicator,
+  AnswerDialog,
+  TranslationDialog,
+  GradientBackground,
+  StyledCard
+} from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
-import InstructionsCard from '../../common/InstructionsCard';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import RecordingSection from '../../common/RecordingSection';
 import StageGoalBanner from '../../common/StageGoalBanner';
+import TextToSpeech from '../../common/TextToSpeech';
+import InstructionsCard from '../../common/InstructionsCard';
+import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { User } from '../../../../types/user';
 import { REPEAT_SENTENCE_QUESTIONS, MOCK_FEEDBACK, instructionsSections } from './RepeatSentenceMockData';
 import { RepeatSentenceQuestion } from './RepeatSentenceTypes';
-import TextToSpeech from '../../common/TextToSpeech';
-import { styled } from '@mui/material/styles';
-import { Link as RouterLink } from 'react-router-dom';
-import TimerIcon from '@mui/icons-material/Timer';
+
+const RECORDING_DURATION_MS = 15000;
 
 interface PracticeTestsProps {
   user: User | null;
 }
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  borderRadius: (theme.shape.borderRadius as number) * 2,
-  boxShadow: theme.shadows[3],
-}));
+interface UserAttempt {
+  questionId: number;
+  recordedAudioUrl?: string;
+  timestamp: string;
+}
 
 const useAudioRecording = (recordingTime = RECORDING_DURATION_MS) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -88,18 +78,15 @@ const useAudioRecording = (recordingTime = RECORDING_DURATION_MS) => {
           const url = URL.createObjectURL(blob);
           setRecordedAudioUrl(url);
           stream.getTracks().forEach((track) => track.stop());
-          console.log('Recording stopped, blob created');
         };
 
         mediaRecorder.start();
         setIsRecording(true);
-        console.log('Recording started');
 
         timerRef.current = setTimeout(() => {
           if (mediaRecorderRef.current?.state === 'recording') {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
-            console.log(`Recording auto-stopped after ${recordingTime / 1000}s`);
           }
         }, recordingTime);
       } catch (error) {
@@ -111,7 +98,6 @@ const useAudioRecording = (recordingTime = RECORDING_DURATION_MS) => {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) clearTimeout(timerRef.current);
-      console.log('Recording manually stopped');
     }
   };
 
@@ -137,23 +123,68 @@ export const RepeatSentence: React.FC<PracticeTestsProps> = ({ user }) => {
   const [studentName] = useState('Jane Doe');
   const [testedCount] = useState(25);
   const [showTopicSelector, setShowTopicSelector] = useState(false);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [showAttempts, setShowAttempts] = useState(false);
+  const [attempts, setAttempts] = useState<UserAttempt[]>([]);
 
   const audioRecording = useAudioRecording();
   const [audioError, setAudioError] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
-  const [isStarted, setIsStarted] = useState(false);
+  
+  // Timer state for overall practice session
+  const [timer, setTimer] = useState({
+    timeRemaining: 600, // 10 minutes
+    isRunning: false,
+    warningThreshold: 120, // 2 minutes warning
+    autoSubmit: false,
+  });
+
+  const currentQuestion = REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex];
+
+  // Load attempts from localStorage
+  useEffect(() => {
+    const savedAttempts = localStorage.getItem('repeatSentenceAttempts');
+    if (savedAttempts) {
+      try {
+        setAttempts(JSON.parse(savedAttempts));
+      } catch (error) {
+        console.error('Failed to parse repeatSentenceAttempts:', error);
+        localStorage.removeItem('repeatSentenceAttempts');
+      }
+    }
+  }, []);
+
+  // Save attempt to localStorage when recording is available
+  useEffect(() => {
+    if (audioRecording.recordedBlob && audioRecording.recordedAudioUrl) {
+      const attempt: UserAttempt = {
+        questionId: currentQuestion.id,
+        recordedAudioUrl: audioRecording.recordedAudioUrl,
+        timestamp: new Date().toISOString(),
+      };
+      setAttempts((prev) => {
+        const newAttempts = [...prev, attempt];
+        try {
+          localStorage.setItem('repeatSentenceAttempts', JSON.stringify(newAttempts));
+        } catch (error) {
+          console.error('Failed to save repeatSentenceAttempts:', error);
+        }
+        return newAttempts;
+      });
+    }
+  }, [audioRecording.recordedBlob, audioRecording.recordedAudioUrl, currentQuestion.id]);
 
   useEffect(() => {
-    if (isStarted) {
-      const timer = setInterval(() => {
-        setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
+    let interval: NodeJS.Timeout;
+    if (timer.isRunning && timer.timeRemaining > 0) {
+      interval = setInterval(() => {
+        setTimer(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
       }, 1000);
-      return () => clearInterval(timer);
+    } else if (timer.timeRemaining === 0) {
+      setTimer(prev => ({ ...prev, isRunning: false }));
     }
-  }, [isStarted]);
+    return () => clearInterval(interval);
+  }, [timer.isRunning, timer.timeRemaining]);
 
   const handleGetAIFeedback = () => {
     setShowFeedback(true);
@@ -164,8 +195,6 @@ export const RepeatSentence: React.FC<PracticeTestsProps> = ({ user }) => {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       audioRecording.resetRecording();
       setShowFeedback(false);
-      setTimeLeft(600);
-      setIsStarted(false);
     }
   };
 
@@ -174,9 +203,15 @@ export const RepeatSentence: React.FC<PracticeTestsProps> = ({ user }) => {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
       audioRecording.resetRecording();
       setShowFeedback(false);
-      setTimeLeft(600);
-      setIsStarted(false);
     }
+  };
+
+  const handleNext = () => {
+    handleNextQuestion();
+  };
+
+  const handleSearch = () => {
+    setShowTopicSelector(true);
   };
 
   const handleTopicSelect = (topic: any) => {
@@ -185,16 +220,16 @@ export const RepeatSentence: React.FC<PracticeTestsProps> = ({ user }) => {
       setCurrentQuestionIndex(index);
       audioRecording.resetRecording();
       setShowFeedback(false);
-      setTimeLeft(600);
-      setIsStarted(false);
       setShowTopicSelector(false);
     }
   };
 
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  const handleStartTimer = () => {
+    setTimer(prev => ({ ...prev, isRunning: true }));
+  };
+
+  const handleViewAttempts = () => {
+    setShowAttempts(true);
   };
 
   const questionTopics = REPEAT_SENTENCE_QUESTIONS.map((q) => ({
@@ -209,114 +244,143 @@ export const RepeatSentence: React.FC<PracticeTestsProps> = ({ user }) => {
     isMarked: q.isMarked,
     pracStatus: q.pracStatus,
     hasExplanation: q.hasExplanation,
+    createdAt: q.createdAt,
+    updatedAt: q.updatedAt
   }));
 
-  return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Stage Goal Banner */}
-      <StageGoalBanner />
+  // Feedback display component
+  const FeedbackDisplay = () => {
+    if (!showFeedback || !audioRecording.recordedBlob) return null;
 
-      {/* Progress Display */}
-      <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }}>
-        Progress: {currentQuestionIndex + 1}/{REPEAT_SENTENCE_QUESTIONS.length} questions attempted
-      </Typography>
+    const feedback = MOCK_FEEDBACK[currentQuestion.id];
+    if (!feedback) return null;
 
-      {/* Header */}
-      <Box mb={4}>
-        <Stack
-          direction={isMobile ? 'column' : 'row'}
-          spacing={2}
-          alignItems={isMobile ? 'flex-start' : 'center'}
-          mb={2}
-        >
-          <Button
-            component={RouterLink}
-            to="/practice-tests"
-            color="primary"
-            startIcon={<span style={{ marginRight: '8px' }}>←</span>}
-            size={isMobile ? 'small' : 'medium'}
-          >
-            Back to Practice
-          </Button>
-          <Divider orientation={isMobile ? 'horizontal' : 'vertical'} flexItem sx={{ my: { xs: 1, sm: 0 } }} />
-          <Typography variant={isMobile ? 'h6' : 'h4'} fontWeight="bold">
-            Speaking: Repeat Sentence
-          </Typography>
-          <Chip label="AI Score Available" color="success" size={isMobile ? 'small' : 'medium'} />
-        </Stack>
-        <Typography color="text.secondary" variant={isMobile ? 'caption' : 'body2'}>
-          Listen to the sentence and repeat it as accurately as possible.
-        </Typography>
-      </Box>
+    return (
+      <ContentDisplay
+        title="AI Feedback Results"
+        content={
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ textAlign: 'center', p: 4, bgcolor: 'primary.light', borderRadius: 2 }}>
+              <Box sx={{ fontSize: '48px', fontWeight: 'bold', color: 'primary.main' }}>
+                {feedback.overallScore}
+              </Box>
+              <Box sx={{ color: 'text.secondary' }}>Overall Score</Box>
+            </Box>
 
-      {/* Progress and Timer */}
-      <Box mb={4}>
-        <Stack
-          direction={isMobile ? 'column' : 'row'}
-          justifyContent="space-between"
-          alignItems={isMobile ? 'flex-start' : 'center'}
-          spacing={isMobile ? 1 : 2}
-          mb={2}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Question {currentQuestionIndex + 1} of {REPEAT_SENTENCE_QUESTIONS.length}
-          </Typography>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Chip label="Speaking • Repeat Sentence" size={isMobile ? 'small' : 'medium'} />
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <TimerIcon color={timeLeft < 120 ? 'error' : 'primary'} />
-              <Typography color={timeLeft < 120 ? 'error.main' : 'primary.main'} variant={isMobile ? 'caption' : 'body2'}>
-                {formatTime(timeLeft)}
-              </Typography>
-            </Stack>
-            {!isStarted && (
-              <Button
-                variant="contained"
-                size={isMobile ? 'small' : 'medium'}
-                onClick={() => setIsStarted(true)}
-                sx={{ width: isMobile ? '100%' : 'auto' }}
-              >
-                Start Timer
-              </Button>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
+              <Box sx={{ p: 2, bgcolor: 'success.light', borderRadius: 1, textAlign: 'center' }}>
+                <Box sx={{ fontWeight: 'medium' }}>Pronunciation</Box>
+                <Box sx={{ fontSize: '24px', fontWeight: 'bold' }}>{feedback.pronunciation}</Box>
+              </Box>
+              <Box sx={{ p: 2, bgcolor: 'warning.light', borderRadius: 1, textAlign: 'center' }}>
+                <Box sx={{ fontWeight: 'medium' }}>Fluency</Box>
+                <Box sx={{ fontSize: '24px', fontWeight: 'bold' }}>{feedback.fluency}</Box>
+              </Box>
+              <Box sx={{ p: 2, bgcolor: 'secondary.light', borderRadius: 1, textAlign: 'center' }}>
+                <Box sx={{ fontWeight: 'medium' }}>Content</Box>
+                <Box sx={{ fontSize: '24px', fontWeight: 'bold' }}>{feedback.content}</Box>
+              </Box>
+            </Box>
+
+            <Box>
+              <Box sx={{ fontWeight: 'medium', mb: 1, color: 'success.main' }}>✅ Strengths:</Box>
+              {feedback.feedback.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
+                  <Box sx={{ color: 'success.main' }}>•</Box>
+                  <Box sx={{ fontSize: '14px' }}>{item}</Box>
+                </Box>
+              ))}
+            </Box>
+
+            <Box>
+              <Box sx={{ fontWeight: 'medium', mb: 1, color: 'warning.main' }}>💡 Areas for Improvement:</Box>
+              {feedback.improvements.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
+                  <Box sx={{ color: 'warning.main' }}>•</Box>
+                  <Box sx={{ fontSize: '14px' }}>{item}</Box>
+                </Box>
+              ))}
+            </Box>
+
+            {currentQuestionIndex < REPEAT_SENTENCE_QUESTIONS.length - 1 && (
+              <Box sx={{ textAlign: 'center', mt: 2 }}>
+                <button
+                  onClick={handleNextQuestion}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#1976d2',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Next Question →
+                </button>
+              </Box>
             )}
-          </Stack>
-        </Stack>
-        <LinearProgress
-          variant="determinate"
-          value={((currentQuestionIndex + 1) / REPEAT_SENTENCE_QUESTIONS.length) * 100}
-          sx={{ height: 8, borderRadius: 4 }}
-        />
-      </Box>
+          </Box>
+        }
+        showMetadata={false}
+      />
+    );
+  };
 
-      {/* Main Content */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: { xs: 4, sm: 4 } }}>
-        {/* Question Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '63%' } }}>
-          <StyledCard>
-            <CardContent sx={{ p: isMobile ? 2 : 3 }}>
-              {/* Question Header */}
-              <QuestionHeader questionNumber={currentQuestionIndex + 1} studentName={studentName} testedCount={testedCount} />
+  return (
+    <GradientBackground>
+      <StageGoalBanner />
+      
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 4 }}>
+        {/* Main Content */}
+        <Box sx={{ width: { xs: '100%', lg: '70%' } }}>
+          <PracticeCard
+            icon="RS"
+            title="Speaking: Repeat Sentence"
+            subtitle={`Progress: ${currentQuestionIndex + 1}/${REPEAT_SENTENCE_QUESTIONS.length} questions attempted`}
+            instructions="Listen to the sentence and repeat it as accurately as possible."
+            difficulty={currentQuestion.difficulty}
+          >
+            <QuestionHeader
+              questionNumber={currentQuestionIndex + 1}
+              studentName={studentName}
+              testedCount={testedCount}
+            />
 
-              {/* Audio Error Alert */}
-              {audioError && (
-                <Alert severity="error" sx={{ mb: 3 }}>
-                  <Typography>{audioError}</Typography>
-                </Alert>
-              )}
+            <TimerDisplay
+              timeRemaining={timer.timeRemaining}
+              isRunning={timer.isRunning}
+              warningThreshold={timer.warningThreshold}
+              autoSubmit={timer.autoSubmit}
+              showStartMessage={!timer.isRunning}
+              startMessage="Click Start Timer to begin practice session"
+            />
 
-              {/* Scoring Notice */}
-              <Alert severity="info" sx={{ mb: 3 }}>
-                <Typography>AI scoring is available after recording submission.</Typography>
-              </Alert>
+            {!timer.isRunning && (
+              <Box sx={{ textAlign: 'center', mb: 3 }}>
+                <button
+                  onClick={handleStartTimer}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#4caf50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Start Practice Timer
+                </button>
+              </Box>
+            )}
 
-              {/* Text-to-Speech and Question */}
-              <Paper elevation={1} sx={{ p: isMobile ? 2 : 3, mb: 3, bgcolor: 'grey.50' }}>
-                <Stack spacing={2}>
-                  <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: '#333' }}>
-                    Question
-                  </Typography>
+            <ContentDisplay
+              title="Audio Sentence"
+              content={
+                <Box>
                   <TextToSpeech
-                    text={REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].audio}
+                    text={currentQuestion.audio}
                     autoPlay={false}
                     onStart={() => console.log('Question audio started')}
                     onEnd={() => console.log('Question audio ended, ready to record')}
@@ -325,197 +389,78 @@ export const RepeatSentence: React.FC<PracticeTestsProps> = ({ user }) => {
                       console.error('TextToSpeech error:', error);
                     }}
                   />
-                  <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
-                    Transcript: {REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].audio}
-                  </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    <Chip
-                      label={REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].difficulty}
-                      size="small"
-                      color={
-                        REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].difficulty === 'Beginner'
-                          ? 'success'
-                          : REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].difficulty === 'Intermediate'
-                            ? 'warning'
-                            : 'error'
-                      }
-                    />
-                    <Chip
-                      label={REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].category}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Stack>
-                </Stack>
-              </Paper>
-
-              {/* Recording Section */}
-              <RecordingSection
-                isRecording={audioRecording.isRecording}
-                recordedBlob={audioRecording.recordedBlob}
-                recordedAudioUrl={audioRecording.recordedAudioUrl}
-                micPermission={audioRecording.micPermission}
-                showRecordingPrompt={false}
-                preparationTime={null}
-                recordingType="Repeat Sentence"
-                recordingTime={15}
-                onToggleRecording={audioRecording.toggleRecording}
-              />
-
-              {/* Feedback Section */}
-              {audioRecording.recordedBlob && showFeedback && (
-                <Stack spacing={4} mt={3}>
-                  {/* Score */}
-                  <Paper elevation={2} sx={{ p: 4, textAlign: 'center', bgcolor: 'primary.light' }}>
-                    <Typography variant="h3" color="primary" fontWeight="bold">
-                      {MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].overallScore}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      Overall Score
-                    </Typography>
-                  </Paper>
-
-                  {/* Feedback Details */}
-                  <Box>
-                    <Typography variant="h6" fontWeight="medium" mb={2}>
-                      AI Feedback
-                    </Typography>
-                    <Stack spacing={2}>
-                      <Paper sx={{ p: 2, bgcolor: 'success.light' }}>
-                        <Typography variant="subtitle1" fontWeight="medium">
-                          Pronunciation: {MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].pronunciation}
-                        </Typography>
-                      </Paper>
-                      <Paper sx={{ p: 2, bgcolor: 'warning.light' }}>
-                        <Typography variant="subtitle1" fontWeight="medium">
-                          Fluency: {MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].fluency}
-                        </Typography>
-                      </Paper>
-                      <Paper sx={{ p: 2, bgcolor: 'secondary.light' }}>
-                        <Typography variant="subtitle1" fontWeight="medium">
-                          Content: {MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].content}
-                        </Typography>
-                      </Paper>
-                      <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-                        <Typography variant="subtitle1" fontWeight="medium" mb={1}>
-                          Word Accuracy
-                        </Typography>
-                        <Box display="flex" alignItems="center" gap={2}>
-                          <Typography variant="h5" color="success.main" fontWeight="bold">
-                            {MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].wordsRepeated}/
-                            {MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].totalWords}
-                          </Typography>
-                          <Box flex={1} bgcolor="grey.200" borderRadius="4px" height={8}>
-                            <Box
-                              bgcolor="success.main"
-                              height={8}
-                              borderRadius="4px"
-                              width={`${(MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].wordsRepeated /
-                                MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].totalWords) * 100}%`}
-                            />
-                          </Box>
-                        </Box>
-                      </Paper>
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                          ✅ Strengths:
-                        </Typography>
-                        {MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].feedback.map((item, index) => (
-                          <Box key={index} display="flex" alignItems="flex-start" gap={1}>
-                            <Typography color="success.main">•</Typography>
-                            <Typography variant="body2">{item}</Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="medium" mb={1}>
-                          💡 Areas for Improvement:
-                        </Typography>
-                        {MOCK_FEEDBACK[REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex].id].improvements.map((item, index) => (
-                          <Box key={index} display="flex" alignItems="flex-start" gap={1}>
-                            <Typography color="warning.main">•</Typography>
-                            <Typography variant="body2">{item}</Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    </Stack>
+                  <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Box sx={{ fontSize: '14px', color: 'text.secondary', mb: 1 }}>Transcript:</Box>
+                    <Box sx={{ fontSize: '16px', fontWeight: 'medium' }}>{currentQuestion.audio}</Box>
                   </Box>
-
-                  {/* Next Question */}
-                  <Box textAlign="center">
-                    {currentQuestionIndex < REPEAT_SENTENCE_QUESTIONS.length - 1 ? (
-                      <Button
-                        variant="contained"
-                        size={isMobile ? 'medium' : 'large'}
-                        onClick={handleNextQuestion}
-                        endIcon={<span style={{ marginLeft: '8px' }}>→</span>}
-                      >
-                        Next Question
-                      </Button>
-                    ) : (
-                      <Stack direction={isMobile ? 'column' : 'row'} spacing={2} justifyContent="center">
-                        <Button
-                          component={RouterLink}
-                          to="/practice-tests"
-                          variant="contained"
-                          color="secondary"
-                          size={isMobile ? 'medium' : 'large'}
-                          fullWidth={isMobile}
-                        >
-                          Back to Practice
-                        </Button>
-                        <Button
-                          component={RouterLink}
-                          to="/progress"
-                          variant="contained"
-                          color="success"
-                          size={isMobile ? 'medium' : 'large'}
-                          fullWidth={isMobile}
-                        >
-                          View Progress
-                        </Button>
-                      </Stack>
-                    )}
-                  </Box>
-                </Stack>
-              )}
-
-              {/* Action Buttons */}
-              {!showFeedback && (
-                <Box mt={2}>
-                  <ActionButtons
-                    hasResponse={audioRecording.recordedBlob !== null}
-                    recordedBlob={audioRecording.recordedBlob}
-                    onSubmit={handleGetAIFeedback}
-                    onRedo={audioRecording.resetRecording}
-                    onTranslate={() => console.log('Translate clicked')}
-                    onShowAnswer={() => console.log('Show Answer clicked')}
-                  />
                 </Box>
-              )}
-            </CardContent>
-          </StyledCard>
+              }
+              category={currentQuestion.category}
+              difficulty={currentQuestion.difficulty}
+              tags={currentQuestion.tags}
+            />
+
+            <RecordingSection
+              isRecording={audioRecording.isRecording}
+              recordedBlob={audioRecording.recordedBlob}
+              recordedAudioUrl={audioRecording.recordedAudioUrl}
+              micPermission={audioRecording.micPermission}
+              showRecordingPrompt={false}
+              preparationTime={null}
+              recordingType="Repeat Sentence"
+              recordingTime={15}
+              onToggleRecording={audioRecording.toggleRecording}
+            />
+
+            <ProgressIndicator
+              current={audioRecording.recordedBlob ? 1 : 0}
+              total={1}
+              label="recording completed"
+            />
+
+            {!showFeedback && (
+              <ActionButtons
+                hasResponse={audioRecording.recordedBlob !== null}
+                recordedBlob={audioRecording.recordedBlob}
+                onSubmit={handleGetAIFeedback}
+                onRedo={audioRecording.resetRecording}
+                onTranslate={() => setShowTranslate(true)}
+                onShowAnswer={() => setShowAnswer(true)}
+                handleViewAttempts={handleViewAttempts}
+              />
+            )}
+
+            
+
+            <FeedbackDisplay />
+
+            {/* <NavigationSection
+              onSearch={handleSearch}
+              onPrevious={handlePrevious}
+              onNext={handleNext}
+              questionNumber={currentQuestionIndex + 1}
+            /> */}
+          </PracticeCard>
 
           {/* Navigation Card */}
           <StyledCard sx={{ mb: 4, mt: 2 }}>
             <CardContent>
               <NavigationSection
-                onSearch={() => setShowTopicSelector(true)}
-                onPrevious={handlePrevious}
-                onNext={handleNextQuestion}
-                questionNumber={currentQuestionIndex + 1}
+                 onSearch={handleSearch}
+              onPrevious={handlePrevious}
+              onNext={handleNext}
+              questionNumber={currentQuestionIndex + 1}
               />
             </CardContent>
           </StyledCard>
         </Box>
 
         {/* Instructions Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '33.333%' }, pl: { lg: 2 } }}>
+        <Box sx={{ width: { xs: '100%', lg: '30%' } }}>
           <InstructionsCard title="Instructions" sections={instructionsSections} />
         </Box>
       </Box>
 
-      {/* Topic Selection Drawer */}
       <TopicSelectionDrawer
         open={showTopicSelector}
         onClose={() => setShowTopicSelector(false)}
@@ -524,7 +469,79 @@ export const RepeatSentence: React.FC<PracticeTestsProps> = ({ user }) => {
         title="Select Repeat Sentence Question"
         type="question"
       />
-    </Container>
+
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title="Expected Response"
+        text={currentQuestion.audio}
+        answers={[{
+          id: '1',
+          position: 1,
+          correctAnswer: currentQuestion.expectedAnswer
+        }]}
+      />
+
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the sentence content in your preferred language."
+      />
+
+      {/* Past Attempts Dialog */}
+      <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Past Attempts</Typography>
+            <IconButton onClick={() => setShowAttempts(false)}>
+              <Close />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {attempts.length === 0 ? (
+            <Typography variant="body2">No attempts recorded yet.</Typography>
+          ) : (
+            <List>
+              {attempts.map((attempt, index) => {
+                const question = REPEAT_SENTENCE_QUESTIONS.find(q => q.id === attempt.questionId);
+                return (
+                  <ListItem key={index}>
+                    <ListItemText
+                      primary={`Sentence: ${question?.audio.substring(0, 50) || 'Unknown'}...`}
+                      secondary={
+                        <>
+                          <Typography component="span" variant="body2">
+                            Time: {new Date(attempt.timestamp).toLocaleString()}
+                          </Typography>
+                          {attempt.recordedAudioUrl && (
+                            <audio controls src={attempt.recordedAudioUrl} style={{ width: '100%', marginTop: '8px' }}>
+                              Your browser does not support the audio element.
+                            </audio>
+                          )}
+                        </>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            color="error"
+            onClick={() => {
+              setAttempts([]);
+              localStorage.removeItem('repeatSentenceAttempts');
+            }}
+          >
+            Clear Attempts
+          </Button>
+          <Button onClick={() => setShowAttempts(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </GradientBackground>
   );
 };
 

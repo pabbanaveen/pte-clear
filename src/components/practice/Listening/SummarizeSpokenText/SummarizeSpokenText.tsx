@@ -1,570 +1,580 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-    Box,
-    Card,
-    CardContent,
-    Typography,
-    Divider,
-    Alert,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    Stack,
-    IconButton,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    TextField,
-    List,
-    ListItem,
-    ListItemButton,
-    ListItemText,
-    Paper,
-    Chip,
-    LinearProgress
-} from '@mui/material';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Box, TextField, Typography, Stack, Chip, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemText, IconButton } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
+import {
+  PracticeCard,
+  TimerDisplay,
+  ProgressIndicator,
+  ResultsDialog,
+  AnswerDialog,
+  TranslationDialog,
+  ContentDisplay,
+  GradientBackground,
+  TopicSelectionDrawer,
+} from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import TextToSpeech from '../../common/TextToSpeech';
 import { allSummarizeSpokenTextTopics } from './SummarizeSpokenTextMockData';
-import { SummarizeSpokenTextTopic, SummaryResponse } from './SummarizeSpokenTextType';
+import { SummarizeSpokenTextTopic, SummaryResponse, SummaryResult, UserAttempt } from './SummarizeSpokenTextType';
 
-const SummarizeSpokenText: React.FC = () => {
-    // State management
-    const [selectedTopic, setSelectedTopic] = useState<SummarizeSpokenTextTopic>(allSummarizeSpokenTextTopics[0]);
-    const [showTopicSelector, setShowTopicSelector] = useState(false);
-    const [questionNumber, setQuestionNumber] = useState(1);
-    const [summaryText, setSummaryText] = useState<string>('');
-    const [wordCount, setWordCount] = useState<number>(0);
-    const [showAnswer, setShowAnswer] = useState(false);
-    const [showTranslate, setShowTranslate] = useState(false);
-    const [showSearch, setShowSearch] = useState(false);
-    const [timeLeft, setTimeLeft] = useState<number>(0); // in seconds
-    const [isSubmitted, setIsSubmitted] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [audioError, setAudioError] = useState<string | null>(null);
+interface SummarizeSpokenTextProps {}
 
-    // Performance tracking
-    const [responses, setResponses] = useState<SummaryResponse[]>([]);
-    const [currentTaskStartTime, setCurrentTaskStartTime] = useState<number>(Date.now());
+const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
+  const [selectedTopic, setSelectedTopic] = useState<SummarizeSpokenTextTopic>(allSummarizeSpokenTextTopics[0]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [showTopicSelector, setShowTopicSelector] = useState(false);
+  const [summaryText, setSummaryText] = useState<string>('');
+  const [wordCount, setWordCount] = useState<number>(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [showAttempts, setShowAttempts] = useState(false);
+  const [currentResult, setCurrentResult] = useState<SummaryResult | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [attempts, setAttempts] = useState<UserAttempt[]>([]);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
-    // Student info
-    const [studentName] = useState('Rachel Carson');
-    const [testedCount] = useState(33);
+  // Timer state
+  const [timer, setTimer] = useState({
+    timeRemaining: selectedTopic.timeLimit * 60,
+    isRunning: false,
+    warningThreshold: 60,
+    autoSubmit: true,
+  });
 
-    // Refs
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Student info
+  const [studentName] = useState('Rachel Carson');
+  const [testedCount] = useState(33);
 
-    // Initialize timer and reset state when topic changes
-    useEffect(() => {
-        setTimeLeft(selectedTopic.timeLimit * 60); // Convert minutes to seconds
-        setCurrentTaskStartTime(Date.now());
-        setSummaryText('');
-        setWordCount(0);
-        setIsSubmitted(false);
-        setShowAnswer(false);
-        setAudioError(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<Date>(new Date());
 
-        // Clear existing timer
-        if (timerRef.current) {
-            clearInterval(timerRef.current);
-        }
+  // Load attempts from localStorage
+  useEffect(() => {
+    const savedAttempts = localStorage.getItem('summarizeSpokenTextAttempts');
+    if (savedAttempts) {
+      try {
+        setAttempts(JSON.parse(savedAttempts));
+      } catch (error) {
+        console.error('Failed to parse attempts:', error);
+        localStorage.removeItem('summarizeSpokenTextAttempts');
+      }
+    }
+  }, []);
 
-        // Start new timer
-        timerRef.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    // Time's up - auto submit
-                    if (!isSubmitted) {
-                        handleSubmit();
-                    }
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
+  // Save attempt to localStorage
+  const saveAttempt = useCallback((attempt: UserAttempt) => {
+    setAttempts((prev) => {
+      const newAttempts = [...prev, attempt];
+      try {
+        localStorage.setItem('summarizeSpokenTextAttempts', JSON.stringify(newAttempts));
+      } catch (error) {
+        console.error('Failed to save attempts:', error);
+      }
+      return newAttempts;
+    });
+  }, []);
 
-        return () => {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
-        };
-    }, [selectedTopic.id]);
+  // Sync state when topic changes
+  useEffect(() => {
+    setTimer({
+      timeRemaining: selectedTopic.timeLimit * 60,
+      isRunning: false,
+      warningThreshold: 60,
+      autoSubmit: true,
+    });
+    setSummaryText('');
+    setWordCount(0);
+    setIsSubmitted(false);
+    setShowResults(false);
+    setCurrentResult(null);
+    setAudioError(null);
+    startTimeRef.current = new Date();
 
-    // Format time display
-    const formatTime = (seconds: number): string => {
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    // Clear existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  }, [selectedTopic.id]);
+
+  // Timer functionality
+  useEffect(() => {
+    if (timer.isRunning && timer.timeRemaining > 0 && !isSubmitted) {
+      timerRef.current = setTimeout(() => {
+        setTimer(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
+      }, 1000);
+    } else if (timer.timeRemaining === 0 && timer.autoSubmit && !isSubmitted) {
+      handleSubmit();
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [timer.timeRemaining, timer.isRunning, isSubmitted]);
+
+  // Start timer when user starts typing
+  const startTimerIfNeeded = useCallback(() => {
+    if (!timer.isRunning && !isSubmitted && summaryText.trim().length > 0) {
+      setTimer(prev => ({ ...prev, isRunning: true }));
+      startTimeRef.current = new Date();
+    }
+  }, [timer.isRunning, isSubmitted, summaryText]);
+
+  // Handle text change and word count
+  const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!isSubmitted) {
+      const text = event.target.value;
+      setSummaryText(text);
+
+      // Count words (split by whitespace and filter empty strings)
+      const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+      setWordCount(words.length);
+
+      // Start timer on first meaningful input
+      if (text.trim().length > 0) {
+        startTimerIfNeeded();
+      }
+    }
+  };
+
+  const hasResponse = useCallback((): boolean => {
+    return summaryText.trim().length > 0 && wordCount >= selectedTopic.wordLimit.min;
+  }, [summaryText, wordCount, selectedTopic.wordLimit.min]);
+
+  // Handle submission
+  const handleSubmit = () => {
+    if (isSubmitted) return;
+
+    if (wordCount < selectedTopic.wordLimit.min || wordCount > selectedTopic.wordLimit.max) {
+      const message = `Please ensure your summary is between ${selectedTopic.wordLimit.min}-${selectedTopic.wordLimit.max} words. Current word count: ${wordCount}`;
+      alert(message);
+      return;
+    }
+
+    setIsSubmitted(true);
+    setTimer(prev => ({ ...prev, isRunning: false }));
+
+    const endTime = new Date();
+    const timeSpent = Math.floor((endTime.getTime() - startTimeRef.current.getTime()) / 1000);
+
+    // Calculate score (simplified scoring)
+    let score = 0;
+    if (wordCount >= selectedTopic.wordLimit.min && wordCount <= selectedTopic.wordLimit.max) {
+      score = Math.min(100, 60 + (summaryText.length / 10)); // Base score plus content
+    }
+
+    const result: SummaryResult = {
+      questionId: String(selectedTopic.id),
+      userSummary: summaryText,
+      sampleSummary: selectedTopic.sampleSummary as string,
+      score: Math.round(score),
+      maxScore: 100,
+      wordCount,
+      timeSpent,
+      completedAt: endTime,
+      keyPointsCovered: [], // Would be calculated in real implementation
     };
 
-    // Handle text change and word count
-    const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-        if (!isSubmitted) {
-            const text = event.target.value;
-            setSummaryText(text);
+    setCurrentResult(result);
+    setShowResults(true);
 
-            // Count words (split by whitespace and filter empty strings)
-            const words = text.trim().split(/\s+/).filter(word => word.length > 0);
-            setWordCount(words.length);
-        }
+    // Save attempt
+    const attempt: UserAttempt = {
+      questionId: selectedTopic.id,
+      userSummary: summaryText,
+      wordCount,
+      score: Math.round(score),
+      timestamp: new Date().toISOString(),
     };
+    saveAttempt(attempt);
+  };
 
-    // Handle topic selection
-    const handleTopicSelect = (topic: any) => {
-        // Convert to SummarizeSpokenTextTopic if needed
-        const sstTopic = topic as SummarizeSpokenTextTopic;
-        setSelectedTopic(sstTopic);
-        setQuestionNumber(allSummarizeSpokenTextTopics.findIndex(t => t.id === sstTopic.id) + 1);
-    };
+  const handleRedo = () => {
+    setSummaryText('');
+    setWordCount(0);
+    setTimer({
+      timeRemaining: selectedTopic.timeLimit * 60,
+      isRunning: false,
+      warningThreshold: 60,
+      autoSubmit: true,
+    });
+    setIsSubmitted(false);
+    setShowResults(false);
+    setCurrentResult(null);
+    startTimeRef.current = new Date();
 
-    // Handle submit
-    const handleSubmit = () => {
-        if (summaryText.trim().length === 0 && !isSubmitted) {
-            //     alert('Please write a summary before submitting.');
-            return;
-        }
+    // Clear existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  };
 
-        if (wordCount < selectedTopic.wordLimit.min || wordCount > selectedTopic.wordLimit.max) {
-            const message = `Please ensure your summary is between ${selectedTopic.wordLimit.min}-${selectedTopic.wordLimit.max} words. Current word count: ${wordCount}`;
-            alert(message);
-            return;
-        }
+  // Navigation handlers
+  const handleNext = () => {
+    if (currentQuestionIndex < allSummarizeSpokenTextTopics.length - 1) {
+      const newIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(newIndex);
+      setSelectedTopic(allSummarizeSpokenTextTopics[newIndex]);
+    }
+  };
 
-        // Stop the timer
-        if (timerRef.current) {
-            clearInterval(timerRef.current);
-        }
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      const newIndex = currentQuestionIndex - 1;
+      setCurrentQuestionIndex(newIndex);
+      setSelectedTopic(allSummarizeSpokenTextTopics[newIndex]);
+    }
+  };
 
-        const timeSpent = Math.floor((Date.now() - currentTaskStartTime) / 1000);
+  const handleSearch = () => {
+    setShowTopicSelector(true);
+  };
 
-        // Create response object
-        const newResponse: SummaryResponse = {
-            text: summaryText,
-            wordCount,
-            timeSpent,
-            isSubmitted: true
-        };
+  const handleTopicSelect = (topic: any) => {
+    const sstTopic = topic as SummarizeSpokenTextTopic;
+    setSelectedTopic(sstTopic);
+    setCurrentQuestionIndex(allSummarizeSpokenTextTopics.findIndex(t => t.id === sstTopic.id));
+    setShowTopicSelector(false);
+  };
 
-        // Update responses
-        setResponses(prev => {
-            const existingIndex = prev.findIndex(r => r.text === summaryText);
-            if (existingIndex >= 0) {
-                const updated = [...prev];
-                updated[existingIndex] = newResponse;
-                return updated;
-            }
-            return [...prev, newResponse];
-        });
+  const handleViewAttempts = () => {
+    setShowAttempts(true);
+  };
 
-        setIsSubmitted(true);
+  // Get word count color based on limits
+  const getWordCountColor = (): string => {
+    if (wordCount < selectedTopic.wordLimit.min) return '#ff9800'; // Orange for too few
+    if (wordCount > selectedTopic.wordLimit.max) return '#f44336'; // Red for too many
+    return '#4caf50'; // Green for correct range
+  };
 
-        // Show success message
-        setTimeout(() => {
-            alert(`Summary submitted successfully!\nWord count: ${wordCount}\nTime spent: ${formatTime(timeSpent)}`);
-        }, 500);
-    };
+  const questionNumber = testedCount + currentQuestionIndex + 1;
 
-    // Handle re-do
-    const handleRedo = () => {
-        setSummaryText('');
-        setWordCount(0);
-        setIsSubmitted(false);
-        setShowAnswer(false);
-        setTimeLeft(selectedTopic.timeLimit * 60);
-        setCurrentTaskStartTime(Date.now());
+  // Create result for dialog
+  const resultForDialog = currentResult ? {
+    questionId: currentResult.questionId,
+    score: currentResult.score,
+    maxScore: currentResult.maxScore,
+    correctAnswers: 1,
+    totalQuestions: 1,
+    completedAt: currentResult.completedAt,
+    timeSpent: currentResult.timeSpent,
+    percentage: Math.round((currentResult.score / currentResult.maxScore) * 100),
+    answers: []
+  } : null;
 
-        // Restart timer
-        if (timerRef.current) {
-            clearInterval(timerRef.current);
-        }
+  return (
+    <GradientBackground>
+      <StageGoalBanner />
+      
+      <PracticeCard
+        icon="SST"
+        title="Summarize Spoken Text"
+        instructions="You will hear a short report. Write a summary for a fellow student who was not present. You should write 50-70 words. You have 10 minutes to finish this task. Your response will be judged on the quality of your writing and on how well your response presents the key points presented in the lecture."
+        difficulty={selectedTopic.difficulty}
+      >
+        {/* Question Header */}
+        <QuestionHeader
+          questionNumber={questionNumber}
+          studentName={studentName}
+          testedCount={testedCount}
+        />
 
-        timerRef.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    if (!isSubmitted) {
-                        handleSubmit();
-                    }
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    };
+        {/* Timer */}
+        <TimerDisplay
+          timeRemaining={timer.timeRemaining}
+          isRunning={timer.isRunning}
+          warningThreshold={timer.warningThreshold}
+          showStartMessage={!timer.isRunning && !isSubmitted}
+          startMessage="Timer will start when you begin typing"
+          autoSubmit={timer.autoSubmit}
+        />
 
-    // Navigation handlers
-    const handlePrevious = () => {
-        if (questionNumber > 1) {
-            const prevTopic = allSummarizeSpokenTextTopics[questionNumber - 2];
-            handleTopicSelect(prevTopic);
-        }
-    };
+        {/* Text-to-Speech Player */}
+        <TextToSpeech
+          text={selectedTopic.audioText}
+          autoPlay={false}
+          onStart={() => console.log('Audio started')}
+          onEnd={() => console.log('Audio ended')}
+          onError={(error) => setAudioError(error)}
+        />
 
-    const handleNext = () => {
-        if (questionNumber < allSummarizeSpokenTextTopics.length) {
-            const nextTopic = allSummarizeSpokenTextTopics[questionNumber];
-            handleTopicSelect(nextTopic);
-        } else {
-            setShowTopicSelector(true);
-        }
-    };
+        {/* Topic Information */}
+        <ContentDisplay
+          title={selectedTopic.title}
+          content={
+            <Box>
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
+                <Chip
+                  label={selectedTopic.difficulty}
+                  size="small"
+                  color={
+                    selectedTopic.difficulty === 'Beginner' ? 'success' :
+                    selectedTopic.difficulty === 'Intermediate' ? 'warning' : 'error'
+                  }
+                />
+                <Chip
+                  label={selectedTopic.category}
+                  size="small"
+                  variant="outlined"
+                />
+                {selectedTopic.tags.map((tag, index) => (
+                  <Chip
+                    key={index}
+                    label={tag}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: '10px' }}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          }
+          showMetadata={false}
+        />
 
-    // Dialog handlers
-    const handleShowAnswer = () => setShowAnswer(true);
-    const handleTranslate = () => setShowTranslate(true);
-    const handleSearch = () => setShowTopicSelector(true);
+        {/* Text Input Area */}
+        <ContentDisplay
+          title="Write your summary:"
+          content={
+            <Box>
+              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  Summary Response
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: getWordCountColor(),
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {wordCount}/{selectedTopic.wordLimit.min}-{selectedTopic.wordLimit.max} words
+                </Typography>
+              </Box>
 
-    // Filter topics for search
-    const filteredTopics = allSummarizeSpokenTextTopics.filter(topic =>
-        topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        topic.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        topic.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+              <TextField
+                fullWidth
+                multiline
+                rows={8}
+                placeholder="Type your summary here..."
+                value={summaryText}
+                onChange={handleTextChange}
+                disabled={isSubmitted}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: isSubmitted ? '#f5f5f5' : '#fff',
+                    fontSize: { xs: '14px', sm: '16px' },
+                    '& fieldset': {
+                      borderColor: '#e0e0e0',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: isSubmitted ? '#e0e0e0' : '#1976d2',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#1976d2',
+                    },
+                  },
+                }}
+              />
 
-    // Get word count color based on limits
-    const getWordCountColor = (): string => {
-        if (wordCount < selectedTopic.wordLimit.min) return '#ff9800'; // Orange for too few
-        if (wordCount > selectedTopic.wordLimit.max) return '#f44336'; // Red for too many
-        return '#4caf50'; // Green for correct range
-    };
-
-    const correctAnswers = responses.filter(r => r.isSubmitted).length;
-
-    return (
-        <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: 2 }}>
-            {/* Stage Goal Banner */}
-            <StageGoalBanner />
-
-            {/* Main Content */}
-            <Card sx={{ maxWidth: 1200, mx: 'auto', mb: 3 }}>
-                <CardContent sx={{ p: 4 }}>
-                    {/* Header */}
-                    <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-                        <Box
-                            sx={{
-                                width: 60,
-                                height: 60,
-                                bgcolor: '#2196f3',
-                                borderRadius: 2,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                fontSize: '24px',
-                                fontWeight: 'bold',
-                            }}
-                        >
-                            SST
-                        </Box>
-                        <Box sx={{ flexGrow: 1 }}>
-                            <Stack direction="row" alignItems="center" spacing={2}>
-                                <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>
-                                    Summarize Spoken Text (PTEA)
-                                </Typography>
-                                <Chip label="Study Guide" color="primary" size="small" onClick={() => {}} />
-                            </Stack>
-                            <Typography variant="body2" sx={{ color: '#666', mt: 1 }}>
-                                You will hear a short report. Write a summary for a fellow student who was not present. You should write 50-70 words.
-                                You have 10 minutes to finish this task. Your response will be judged on the quality of your writing and on how well
-                                your response presents the key points presented in the lecture.
-                            </Typography>
-                        </Box>
-                    </Stack>
-
-                    <Divider sx={{ my: 3 }} />
-
-                    {/* Question Header */}
-                    <QuestionHeader
-                        questionNumber={questionNumber}
-                        studentName={studentName}
-                        testedCount={testedCount}
-                    />
-
-                    {/* Timer Display */}
-                    <Paper sx={{ p: 2, mb: 3, bgcolor: timeLeft < 120 ? '#ffebee' : '#f9f9f9' }}>
-                        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    color: timeLeft < 120 ? '#d32f2f' : '#ff5722',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                Remain: {formatTime(timeLeft)}
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: '#666' }}>
-                                Task Time: {selectedTopic.timeLimit} minutes
-                            </Typography>
-                        </Stack>
-                        <LinearProgress
-                            variant="determinate"
-                            value={((selectedTopic.timeLimit * 60 - timeLeft) / (selectedTopic.timeLimit * 60)) * 100}
-                            sx={{
-                                height: 8,
-                                borderRadius: 4,
-                                bgcolor: '#e0e0e0',
-                                '& .MuiLinearProgress-bar': {
-                                    bgcolor: timeLeft < 120 ? '#d32f2f' : '#ff5722',
-                                },
-                            }}
-                        />
-                    </Paper>
-
-                    {/* Text-to-Speech Player */}
-                    <TextToSpeech
-                        text={selectedTopic.audioText}
-                        autoPlay={false}
-                        onStart={() => console.log('Audio started')}
-                        onEnd={() => console.log('Audio ended')}
-                        onError={(error) => setAudioError(error)}
-                    />
-
-                    {audioError && (
-                        <Alert severity="error" sx={{ mt: 2 }}>
-                            {audioError}
-                        </Alert>
-                    )}
-
-                    {/* Text Input Area */}
-                    <Paper sx={{ p: 3, mb: 3, bgcolor: '#fafafa' }}>
-                        <Stack spacing={2}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333' }}>
-                                    Write your summary:
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: getWordCountColor(),
-                                        fontWeight: 'bold'
-                                    }}
-                                >
-                                    Word Count: {wordCount} ({selectedTopic.wordLimit.min}-{selectedTopic.wordLimit.max} words required)
-                                </Typography>
-                            </Stack>
-
-                            <TextField
-                                multiline
-                                rows={8}
-                                placeholder="Type your summary here..."
-                                value={summaryText}
-                                onChange={handleTextChange}
-                                disabled={isSubmitted}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        bgcolor: isSubmitted ? '#f5f5f5' : 'white',
-                                    }
-                                }}
-                                fullWidth
-                            />
-
-                            <Stack direction="row" spacing={1}>
-                                <Chip
-                                    label={selectedTopic.difficulty}
-                                    size="small"
-                                    color={
-                                        selectedTopic.difficulty === 'Beginner' ? 'success' :
-                                            selectedTopic.difficulty === 'Intermediate' ? 'warning' : 'error'
-                                    }
-                                    onClick={() => { }}
-                                />
-                                <Chip
-                                    label={selectedTopic.category}
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={() => { }}
-                                />
-                            </Stack>
-                        </Stack>
-                    </Paper>
-
-                    {/* Submission Result Card - Shows after submission */}
-                    {isSubmitted && (
-                        <Paper sx={{ p: 3, mb: 3, bgcolor: '#e8f5e9' }}>
-                            <Stack spacing={2}>
-                                <Typography
-                                    variant="h6"
-                                    sx={{
-                                        color: '#2e7d32',
-                                        fontWeight: 'bold',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1
-                                    }}
-                                >
-                                    ✅ Summary Submitted Successfully!
-                                    <Chip
-                                        label={`${wordCount} words`}
-                                        size="small"
-                                        color="success"
-                                        onClick={() => {}}
-                                    />
-                                </Typography>
-
-                                <Typography variant="body2" sx={{
-                                    lineHeight: 1.6,
-                                    bgcolor: 'rgba(255,255,255,0.7)',
-                                    p: 2,
-                                    borderRadius: 1,
-                                    border: '1px solid rgba(0,0,0,0.1)'
-                                }}>
-                                    <strong>Your Summary:</strong> {summaryText}
-                                </Typography>
-                            </Stack>
-                        </Paper>
-                    )}
-
-                    {/* Action Buttons */}
-                    <ActionButtons
-                        hasResponse={isSubmitted || (summaryText.trim().length > 0 ? true : false)}
-                        onSubmit={handleSubmit}
-                        onRedo={handleRedo}
-                        onTranslate={handleTranslate}
-                        onShowAnswer={handleShowAnswer}
-                        recordedBlob={null}
-                    />
-
-                    {/* Navigation Section */}
-                    <NavigationSection
-                        onSearch={handleSearch}
-                        onPrevious={handlePrevious}
-                        onNext={handleNext}
-                        questionNumber={questionNumber}
-                    />
-                </CardContent>
-            </Card>
-
-            {/* Topic Selection Drawer */}
-            <TopicSelectionDrawer
-                open={showTopicSelector}
-                onClose={() => setShowTopicSelector(false)}
-                onSelect={handleTopicSelect}
-                topics={allSummarizeSpokenTextTopics as any}
-                title="Select SST Topic"
-                type="listening"
-            />
-
-            {/* Answer Dialog */}
-            <Dialog open={showAnswer} onClose={() => setShowAnswer(false)} maxWidth="md" fullWidth>
-                <DialogTitle>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="h6">Sample Summary & Key Points</Typography>
-                        <IconButton onClick={() => setShowAnswer(false)}>
-                            <Close />
-                        </IconButton>
-                    </Stack>
-                </DialogTitle>
-                <DialogContent>
-                    <Stack spacing={3}>
-                        <Box>
-                            <Typography variant="body1" sx={{ mb: 2 }}>
-                                <strong>Topic:</strong> {selectedTopic.title}
-                            </Typography>
-                            <Typography variant="body2" sx={{ lineHeight: 1.6, bgcolor: '#f5f5f5', p: 2, borderRadius: 1 }}>
-                                <strong>Sample Summary:</strong> {selectedTopic.sampleSummary}
-                            </Typography>
-                        </Box>
-
-                        {selectedTopic.keyPoints && (
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 2 }}>Key Points to Include:</Typography>
-                                <List>
-                                    {selectedTopic.keyPoints.map((point, index) => (
-                                        <ListItem key={index} disablePadding>
-                                            <Typography variant="body2">• {point}</Typography>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            </Box>
-                        )}
-                    </Stack>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setShowAnswer(false)}>Close</Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Translation Dialog */}
-            <Dialog open={showTranslate} onClose={() => setShowTranslate(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="h6">Translation Options</Typography>
-                        <IconButton onClick={() => setShowTranslate(false)}>
-                            <Close />
-                        </IconButton>
-                    </Stack>
-                </DialogTitle>
-                <DialogContent>
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                        <InputLabel>Select Language</InputLabel>
-                        <Select defaultValue="spanish" label="Select Language">
-                            <MenuItem value="spanish">Spanish</MenuItem>
-                            <MenuItem value="french">French</MenuItem>
-                            <MenuItem value="german">German</MenuItem>
-                            <MenuItem value="chinese">Chinese</MenuItem>
-                            <MenuItem value="japanese">Japanese</MenuItem>
-                        </Select>
-                    </FormControl>
-                    <Typography variant="body2" sx={{ color: '#666' }}>
-                        Translation feature will help you understand the audio content in your preferred language.
+              {/* Submission Result Card */}
+              {isSubmitted && (
+                <Paper sx={{ p: 3, mt: 3, bgcolor: '#e8f5e9' }}>
+                  <Stack spacing={2}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        color: '#2e7d32',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}
+                    >
+                      ✅ Summary Submitted Successfully!
+                      <Chip
+                        label={`${wordCount} words`}
+                        size="small"
+                        color="success"
+                      />
                     </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setShowTranslate(false)}>Cancel</Button>
-                    <Button variant="contained">Translate</Button>
-                </DialogActions>
-            </Dialog>
 
-            {/* Search Dialog */}
-            <Dialog open={showSearch} onClose={() => setShowSearch(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="h6">Search Topics</Typography>
-                        <IconButton onClick={() => setShowSearch(false)}>
-                            <Close />
-                        </IconButton>
-                    </Stack>
-                </DialogTitle>
-                <DialogContent>
-                    <TextField
-                        fullWidth
-                        placeholder="Search by topic, category..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        sx={{ mb: 2 }}
-                    />
-                    <List>
-                        {filteredTopics.slice(0, 10).map((topic) => (
-                            <ListItem key={topic.id} disablePadding>
-                                <ListItemButton
-                                    onClick={() => {
-                                        handleTopicSelect(topic);
-                                        setShowSearch(false);
-                                        setSearchQuery('');
-                                    }}
-                                >
-                                    <ListItemText
-                                        primary={topic.title}
-                                        secondary={`${topic.category} • ${topic.difficulty}`}
-                                    />
-                                </ListItemButton>
-                            </ListItem>
-                        ))}
-                    </List>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setShowSearch(false)}>Close</Button>
-                </DialogActions>
-            </Dialog>
-        </Box>
-    );
+                    <Typography variant="body2" sx={{
+                      lineHeight: 1.6,
+                      bgcolor: 'rgba(255,255,255,0.7)',
+                      p: 2,
+                      borderRadius: 1,
+                      border: '1px solid rgba(0,0,0,0.1)'
+                    }}>
+                      <strong>Your Summary:</strong> {summaryText}
+                    </Typography>
+                  </Stack>
+                </Paper>
+              )}
+            </Box>
+          }
+          showMetadata={false}
+        />
+
+        {/* Progress Indicator */}
+        <ProgressIndicator
+          current={wordCount >= selectedTopic.wordLimit.min ? 1 : 0}
+          total={1}
+          label="summary completed"
+          customLabel={
+            wordCount === 0 ? 'No summary written' :
+            wordCount < selectedTopic.wordLimit.min ? 'Summary too short' :
+            wordCount > selectedTopic.wordLimit.max ? 'Summary too long' :
+            'Summary complete'
+          }
+        />
+
+        {/* Action Buttons */}
+        <ActionButtons
+          hasResponse={hasResponse()}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={() => setShowTranslate(true)}
+          onShowAnswer={() => setShowAnswer(true)}
+          recordedBlob={null}
+          handleViewAttempts={handleViewAttempts}
+        />
+
+        {/* Navigation */}
+        <NavigationSection
+          onSearch={handleSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          questionNumber={questionNumber}
+        />
+      </PracticeCard>
+
+      {/* Topic Selection Drawer */}
+      <TopicSelectionDrawer
+        open={showTopicSelector}
+        onClose={() => setShowTopicSelector(false)}
+        onSelect={handleTopicSelect}
+        topics={allSummarizeSpokenTextTopics}
+        title="Select SST Topic"
+        type="question"
+      />
+
+      {/* Results Dialog */}
+      <ResultsDialog
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={resultForDialog}
+        onTryAgain={handleRedo}
+        showAnswerReview={false}
+        customContent={
+          currentResult && (
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2 }}>Summary Analysis:</Typography>
+              
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  Your Summary ({currentResult.wordCount} words):
+                </Typography>
+                <Paper sx={{ p: 2, bgcolor: '#fff3e0', border: '1px solid #ffb74d' }}>
+                  <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                    "{currentResult.userSummary}"
+                  </Typography>
+                </Paper>
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  Sample Summary:
+                </Typography>
+                <Paper sx={{ p: 2, bgcolor: '#e8f5e9', border: '1px solid #4caf50' }}>
+                  <Typography variant="body2">
+                    "{currentResult.sampleSummary}"
+                  </Typography>
+                </Paper>
+              </Box>
+            </Box>
+          )
+        }
+      />
+
+      {/* Answer Dialog */}
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={selectedTopic.title}
+        text={selectedTopic.audioText}
+        answers={[{
+          id: 'sample-summary',
+          position: 1,
+          correctAnswer: selectedTopic.sampleSummary as string
+        }]}
+      />
+
+      {/* Translation Dialog */}
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the audio content in your preferred language."
+      />
+
+      {/* View Attempts Dialog */}
+      <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Past Attempts</Typography>
+            <IconButton onClick={() => setShowAttempts(false)}>
+              <Close />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {attempts.length === 0 ? (
+            <Typography variant="body2">No attempts recorded yet.</Typography>
+          ) : (
+            <List>
+              {attempts.map((attempt, index) => (
+                <ListItem key={index}>
+                  <ListItemText
+                    primary={`Attempt ${index + 1} - Score: ${attempt.score}/100`}
+                    secondary={
+                      <>
+                        <Typography component="span" variant="body2">
+                          Time: {new Date(attempt.timestamp).toLocaleString()} - {attempt.wordCount} words
+                        </Typography>
+                        <Box sx={{ mt: 1, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                          <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                            "{attempt.userSummary}"
+                          </Typography>
+                        </Box>
+                      </>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            color="error"
+            onClick={() => {
+              setAttempts([]);
+              localStorage.removeItem('summarizeSpokenTextAttempts');
+            }}
+          >
+            Clear Attempts
+          </Button>
+          <Button onClick={() => setShowAttempts(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </GradientBackground>
+  );
 };
 
 export default SummarizeSpokenText;

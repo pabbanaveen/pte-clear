@@ -11,7 +11,8 @@ export interface ListeningMultipleChoiceQuestion extends BaseTopic {
   category: string;
   timeLimit: number; // in minutes
   testSensitivity: string;
-  audioUrl: string;
+  audioUrl?: string;
+  audioText?: string; // For TextToSpeech
   question: string;
   options: ListeningMultipleChoiceOption[];
   explanation?: string;
@@ -44,4 +45,12 @@ export interface AudioPlayerState {
   volume: number;
   isLoading: boolean;
   error: string | null;
+}
+
+export interface UserAttempt {
+  questionId: number;
+  selectedAnswers: string[];
+  correctAnswers: string[];
+  score: number;
+  timestamp: string;
 }

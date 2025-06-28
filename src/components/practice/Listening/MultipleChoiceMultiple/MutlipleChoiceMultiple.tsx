@@ -1,184 +1,152 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Box, FormGroup, FormControlLabel, Checkbox, Typography, Stack, Chip, Paper, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText } from '@mui/material';
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Chip,
-  Divider,
-  Stack,
-  Paper,
-  FormGroup,
-  FormControlLabel,
-  Checkbox,
-  Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  LinearProgress,
-  TextField
-} from '@mui/material';
-import { Close } from '@mui/icons-material';
+  PracticeCard,
+  TimerDisplay,
+  ProgressIndicator,
+  ResultsDialog,
+  AnswerDialog,
+  TranslationDialog,
+  ContentDisplay,
+  GradientBackground,
+  TopicSelectionDrawer,
+} from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import AudioPlayer from '../../common/AudioPlayer';
-import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
-import { ListeningMultipleChoiceQuestion, SubmissionResult } from './MultipleChoiceMultipleType';
+import TextToSpeech from '../../common/TextToSpeech';
 import { listeningMultipleChoiceQuestions } from './MutlipleChoiceMultipleMockData';
+import { ListeningMultipleChoiceQuestion, SubmissionResult, UserAttempt } from './MultipleChoiceMultipleType';
 import { User } from '../../../../types/user';
+import { Close } from '@mui/icons-material';
 
 interface ListeningMultipleChoiceProps {
   user?: User | null;
 }
 
 const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user }) => {
-  // State management
-  const [selectedQuestion, setSelectedQuestion] = useState<ListeningMultipleChoiceQuestion>(listeningMultipleChoiceQuestions[0]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedQuestion, setSelectedQuestion] = useState<ListeningMultipleChoiceQuestion>(listeningMultipleChoiceQuestions[currentQuestionIndex]);
+  const [showQuestionSelector, setShowQuestionSelector] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [timeRemaining, setTimeRemaining] = useState<number>(300); // 5 minutes in seconds
-  const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
-  const [questionNumber, setQuestionNumber] = useState<number>(119);
-  const [studentName] = useState<string>('Weight Gain');
-  const [testedCount] = useState<number>(51);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [showAttempts, setShowAttempts] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  
-  // Audio state
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0);
-  const [volume, setVolume] = useState<number>(100);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [attempts, setAttempts] = useState<UserAttempt[]>([]);
   const [audioError, setAudioError] = useState<string | null>(null);
-  
-  // Dialog states
-  const [showAnswer, setShowAnswer] = useState<boolean>(false);
-  const [showTranslate, setShowTranslate] = useState<boolean>(false);
-  const [showSearch, setShowSearch] = useState<boolean>(false);
-  const [showQuestionSelector, setShowQuestionSelector] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Audio setup
+  // Timer state
+  const [timer, setTimer] = useState({
+    timeRemaining: 300, // 5 minutes
+    isRunning: false,
+    warningThreshold: 60,
+    autoSubmit: true,
+  });
+
+  // Student info
+  const [studentName] = useState('Weight Gain');
+  const [testedCount] = useState(51);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<Date>(new Date());
+
+  // Load attempts from localStorage
   useEffect(() => {
-    if (selectedQuestion.audioUrl) {
-      audioRef.current = new Audio(selectedQuestion.audioUrl);
-      
-      const audio = audioRef.current;
-      
-      const handleLoadedMetadata = () => {
-        setDuration(audio.duration);
-      };
-      
-      const handleTimeUpdate = () => {
-        setCurrentTime(audio.currentTime);
-      };
-      
-      const handleEnded = () => {
-        setIsPlaying(false);
-        setCurrentTime(0);
-      };
-      
-      const handleError = () => {
-        setAudioError('Failed to load audio file');
-      };
-      
-      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('ended', handleEnded);
-      audio.addEventListener('error', handleError);
-      
-      return () => {
-        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        audio.removeEventListener('timeupdate', handleTimeUpdate);
-        audio.removeEventListener('ended', handleEnded);
-        audio.removeEventListener('error', handleError);
-        audio.pause();
-      };
+    const savedAttempts = localStorage.getItem('listeningMultipleChoiceAttempts');
+    if (savedAttempts) {
+      try {
+        setAttempts(JSON.parse(savedAttempts));
+      } catch (error) {
+        console.error('Failed to parse attempts:', error);
+        localStorage.removeItem('listeningMultipleChoiceAttempts');
+      }
     }
-  }, [selectedQuestion.audioUrl]);
+  }, []);
+
+  // Save attempt to localStorage
+  const saveAttempt = useCallback((attempt: UserAttempt) => {
+    setAttempts((prev) => {
+      const newAttempts = [...prev, attempt];
+      try {
+        localStorage.setItem('listeningMultipleChoiceAttempts', JSON.stringify(newAttempts));
+      } catch (error) {
+        console.error('Failed to save attempts:', error);
+      }
+      return newAttempts;
+    });
+  }, []);
+
+  // Sync state when question changes
+  useEffect(() => {
+    setSelectedOptions([]);
+    setTimer({
+      timeRemaining: 300,
+      isRunning: false,
+      warningThreshold: 60,
+      autoSubmit: true,
+    });
+    setIsSubmitted(false);
+    setShowResults(false);
+    setSubmissionResult(null);
+    setAudioError(null);
+    startTimeRef.current = new Date();
+
+    // Clear existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  }, [selectedQuestion.id]);
 
   // Timer functionality
   useEffect(() => {
-    if (isTimerActive && timeRemaining > 0) {
+    if (timer.isRunning && timer.timeRemaining > 0 && !isSubmitted) {
       timerRef.current = setTimeout(() => {
-        setTimeRemaining(prev => prev - 1);
+        setTimer(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
       }, 1000);
-    } else if (timeRemaining === 0) {
-      handleAutoSubmit();
+    } else if (timer.timeRemaining === 0 && timer.autoSubmit && !isSubmitted) {
+      handleSubmit();
     }
+
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
     };
-  }, [isTimerActive, timeRemaining]);
+  }, [timer.timeRemaining, timer.isRunning, isSubmitted]);
 
-  // Start timer when user starts selecting options
-  useEffect(() => {
-    if (selectedOptions.length > 0 && !isTimerActive && !isSubmitted) {
-      setIsTimerActive(true);
+  // Start timer when user first makes a selection
+  const startTimerIfNeeded = useCallback(() => {
+    if (!timer.isRunning && !isSubmitted && selectedOptions.length > 0) {
+      setTimer(prev => ({ ...prev, isRunning: true }));
+      startTimeRef.current = new Date();
     }
-  }, [selectedOptions, isTimerActive, isSubmitted]);
-
-  // Format time for display
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Calculate progress percentage
-  const getProgressPercentage = (): number => {
-    return ((300 - timeRemaining) / 300) * 100;
-  };
-
-  // Audio controls
-  const handleTogglePlayback = () => {
-    if (!audioRef.current) return;
-    
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleVolumeChange = (event: Event, newValue: number | number[]) => {
-    const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
-    setVolume(volumeValue);
-    if (audioRef.current) {
-      audioRef.current.volume = volumeValue / 100;
-    }
-  };
+  }, [timer.isRunning, isSubmitted, selectedOptions.length]);
 
   // Handle option selection
   const handleOptionChange = (optionId: string) => {
     if (isSubmitted) return;
     
     setSelectedOptions(prev => {
-      if (prev.includes(optionId)) {
-        return prev.filter(id => id !== optionId);
-      } else {
-        return [...prev, optionId];
+      const newOptions = prev.includes(optionId) 
+        ? prev.filter(id => id !== optionId)
+        : [...prev, optionId];
+      
+      // Start timer on first selection
+      if (newOptions.length > 0) {
+        startTimerIfNeeded();
       }
+      
+      return newOptions;
     });
   };
+
+  const hasResponse = useCallback((): boolean => {
+    return selectedOptions.length > 0;
+  }, [selectedOptions.length]);
 
   // Calculate score and create submission result
   const calculateScore = (selected: string[], question: ListeningMultipleChoiceQuestion): SubmissionResult => {
@@ -220,99 +188,84 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
   };
 
   // Handle submission
-  const handleSubmit = (): void => {
+  const handleSubmit = () => {
+    if (isSubmitted) return;
+
     if (selectedOptions.length === 0) {
       alert('Please select at least one option before submitting.');
       return;
     }
     
+    setIsSubmitted(true);
+    setTimer(prev => ({ ...prev, isRunning: false }));
+
+    const endTime = new Date();
+    const timeSpent = Math.floor((endTime.getTime() - startTimeRef.current.getTime()) / 1000);
+
     const result = calculateScore(selectedOptions, selectedQuestion);
     setSubmissionResult(result);
-    setIsSubmitted(true);
-    setIsTimerActive(false);
-    
-    // Pause audio if playing
-    if (audioRef.current && isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    }
-    
-    alert(`Question submitted! Score: ${result.score}/100`);
+    setShowResults(true);
+
+    // Save attempt
+    const attempt: UserAttempt = {
+      questionId: selectedQuestion.id,
+      selectedAnswers: selectedOptions,
+      correctAnswers: result.correctAnswers,
+      score: result.score,
+      timestamp: new Date().toISOString(),
+    };
+    saveAttempt(attempt);
   };
 
-  // Handle auto submit when timer expires
-  const handleAutoSubmit = (): void => {
-    if (selectedOptions.length > 0) {
-      const result = calculateScore(selectedOptions, selectedQuestion);
-      setSubmissionResult(result);
-      setIsSubmitted(true);
-      alert(`Time's up! Auto-submitted. Score: ${result.score}/100`);
-    } else {
-      alert("Time's up! No answer submitted.");
-      setIsSubmitted(true);
-    }
-    setIsTimerActive(false);
-    
-    // Pause audio if playing
-    if (audioRef.current && isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    }
-  };
-
-  // Action handlers
-  const handleRedo = (): void => {
+  const handleRedo = () => {
     setSelectedOptions([]);
-    setTimeRemaining(300);
-    setIsTimerActive(false);
-    setSubmissionResult(null);
+    setTimer({
+      timeRemaining: 300,
+      isRunning: false,
+      warningThreshold: 60,
+      autoSubmit: true,
+    });
     setIsSubmitted(false);
-    setCurrentTime(0);
-    setIsPlaying(false);
-    
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.pause();
+    setShowResults(false);
+    setSubmissionResult(null);
+    startTimeRef.current = new Date();
+
+    // Clear existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
     }
   };
 
-  const handleShowAnswer = (): void => {
-    setShowAnswer(true);
-  };
-
-  const handleTranslate = (): void => {
-    setShowTranslate(true);
-  };
-
-  const handleSearch = (): void => {
-    setShowSearch(true);
-  };
-
-  const handlePrevious = (): void => {
-    if (questionNumber > 1) {
-      setQuestionNumber(prev => prev - 1);
-      handleRedo();
+  // Navigation handlers
+  const handleNext = () => {
+    if (currentQuestionIndex < listeningMultipleChoiceQuestions.length - 1) {
+      const newIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(newIndex);
+      setSelectedQuestion(listeningMultipleChoiceQuestions[newIndex]);
     }
   };
 
-  const handleNext = (): void => {
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      const newIndex = currentQuestionIndex - 1;
+      setCurrentQuestionIndex(newIndex);
+      setSelectedQuestion(listeningMultipleChoiceQuestions[newIndex]);
+    }
+  };
+
+  const handleSearch = () => {
     setShowQuestionSelector(true);
   };
 
-  // Handle question selection
   const handleQuestionSelect = (question: any) => {
     setSelectedQuestion(question);
-    setQuestionNumber(prev => prev + 1);
+    setCurrentQuestionIndex(listeningMultipleChoiceQuestions.findIndex(q => q.id === question.id));
     setShowQuestionSelector(false);
-    handleRedo();
   };
 
-  // Filter questions for search
-  const filteredQuestions = listeningMultipleChoiceQuestions.filter(question =>
-    question.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    question.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    question.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const handleViewAttempts = () => {
+    setShowAttempts(true);
+  };
 
   // Get option color based on submission result
   const getOptionColor = (optionId: string): { bgcolor: string; color: string; border?: string } => {
@@ -334,158 +287,80 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
     }
   };
 
+  const questionNumber = testedCount + currentQuestionIndex + 1;
+
+  // Create result for dialog
+  const resultForDialog = submissionResult ? {
+    questionId: String(selectedQuestion.id),
+    score: submissionResult.score,
+    maxScore: 100,
+    correctAnswers: submissionResult.feedback.correct.length,
+    totalQuestions: submissionResult.correctAnswers.length,
+    completedAt: new Date(),
+    timeSpent: 0,
+    percentage: submissionResult.score,
+    answers: selectedQuestion.options.map(option => ({
+      id: option.id,
+      selectedAnswer: selectedOptions.includes(option.id) ? option.text : '',
+      correctAnswer: option.isCorrect ? option.text : '',
+      isCorrect: selectedOptions.includes(option.id) && option.isCorrect
+    }))
+  } : null;
+
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: { xs: 1, sm: 2 } }}>
-      {/* Stage Goal Banner */}
+    <GradientBackground>
       <StageGoalBanner />
+      
+      <PracticeCard
+        icon="LCM"
+        title="Listening Multiple Choice (Multiple)"
+        instructions="Listen to the recording and answer the question by selecting all the correct responses. You will need to select more than one response."
+        difficulty={selectedQuestion.difficulty}
+      >
+        {/* Question Header */}
+        <QuestionHeader
+          questionNumber={questionNumber}
+          studentName={studentName}
+          testedCount={testedCount}
+        />
 
-      {/* Main Content */}
-      <Card sx={{ maxWidth: 1200, mx: 'auto', mb: 3 }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          {/* Header */}
-          <Stack 
-            direction={{ xs: 'column', sm: 'row' }} 
-            alignItems={{ xs: 'flex-start', sm: 'center' }} 
-            spacing={2} 
-            sx={{ mb: 3 }}
-          >
-            <Box
-              sx={{
-                width: { xs: 50, sm: 55, md: 60 },
-                height: { xs: 50, sm: 55, md: 60 },
-                bgcolor: '#00bcd4',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: { xs: '12px', sm: '14px', md: '16px' },
-                fontWeight: 'bold',
-                flexShrink: 0,
-                lineHeight: 1.2
-              }}
-            >
-              LCM
-            </Box>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
-                <Typography 
-                  variant="h5" 
-                  sx={{ 
-                    fontWeight: 'bold', 
-                    color: '#333',
-                    fontSize: { xs: '18px', sm: '20px', md: '24px' },
-                    lineHeight: 1.3,
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  Listening Multiple Choice (Multiple)
-                </Typography>
-                <Chip label="Study Guide" color="primary" size="small" />
-              </Stack>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: '#666', 
-                  mt: 1,
-                  fontSize: { xs: '12px', sm: '13px', md: '14px' },
-                  lineHeight: 1.5,
-                  wordBreak: 'break-word'
-                }}
-              >
-                Listen to the recording and answer the question by selecting all the correct responses. You will need to select more than one response.
-              </Typography>
-            </Box>
-          </Stack>
+        {/* Timer */}
+        <TimerDisplay
+          timeRemaining={timer.timeRemaining}
+          isRunning={timer.isRunning}
+          warningThreshold={timer.warningThreshold}
+          showStartMessage={!timer.isRunning && !isSubmitted}
+          startMessage="Timer will start when you make your first selection"
+          autoSubmit={timer.autoSubmit}
+        />
 
-          <Divider sx={{ my: 3 }} />
+        {/* Text-to-Speech Player */}
+        <TextToSpeech
+          text={selectedQuestion.audioText || "This is a sample audio for the listening multiple choice question. Listen carefully and select all correct options."}
+          autoPlay={false}
+          onStart={() => console.log('Audio started')}
+          onEnd={() => console.log('Audio ended')}
+          onError={(error) => setAudioError(error)}
+        />
 
-          {/* Question Header */}
-          <QuestionHeader 
-            questionNumber={questionNumber}
-            studentName={studentName}
-            testedCount={testedCount}
-          />
+        {/* Question Display */}
+        <ContentDisplay
+          title="Question"
+          content={
+            <Typography variant="h6" sx={{ color: '#333', fontWeight: 'bold' }}>
+              {selectedQuestion.question}
+            </Typography>
+          }
+          category={selectedQuestion.category}
+          difficulty={selectedQuestion.difficulty}
+          tags={selectedQuestion.tags}
+          showMetadata={true}
+        />
 
-          {/* Test Sensitivity & Timer */}
-          <Stack 
-            direction={{ xs: 'column', sm: 'row' }} 
-            alignItems={{ xs: 'flex-start', sm: 'center' }} 
-            justifyContent="space-between"
-            spacing={2}
-            sx={{ mb: 3 }}
-          >
-            <Box>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: '#f44336',
-                  fontWeight: 'bold',
-                  fontSize: { xs: '13px', sm: '14px' }
-                }}
-              >
-                #{questionNumber} {selectedQuestion.testSensitivity || 'Audio'}
-              </Typography>
-              <Chip label="Audio" color="error" variant="outlined" size="small" sx={{ mt: 1 }} />
-            </Box>
-            
-            <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  color: timeRemaining < 60 ? '#f44336' : '#4caf50', 
-                  fontWeight: 'bold',
-                  fontSize: { xs: '16px', sm: '18px', md: '20px' }
-                }}
-              >
-                Time: {formatTime(timeRemaining)}
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={getProgressPercentage()}
-                sx={{
-                  width: { xs: '100%', sm: '200px' },
-                  height: { xs: 6, sm: 8 },
-                  borderRadius: 4,
-                  bgcolor: '#e0e0e0',
-                  mt: 1,
-                  '& .MuiLinearProgress-bar': {
-                    bgcolor: timeRemaining < 60 ? '#f44336' : '#4caf50',
-                  },
-                }}
-              />
-            </Box>
-          </Stack>
-
-          {/* Audio Player */}
-          <AudioPlayer
-            selectedTopic={selectedQuestion}
-            isPlaying={isPlaying}
-            currentTime={currentTime}
-            duration={duration}
-            volume={volume}
-            audioError={audioError}
-            onTogglePlayback={handleTogglePlayback}
-            onVolumeChange={handleVolumeChange}
-            formatTime={formatTime}
-          />
-
-          {/* Question */}
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              color: '#333', 
-              mb: 3, 
-              fontWeight: 'bold',
-              fontSize: { xs: '16px', sm: '18px', md: '20px' },
-              wordBreak: 'break-word'
-            }}
-          >
-            {selectedQuestion.question}
-          </Typography>
-
-          {/* Options */}
-          <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+        {/* Options */}
+        <ContentDisplay
+          title="Select all correct answers:"
+          content={
             <FormGroup>
               {selectedQuestion.options.map((option) => {
                 const optionStyle = getOptionColor(option.id);
@@ -498,8 +373,10 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
                       borderRadius: 1,
                       ...optionStyle,
                       border: optionStyle.border || '1px solid #e0e0e0',
-                      transition: 'all 0.3s ease'
+                      transition: 'all 0.3s ease',
+                      cursor: isSubmitted ? 'default' : 'pointer'
                     }}
+                    onClick={() => !isSubmitted && handleOptionChange(option.id)}
                   >
                     <FormControlLabel
                       control={
@@ -531,44 +408,51 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
                 );
               })}
             </FormGroup>
+          }
+          showMetadata={false}
+        />
+
+        {/* Submission Result */}
+        {isSubmitted && submissionResult && (
+          <Paper sx={{ p: 3, mb: 3, bgcolor: submissionResult.score >= 70 ? '#e8f5e9' : '#ffebee' }}>
+            <Typography variant="h6" sx={{ mb: 1, color: submissionResult.score >= 70 ? '#2e7d32' : '#d32f2f' }}>
+              Score: {submissionResult.score}/100
+            </Typography>
+            <Typography variant="body2">
+              Correct: {submissionResult.feedback.correct.join(', ') || 'None'} | 
+              Incorrect: {submissionResult.feedback.incorrect.join(', ') || 'None'} | 
+              Missed: {submissionResult.feedback.missed.join(', ') || 'None'}
+            </Typography>
           </Paper>
+        )}
 
-          {/* Submission Result */}
-          {isSubmitted && submissionResult && (
-            <Alert 
-              severity={submissionResult.score >= 70 ? 'success' : submissionResult.score >= 50 ? 'warning' : 'error'} 
-              sx={{ mb: 3 }}
-            >
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                Score: {submissionResult.score}/100
-              </Typography>
-              <Typography variant="body2">
-                Correct: {submissionResult.feedback.correct.join(', ') || 'None'} | 
-                Incorrect: {submissionResult.feedback.incorrect.join(', ') || 'None'} | 
-                Missed: {submissionResult.feedback.missed.join(', ') || 'None'}
-              </Typography>
-            </Alert>
-          )}
+        {/* Progress Indicator */}
+        <ProgressIndicator
+          current={selectedOptions.length}
+          total={selectedQuestion.options.filter(opt => opt.isCorrect).length}
+          label="options selected"
+          customLabel={selectedOptions.length === 0 ? 'No options selected' : `${selectedOptions.length} option(s) selected`}
+        />
 
-          {/* Action Buttons */}
-          <ActionButtons
-            hasResponse={selectedOptions.length > 0}
-            onSubmit={handleSubmit}
-            onRedo={handleRedo}
-            onTranslate={handleTranslate}
-            onShowAnswer={handleShowAnswer}
-            recordedBlob={null}
-          />
+        {/* Action Buttons */}
+        <ActionButtons
+          hasResponse={hasResponse()}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={() => setShowTranslate(true)}
+          onShowAnswer={() => setShowAnswer(true)}
+          recordedBlob={null}
+          handleViewAttempts={handleViewAttempts}
+        />
 
-          {/* Navigation Section */}
-          <NavigationSection
-            onSearch={handleSearch}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            questionNumber={questionNumber}
-          />
-        </CardContent>
-      </Card>
+        {/* Navigation */}
+        <NavigationSection
+          onSearch={handleSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          questionNumber={questionNumber}
+        />
+      </PracticeCard>
 
       {/* Topic Selection Drawer */}
       <TopicSelectionDrawer
@@ -580,119 +464,87 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
         type="question"
       />
 
+      {/* Results Dialog */}
+      <ResultsDialog
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={resultForDialog}
+        onTryAgain={handleRedo}
+        showAnswerReview={true}
+      />
+
       {/* Answer Dialog */}
-      <Dialog open={showAnswer} onClose={() => setShowAnswer(false)} maxWidth="md" fullWidth>
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={selectedQuestion.title}
+        text={selectedQuestion.audioText || "This is a sample audio for the listening multiple choice question."}
+        answers={selectedQuestion.options.filter(opt => opt.isCorrect).map((option, index) => ({
+          id: option.id,
+          position: index + 1,
+          correctAnswer: `${option.id}) ${option.text}`
+        }))}
+      />
+
+      {/* Translation Dialog */}
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the question content in your preferred language."
+      />
+
+      {/* View Attempts Dialog */}
+      <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Correct Answers & Explanation</Typography>
-            <IconButton onClick={() => setShowAnswer(false)}>
+            <Typography variant="h6">Past Attempts</Typography>
+            <IconButton onClick={() => setShowAttempts(false)}>
               <Close />
             </IconButton>
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            <strong>Question:</strong> {selectedQuestion.title}
-          </Typography>
-          
-          <Typography variant="h6" sx={{ mb: 2, color: '#4caf50' }}>
-            Correct Answers:
-          </Typography>
-          {selectedQuestion.options.filter(opt => opt.isCorrect).map(option => (
-            <Typography key={option.id} variant="body2" sx={{ mb: 1, p: 1, bgcolor: '#e8f5e8', borderRadius: 1 }}>
-              <strong>{option.id})</strong> {option.text}
-            </Typography>
-          ))}
-          
-          {selectedQuestion.explanation && (
-            <>
-              <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
-                Explanation:
-              </Typography>
-              <Typography variant="body2" sx={{ lineHeight: 1.6, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                {selectedQuestion.explanation}
-              </Typography>
-            </>
+          {attempts.length === 0 ? (
+            <Typography variant="body2">No attempts recorded yet.</Typography>
+          ) : (
+            <List>
+              {attempts.map((attempt, index) => (
+                <ListItem key={index}>
+                  <ListItemText
+                    primary={`Attempt ${index + 1} - Score: ${attempt.score}/100`}
+                    secondary={
+                      <>
+                        <Typography component="span" variant="body2">
+                          Time: {new Date(attempt.timestamp).toLocaleString()}
+                        </Typography>
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="body2">
+                            Selected: {attempt.selectedAnswers.join(', ')} | 
+                            Correct: {attempt.correctAnswers.join(', ')}
+                          </Typography>
+                        </Box>
+                      </>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowAnswer(false)}>Close</Button>
+          <Button
+            color="error"
+            onClick={() => {
+              setAttempts([]);
+              localStorage.removeItem('listeningMultipleChoiceAttempts');
+            }}
+          >
+            Clear Attempts
+          </Button>
+          <Button onClick={() => setShowAttempts(false)}>Close</Button>
         </DialogActions>
       </Dialog>
-
-      {/* Translation Dialog */}
-      <Dialog open={showTranslate} onClose={() => setShowTranslate(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Translation Options</Typography>
-            <IconButton onClick={() => setShowTranslate(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Select Language</InputLabel>
-            <Select defaultValue="spanish" label="Select Language">
-              <MenuItem value="spanish">Spanish</MenuItem>
-              <MenuItem value="french">French</MenuItem>
-              <MenuItem value="german">German</MenuItem>
-              <MenuItem value="chinese">Chinese</MenuItem>
-              <MenuItem value="japanese">Japanese</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="body2" sx={{ color: '#666' }}>
-            Translation feature will help you understand the question content in your preferred language.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowTranslate(false)}>Cancel</Button>
-          <Button variant="contained">Translate</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Search Dialog */}
-      <Dialog open={showSearch} onClose={() => setShowSearch(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Search Questions</Typography>
-            <IconButton onClick={() => setShowSearch(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            placeholder="Search by title, category, or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-          <List>
-            {filteredQuestions.map((question) => (
-              <ListItem key={question.id} disablePadding>
-                <ListItemButton 
-                  onClick={() => {
-                    handleQuestionSelect(question);
-                    setShowSearch(false);
-                    setSearchQuery('');
-                  }}
-                >
-                  <ListItemText
-                    primary={question.title}
-                    secondary={`${question.category} • ${question.difficulty}`}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowSearch(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+    </GradientBackground>
   );
 };
 

@@ -1,390 +1,581 @@
-import { Typography, CardContent, Button, Divider, Chip, LinearProgress, RadioGroup, FormControlLabel, Radio, Paper, Card } from "@mui/material";
-import { useMediaQuery, Container, Box, Stack } from "@mui/system";
-import { useState, useEffect } from "react";
-import TopicSelectionDrawer from "../../../common/TopicSelectionDrawer";
-import ActionButtons from "../../common/ActionButtons";
-import InstructionsCard from "../../common/InstructionsCard";
-import NavigationSection from "../../common/NavigationSection";
-import QuestionHeader from "../../common/QuestionHeader";
-import StageGoalBanner from "../../common/StageGoalBanner";
-import TextToSpeech from "../../common/TextToSpeech";
-import { MULTIPLE_CHOICE_QUESTIONS } from "./MultipleChoiceSingleMockData";
-import { Link as RouterLink } from 'react-router-dom';
-import { styled, useTheme } from '@mui/material/styles';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
-import TimerIcon from '@mui/icons-material/Timer';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Box, Typography, RadioGroup, FormControlLabel, Radio, Paper, Stack, Chip, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText } from '@mui/material';
+import {
+  PracticeCard,
+  TimerDisplay,
+  ProgressIndicator,
+  ResultsDialog,
+  AnswerDialog,
+  TranslationDialog,
+  ContentDisplay,
+  GradientBackground,
+  TopicSelectionDrawer,
+} from '../../../common';
+import ActionButtons from '../../common/ActionButtons';
+import NavigationSection from '../../common/NavigationSection';
+import QuestionHeader from '../../common/QuestionHeader';
+import StageGoalBanner from '../../common/StageGoalBanner';
+import TextToSpeech from '../../common/TextToSpeech';
+import { MULTIPLE_CHOICE_QUESTIONS } from './MultipleChoiceSingleMockData';
+import { MultipleChoiceQuestion, QuestionResult, UserAttempt } from './MutlipleChoiceSingleType';
+import { Close } from '@mui/icons-material';
+import { questionTopics } from '../../speaking/answer-short-questions/questionTopics';
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  borderRadius: 8,
-  boxShadow: theme.shadows[2], // Removed ?. and ensured direct access
-  transition: 'box-shadow 0.2s',
-  '&:hover': { boxShadow: theme.shadows[4] }, // Removed ?. and ensured direct access
-}));
+interface MultipleChoiceSingleProps { }
 
-const FeedbackCard = styled(Card, {
-  shouldForwardProp: (prop) => prop !== 'isCorrect',
-})<{ isCorrect?: boolean }>(({ theme, isCorrect }) => ({
-  border: `2px solid ${isCorrect ? theme.palette.success.light : theme.palette.error.light}`,
-  backgroundColor: isCorrect ? theme.palette.success.light : theme.palette.error.light,
-  borderRadius: 8,
-}));
-
-const MultipleChoiceSingleListening: React.FC = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes
-  const [isTimerStarted, setIsTimerStarted] = useState(false);
-  const [showTopicSelector, setShowTopicSelector] = useState(false);
-  const currentQuestion = MULTIPLE_CHOICE_QUESTIONS[currentQuestionIndex];
+  const [selectedQuestion, setSelectedQuestion] = useState<MultipleChoiceQuestion>(MULTIPLE_CHOICE_QUESTIONS[currentQuestionIndex]);
+  const [showQuestionSelector, setShowQuestionSelector] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<string>('');
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [showAttempts, setShowAttempts] = useState(false);
+  const [currentResult, setCurrentResult] = useState<QuestionResult | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [attempts, setAttempts] = useState<UserAttempt[]>([]);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setSelectedOption(null);
-    setShowFeedback(false);
-  }, [currentQuestionIndex]);
+  // Timer state
+  const [timer, setTimer] = useState({
+    timeRemaining: 300, // 5 minutes
+    isRunning: false,
+    warningThreshold: 60,
+    autoSubmit: true,
+  });
 
+  // Student info
+  const [studentName] = useState('John Smith');
+  const [testedCount] = useState(42);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<Date>(new Date());
+
+  // Load attempts from localStorage
   useEffect(() => {
-    if (isTimerStarted) {
-      const timer = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
+    const savedAttempts = localStorage.getItem('listeningMultipleChoiceSingleAttempts');
+    if (savedAttempts) {
+      try {
+        setAttempts(JSON.parse(savedAttempts));
+      } catch (error) {
+        console.error('Failed to parse attempts:', error);
+        localStorage.removeItem('listeningMultipleChoiceSingleAttempts');
+      }
+    }
+  }, []);
+
+  // Save attempt to localStorage
+  const saveAttempt = useCallback((attempt: UserAttempt) => {
+    setAttempts((prev) => {
+      const newAttempts = [...prev, attempt];
+      try {
+        localStorage.setItem('listeningMultipleChoiceSingleAttempts', JSON.stringify(newAttempts));
+      } catch (error) {
+        console.error('Failed to save attempts:', error);
+      }
+      return newAttempts;
+    });
+  }, []);
+
+  // Sync state when question changes
+  useEffect(() => {
+    setSelectedOption('');
+    setTimer({
+      timeRemaining: 300,
+      isRunning: false,
+      warningThreshold: 60,
+      autoSubmit: true,
+    });
+    setIsSubmitted(false);
+    setShowResults(false);
+    setCurrentResult(null);
+    setAudioError(null);
+    startTimeRef.current = new Date();
+
+    // Clear existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  }, [selectedQuestion.id]);
+
+  // Timer functionality
+  useEffect(() => {
+    if (timer.isRunning && timer.timeRemaining > 0 && !isSubmitted) {
+      timerRef.current = setTimeout(() => {
+        setTimer(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
       }, 1000);
-      return () => clearInterval(timer);
+    } else if (timer.timeRemaining === 0 && timer.autoSubmit && !isSubmitted) {
+      handleSubmit();
     }
-  }, [isTimerStarted]);
 
-  const startTimer = () => setIsTimerStarted(true);
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [timer.timeRemaining, timer.isRunning, isSubmitted]);
 
+  // Start timer when user first makes a selection
+  const startTimerIfNeeded = useCallback(() => {
+    if (!timer.isRunning && !isSubmitted && selectedOption) {
+      setTimer(prev => ({ ...prev, isRunning: true }));
+      startTimeRef.current = new Date();
+    }
+  }, [timer.isRunning, isSubmitted, selectedOption]);
+
+  // Handle option selection
+  const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (isSubmitted) return;
+
+    const value = event.target.value;
+    setSelectedOption(value);
+
+    // Start timer on first selection
+    if (value) {
+      startTimerIfNeeded();
+    }
+  };
+
+  const hasResponse = useCallback((): boolean => {
+    return selectedOption !== '';
+  }, [selectedOption]);
+
+  // Handle submission
   const handleSubmit = () => {
-    if (selectedOption !== null) {
-      setShowFeedback(true);
+    if (isSubmitted) return;
+
+    if (!selectedOption) {
+      alert('Please select an option before submitting.');
+      return;
+    }
+
+    setIsSubmitted(true);
+    setTimer(prev => ({ ...prev, isRunning: false }));
+
+    const endTime = new Date();
+    const timeSpent = Math.floor((endTime.getTime() - startTimeRef.current.getTime()) / 1000);
+
+    const correctAnswer = selectedQuestion.options.find(opt => opt.isCorrect);
+    const isCorrect = selectedOption === correctAnswer?.id;
+    const score = isCorrect ? 100 : 0;
+
+    const result: QuestionResult = {
+      questionId: String(selectedQuestion.id),
+      selectedAnswer: selectedOption,
+      correctAnswer: correctAnswer?.id || '',
+      isCorrect,
+      score,
+      maxScore: 100,
+      completedAt: endTime,
+      timeSpent,
+    };
+
+    setCurrentResult(result);
+    setShowResults(true);
+
+    // Save attempt
+    const attempt: UserAttempt = {
+      questionId: selectedQuestion.id,
+      selectedAnswer: selectedOption,
+      correctAnswer: correctAnswer?.id || '',
+      isCorrect,
+      score,
+      timestamp: new Date().toISOString(),
+    };
+    saveAttempt(attempt);
+  };
+
+  const handleRedo = () => {
+    setSelectedOption('');
+    setTimer({
+      timeRemaining: 300,
+      isRunning: false,
+      warningThreshold: 60,
+      autoSubmit: true,
+    });
+    setIsSubmitted(false);
+    setShowResults(false);
+    setCurrentResult(null);
+    startTimeRef.current = new Date();
+
+    // Clear existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
     }
   };
 
-  const isCorrect = () => {
-    if (selectedOption === null) return false;
-    const selectedIndex = currentQuestion.options.indexOf(selectedOption);
-    return selectedIndex === currentQuestion.correctAnswer;
-  };
-
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const goToNextQuestion = () => {
+  // Navigation handlers
+  const handleNext = () => {
     if (currentQuestionIndex < MULTIPLE_CHOICE_QUESTIONS.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setShowFeedback(false);
-      setTimeRemaining(600);
-      setIsTimerStarted(false);
+      const newIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(newIndex);
+      setSelectedQuestion(MULTIPLE_CHOICE_QUESTIONS[newIndex]);
     }
   };
 
-  const handleTopicSelect = (topic: any) => {
-    const index = MULTIPLE_CHOICE_QUESTIONS.findIndex(q => q.id === topic.id);
-    if (index !== -1) {
-      setCurrentQuestionIndex(index);
-      setShowFeedback(false);
-      setTimeRemaining(600);
-      setIsTimerStarted(false);
-      setShowTopicSelector(false);
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      const newIndex = currentQuestionIndex - 1;
+      setCurrentQuestionIndex(newIndex);
+      setSelectedQuestion(MULTIPLE_CHOICE_QUESTIONS[newIndex]);
     }
   };
 
-//   const questionTopics = MULTIPLE_CHOICE_QUESTIONS.map(q => ({
-//     id: q.id,
-//     title: q.question.substring(0, 50) + (q.question.length > 50 ? '...' : ''),
-//     duration: '10m',
-//     speaker: 'Narrator',
-//     difficulty: 'Medium',
-//     category: 'Listening',
-//     tags: ['Multiple Choice (Single)'],
-//     isNew: false,
-//     isMarked: false,
-//     pracStatus: 'In Progress',
-//     hasExplanation: true,
-//   }));
+  const handleSearch = () => {
+    setShowQuestionSelector(true);
+  };
+
+  const handleQuestionSelect = (question: any) => {
+    setSelectedQuestion(question);
+    setCurrentQuestionIndex(MULTIPLE_CHOICE_QUESTIONS.findIndex(q => q.id === question.id));
+    setShowQuestionSelector(false);
+  };
+
+  const handleViewAttempts = () => {
+    setShowAttempts(true);
+  };
+
+  // Get option color based on submission result
+  const getOptionColor = (optionId: string): { bgcolor: string; color: string; border?: string } => {
+    if (!isSubmitted || !currentResult) {
+      return { bgcolor: 'transparent', color: '#333' };
+    }
+
+    const correctAnswer = selectedQuestion.options.find(opt => opt.isCorrect);
+
+    if (optionId === currentResult.selectedAnswer && optionId === correctAnswer?.id) {
+      return { bgcolor: '#4caf50', color: 'white' }; // Green for correct selection
+    } else if (optionId === currentResult.selectedAnswer && optionId !== correctAnswer?.id) {
+      return { bgcolor: '#f44336', color: 'white' }; // Red for incorrect selection
+    } else if (optionId === correctAnswer?.id) {
+      return { bgcolor: '#fff3e0', color: '#333', border: '2px solid #4caf50' }; // Show correct answer
+    } else {
+      return { bgcolor: 'transparent', color: '#333' };
+    }
+  };
+
+  const questionNumber = testedCount + currentQuestionIndex + 1;
+
+  // Create result for dialog
+  const resultForDialog = currentResult ? {
+    questionId: currentResult.questionId,
+    score: currentResult.score,
+    maxScore: currentResult.maxScore,
+    correctAnswers: currentResult.isCorrect ? 1 : 0,
+    totalQuestions: 1,
+    completedAt: currentResult.completedAt,
+    timeSpent: currentResult.timeSpent,
+    percentage: currentResult.score,
+    answers: [{
+      id: 'single-choice',
+      selectedAnswer: selectedQuestion.options.find(opt => opt.id === currentResult.selectedAnswer)?.text || '',
+      correctAnswer: selectedQuestion.options.find(opt => opt.id === currentResult.correctAnswer)?.text || '',
+      isCorrect: currentResult.isCorrect
+    }]
+  } : null;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Stage Goal Banner */}
+    <GradientBackground>
       <StageGoalBanner />
 
-      {/* Progress Display */}
-      <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }}>
-        Progress: {currentQuestionIndex + 1}/{MULTIPLE_CHOICE_QUESTIONS.length} questions attempted
-      </Typography>
-
-      {/* Navigation Card (First Card) */}
-      <StyledCard sx={{ mb: 4 }}>
-        <CardContent>
-          <NavigationSection
-            onSearch={() => setShowTopicSelector(true)}
-            onPrevious={() => {
-              if (currentQuestionIndex > 0) {
-                setCurrentQuestionIndex(currentQuestionIndex - 1);
-                setShowFeedback(false);
-                setTimeRemaining(600);
-                setIsTimerStarted(false);
-              }
-            }}
-            onNext={goToNextQuestion}
-            questionNumber={currentQuestionIndex + 1}
-          />
-        </CardContent>
-      </StyledCard>
-
-      {/* Header */}
-      <Box mb={4}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 2 }} alignItems={{ xs: 'flex-start', sm: 'center' }} mb={2}>
-          <Button
-            component={RouterLink}
-            to="/practice-tests"
-            color="primary"
-            startIcon={<span style={{ marginRight: '8px' }}>←</span>}
-            size={isMobile ? 'small' : 'medium'}
-          >
-            Back to Practice
-          </Button>
-          {/* <Divider orientation={{ xs: 'horizontal', sm: 'vertical' }} flexItem sx={{ my: { xs: 1, sm: 0 } }} /> */}
-          <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="bold">
-            Listening: Multiple Choice (Single)
-          </Typography>
-        </Stack>
-        <Typography color="text.secondary" variant={isMobile ? 'caption' : 'body2'}>
-          Listen to the recording and select the correct response. Only one response is correct.
-        </Typography>
-      </Box>
-
-      {/* Progress and Timer */}
-      <Box mb={4}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          spacing={{ xs: 1, sm: 2 }}
-          mb={2}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Question {currentQuestionIndex + 1} of {MULTIPLE_CHOICE_QUESTIONS.length}
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems="center" spacing={1}>
-            <Chip
-              label="Listening • Multiple Choice (Single)"
-              size={isMobile ? 'small' : 'medium'}
-              sx={{ width: { xs: '100%', sm: 'auto' } }}
-            />
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <TimerIcon color={timeRemaining < 120 ? 'error' : 'primary'} />
-              <Typography color={timeRemaining < 120 ? 'error.main' : 'primary.main'} variant={isMobile ? 'caption' : 'body2'}>
-                {formatTime(timeRemaining)}
-              </Typography>
-            </Stack>
-            {!isTimerStarted && (
-              <Button
-                variant="contained"
-                size={isMobile ? 'small' : 'medium'}
-                onClick={startTimer}
-                sx={{ width: { xs: '100%', sm: 'auto' } }}
-              >
-                Start Timer
-              </Button>
-            )}
-          </Stack>
-        </Stack>
-        <LinearProgress
-          variant="determinate"
-          value={((currentQuestionIndex + 1) / MULTIPLE_CHOICE_QUESTIONS.length) * 100}
-          sx={{ height: 8, borderRadius: 4 }}
+      <PracticeCard
+        icon="LCS"
+        title="Listening Multiple Choice (Single)"
+        instructions="Listen to the recording and answer the question by selecting the correct response. You will need to select only one response."
+        difficulty={selectedQuestion.difficulty}
+      >
+        {/* Question Header */}
+        <QuestionHeader
+          questionNumber={questionNumber}
+          studentName={studentName}
+          testedCount={testedCount}
         />
-      </Box>
 
-      {/* Main Content */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: { xs: 2, sm: 4 } }}>
-        {/* Question Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '63%' } }}>
-          <StyledCard>
-            <CardContent>
-              {/* Question Header */}
-              <QuestionHeader questionNumber={currentQuestionIndex + 1} studentName="Student Name" testedCount={30} />
+        {/* Timer */}
+        <TimerDisplay
+          timeRemaining={timer.timeRemaining}
+          isRunning={timer.isRunning}
+          warningThreshold={timer.warningThreshold}
+          showStartMessage={!timer.isRunning && !isSubmitted}
+          startMessage="Timer will start when you make your selection"
+          autoSubmit={timer.autoSubmit}
+        />
 
-              <Box mb={2}>
-                <Button
-                  variant="outlined"
-                  startIcon={<PlayArrowIcon />}
-                  onClick={() => {/* Trigger TextToSpeech */}}
-                  sx={{ mb: 2 }}
-                >
-                  Play Recording
-                </Button>
-                <TextToSpeech text={currentQuestion.audioText} />
-              </Box>
+        {/* Text-to-Speech Player */}
+        <TextToSpeech
+          text={selectedQuestion.audioText || "This is a sample audio for the listening multiple choice single question. Listen carefully and select the correct option."}
+          autoPlay={false}
+          onStart={() => console.log('Audio started')}
+          onEnd={() => console.log('Audio ended')}
+          onError={(error) => setAudioError(error)}
+        />
 
-              {!showFeedback ? (
-                <Box>
-                  <Typography variant="body1" color="text.primary" mb={2}>
-                    {currentQuestion.question}
-                  </Typography>
-                  <RadioGroup
-                    value={selectedOption || ''}
-                    onChange={(e) => setSelectedOption(e.target.value)}
+        {/* Question Display */}
+        <ContentDisplay
+          title="Question"
+          content={
+            <Typography variant="h6" sx={{ color: '#333', fontWeight: 'bold' }}>
+              {selectedQuestion.question}
+            </Typography>
+          }
+          category={selectedQuestion.category}
+          difficulty={selectedQuestion.difficulty}
+          tags={selectedQuestion.tags}
+          showMetadata={true}
+        />
+
+        {/* Options */}
+        <ContentDisplay
+          title="Select the correct answer:"
+          content={
+            <RadioGroup
+              value={selectedOption}
+              onChange={handleOptionChange}
+            >
+              {selectedQuestion.options.map((option) => {
+                const optionStyle = getOptionColor(option.id);
+                return (
+                  <Box
+                    key={option.id}
+                    sx={{
+                      mb: 2,
+                      p: 2,
+                      borderRadius: 1,
+                      ...optionStyle,
+                      border: optionStyle.border || '1px solid #e0e0e0',
+                      transition: 'all 0.3s ease',
+                      cursor: isSubmitted ? 'default' : 'pointer'
+                    }}
+                    onClick={() => !isSubmitted && setSelectedOption(option.id)}
                   >
-                    {currentQuestion.options.map((option, index) => (
-                      <StyledCard key={index} sx={{ mb: 1 }}>
-                        <CardContent sx={{ p: 2, display: 'flex', alignItems: 'center' }}>
-                          <FormControlLabel
-                            value={option}
-                            control={<Radio />}
-                            label={option}
-                            sx={{ flex: 1, m: 0 }}
-                          />
-                        </CardContent>
-                      </StyledCard>
-                    ))}
-                  </RadioGroup>
-                  <Box textAlign="center" mt={4}>
-                    <ActionButtons
-                      hasResponse={selectedOption !== null}
-                      recordedBlob={null}
-                      onSubmit={handleSubmit}
-                      onRedo={() => {
-                        setSelectedOption(null);
-                        setShowFeedback(false);
-                        setTimeRemaining(600);
-                        setIsTimerStarted(false);
-                      }}
-                      onTranslate={() => console.log('Translate clicked')}
-                      onShowAnswer={() => {
-                        setSelectedOption(currentQuestion.options[currentQuestion.correctAnswer]);
-                        setShowFeedback(true);
-                      }}
+                    <FormControlLabel
+                      value={option.id}
+                      control={
+                        <Radio
+                          disabled={isSubmitted}
+                          sx={{
+                            color: optionStyle.color,
+                            '&.Mui-checked': {
+                              color: optionStyle.color
+                            }
+                          }}
+                        />
+                      }
+                      label={
+                        <Typography
+                          sx={{
+                            color: optionStyle.color,
+                            fontSize: { xs: '14px', sm: '15px', md: '16px' },
+                            fontWeight: isSubmitted && option.isCorrect ? 'bold' : 'normal'
+                          }}
+                        >
+                          <strong>{option.id})</strong> {option.text}
+                        </Typography>
+                      }
                     />
                   </Box>
-                </Box>
-              ) : (
-                <Stack spacing={4}>
-                  {/* Feedback */}
-                  <Paper elevation={2} sx={{ p: 4, textAlign: 'center', bgcolor: isCorrect() ? 'success.light' : 'error.light' }}>
-                    <Typography variant="h3" color={isCorrect() ? 'success.main' : 'error.main'} fontWeight="bold">
-                      {isCorrect() ? 'Correct!' : 'Incorrect'}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      {isCorrect() ? 'Well done!' : `The correct answer is: ${currentQuestion.options[currentQuestion.correctAnswer]}`}
-                    </Typography>
-                  </Paper>
+                );
+              })}
+            </RadioGroup>
+          }
+          showMetadata={false}
+        />
 
-                  {/* Options with Feedback */}
-                  <Box>
-                    <Typography variant="h6" fontWeight="medium" mb={2}>
-                      Your Answer:
-                    </Typography>
-                    <Box display="flex" flexDirection="column" gap={2}>
-                      {currentQuestion.options.map((option, index) => (
-                        <FeedbackCard key={index} isCorrect={index === currentQuestion.correctAnswer && selectedOption === option}>
-                          <CardContent sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Radio checked={selectedOption === option} disabled />
-                            <Typography variant="body1" sx={{ flex: 1 }}>
-                              {option}
-                            </Typography>
-                            {index === currentQuestion.correctAnswer && <CheckCircleIcon color="success" />}
-                            {selectedOption === option && index !== currentQuestion.correctAnswer && <CancelIcon color="error" />}
-                          </CardContent>
-                        </FeedbackCard>
-                      ))}
-                    </Box>
-                  </Box>
+        {/* Submission Result */}
+        {isSubmitted && currentResult && (
+          <Paper sx={{ p: 3, mb: 3, bgcolor: currentResult.isCorrect ? '#e8f5e9' : '#ffebee' }}>
+            <Typography variant="h6" sx={{ mb: 1, color: currentResult.isCorrect ? '#2e7d32' : '#d32f2f' }}>
+              {currentResult.isCorrect ? '✅ Correct!' : '❌ Incorrect'} - Score: {currentResult.score}/100
+            </Typography>
+            <Typography variant="body2">
+              Your answer: {selectedQuestion.options.find(opt => opt.id === currentResult.selectedAnswer)?.text}
+            </Typography>
+            {!currentResult.isCorrect && (
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Correct answer: {selectedQuestion.options.find(opt => opt.id === currentResult.correctAnswer)?.text}
+              </Typography>
+            )}
+          </Paper>
+        )}
 
-                  {/* Next Question */}
-                  <Box textAlign="center">
-                    {currentQuestionIndex < MULTIPLE_CHOICE_QUESTIONS.length - 1 ? (
-                      <Button
-                        variant="contained"
-                        size="large"
-                        onClick={goToNextQuestion}
-                        endIcon={<span style={{ marginLeft: '8px' }}>→</span>}
-                      >
-                        Next Question
-                      </Button>
-                    ) : (
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 2 }} justifyContent="center">
-                        <Button
-                          component={RouterLink}
-                          to="/practice-tests"
-                          variant="contained"
-                          color="secondary"
-                          size={isMobile ? 'medium' : 'large'}
-                          fullWidth={isMobile}
-                        >
-                          Back to Practice
-                        </Button>
-                        <Button
-                          component={RouterLink}
-                          to="/progress"
-                          variant="contained"
-                          color="success"
-                          size={isMobile ? 'medium' : 'large'}
-                          fullWidth={isMobile}
-                        >
-                          View Progress
-                        </Button>
-                      </Stack>
-                    )}
-                  </Box>
-                </Stack>
-              )}
-            </CardContent>
-          </StyledCard>
-        </Box>
+        {/* Progress Indicator */}
+        <ProgressIndicator
+          current={selectedOption ? 1 : 0}
+          total={1}
+          label="option selected"
+          customLabel={selectedOption ? 'Option selected' : 'No option selected'}
+        />
 
-        {/* Instructions Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '33.333%' }, pl: { lg: 2 } }}>
-          <InstructionsCard
-            title="Instructions"
-            sections={[
-              {
-                title: 'Task Overview',
-                items: ['Listen to the recording and select the correct single response.'],
-              },
-              {
-                title: 'How to Answer',
-                items: ['Click the Play button to listen', 'Select one option using the radio button', 'Submit your answer'],
-              },
-              {
-                title: 'Strategy Tips',
-                items: ['Listen carefully to key details', 'Eliminate obviously wrong options', 'Focus on the main idea'],
-              },
-              {
-                title: 'Scoring',
-                items: ['1 point for correct answer', '0 points for incorrect or no answer'],
-              },
-            ]}
-          />
-        </Box>
-      </Box>
+        {/* Action Buttons */}
+        <ActionButtons
+          hasResponse={hasResponse()}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={() => setShowTranslate(true)}
+          onShowAnswer={() => setShowAnswer(true)}
+          recordedBlob={null}
+          additionalActions={[
+            {
+              label: 'View Attempts',
+              onClick: handleViewAttempts,
+              variant: 'outlined'
+            }
+          ]}
+        />
+
+        {/* Navigation */}
+        <NavigationSection
+          onSearch={handleSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          questionNumber={questionNumber}
+        />
+      </PracticeCard>
 
       {/* Topic Selection Drawer */}
       <TopicSelectionDrawer
-        open={showTopicSelector}
-        onClose={() => setShowTopicSelector(false)}
-        onSelect={handleTopicSelect}
+        open={showQuestionSelector}
+        onClose={() => setShowQuestionSelector(false)}
+        onSelect={handleQuestionSelect}
         topics={MULTIPLE_CHOICE_QUESTIONS}
-        title="Select Question Topic"
+        title="Select Question"
         type="question"
       />
-    </Container>
+
+      {/* Results Dialog */}
+      <ResultsDialog
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={resultForDialog}
+        onTryAgain={handleRedo}
+        showAnswerReview={true}
+      />
+
+      {/* Answer Dialog */}
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={selectedQuestion.title}
+        answers={[{
+          id: 'correct-answer',
+          correctAnswer: selectedQuestion.options.find(opt => opt.isCorrect)?.text || '',
+          label: "Correct Answer"
+        }]}
+        explanation={selectedQuestion.explanation}
+      />
+
+      {/* Translation Dialog */}
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the question content in your preferred language."
+      />
+
+      {/* View Attempts Dialog */}
+
+      {/* Past Attempts Dialog */}
+      <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Past Attempts</Typography>
+            <IconButton onClick={() => setShowAttempts(false)}>
+              <Close />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {attempts.length === 0 ? (
+            <Typography variant="body2">No attempts recorded yet.</Typography>
+          ) : (
+            <List>
+              {attempts.map((attempt, index) => {
+                const question = questionTopics.find(q => q.id === attempt.questionId);
+                return (
+                  <ListItem key={index}>
+                    <ListItemText
+                      primary={`Question: ${question?.title || 'Unknown'}`}
+                      secondary={
+                        <>
+                          {attempts.map((attempt, index) => (
+                            <Paper key={index} sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+                              <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Attempt {index + 1} - Score: {attempt.score}/100
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: '#666', mb: 1, display: 'block' }}>
+                                {new Date(attempt.timestamp).toLocaleString()}
+                              </Typography>
+                              <Typography variant="body2" sx={{
+                                color: attempt.isCorrect ? '#2e7d32' : '#d32f2f',
+                                fontWeight: 'bold'
+                              }}>
+                                {attempt.isCorrect ? '✅ Correct' : '❌ Incorrect'}
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontSize: '12px', mt: 1 }}>
+                                Selected: {selectedQuestion.options.find(opt => opt.id === attempt.selectedAnswer)?.text}
+                              </Typography>
+                            </Paper>
+                          ))}
+
+                        </>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            color="error"
+            onClick={() => {
+              setAttempts([]);
+              localStorage.removeItem('answerShortQuestionsAttempts');
+            }}
+          >
+            Clear Attempts
+          </Button>
+          <Button onClick={() => setShowAttempts(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+      {/* <AnswerDialog
+        open={showAttempts}
+        onClose={() => setShowAttempts(false)}
+        title="Past Attempts"
+        answers={[]}
+        customContent={
+          <Box>
+            {attempts.length === 0 ? (
+              <Typography variant="body2">No attempts recorded yet.</Typography>
+            ) : (
+              <Stack spacing={2}>
+                {attempts.map((attempt, index) => (
+                  <Paper key={index} sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                      Attempt {index + 1} - Score: {attempt.score}/100
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#666', mb: 1, display: 'block' }}>
+                      {new Date(attempt.timestamp).toLocaleString()}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: attempt.isCorrect ? '#2e7d32' : '#d32f2f',
+                      fontWeight: 'bold'
+                    }}>
+                      {attempt.isCorrect ? '✅ Correct' : '❌ Incorrect'}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '12px', mt: 1 }}>
+                      Selected: {selectedQuestion.options.find(opt => opt.id === attempt.selectedAnswer)?.text}
+                    </Typography>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+          </Box>
+        }
+      /> */}
+    </GradientBackground>
   );
 };
 
-export default MultipleChoiceSingleListening;
+export default MultipleChoiceSingle;

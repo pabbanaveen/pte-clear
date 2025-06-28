@@ -1,82 +1,59 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
-import {
-  Container, Box, Typography, Card, CardContent, Button, Chip, Paper, Stack, List, ListItem, ListItemText, LinearProgress,
-  Alert,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  useMediaQuery
-} from '@mui/material';
-import { styled, Theme, useTheme } from '@mui/material/styles';
-import MicIcon from '@mui/icons-material/Mic';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import TimerIcon from '@mui/icons-material/Timer';
+import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemText, Typography, IconButton, Stack, CardContent } from '@mui/material';
 import { Close } from '@mui/icons-material';
+import {
+  PracticeCard,
+  TimerDisplay,
+  ContentDisplay,
+  ProgressIndicator,
+  AnswerDialog,
+  TranslationDialog,
+  GradientBackground,
+  StyledCard
+} from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import RecordingSection from '../../common/RecordingSection';
 import StageGoalBanner from '../../common/StageGoalBanner';
+import TextToSpeech from '../../common/TextToSpeech';
+import InstructionsCard from '../../common/InstructionsCard';
+import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { readAloudQuestions } from './ReadALoudMockData';
 import { ReadAloudQuestion, UserAttempt } from './ReadAloudTypes';
 import { User } from '../../../../types/user';
-import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
-
-interface Question {
-  id: number;
-  text: string;
-  preparationTime: number;
-  recordingTime: number;
-}
-
-interface Feedback {
-  overallScore: number;
-  pronunciation: number;
-  fluency: number;
-  content: number;
-  feedback: string[];
-  improvements: string[];
-}
-
-const StyledCard = styled(Card)(({ theme }) => ({
-  borderRadius: Number(theme.shape.borderRadius) * 2,
-  boxShadow: theme.shadows[3],
-  [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(2),
-  },
-}));
-
-const RecordingIndicator = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 64,
-  height: 64,
-  borderRadius: '50%',
-  backgroundColor: theme.palette.error.main,
-  animation: 'pulse 1.5s ease-in-out infinite',
-  '@keyframes pulse': {
-    '0%': { transform: 'scale(1)', opacity: 1 },
-    '50%': { transform: 'scale(1.2)', opacity: 0.7 },
-    '100%': { transform: 'scale(1)', opacity: 1 },
-  },
-  [theme.breakpoints.down('sm')]: {
-    width: 48,
-    height: 48,
-  },
-}));
 
 interface PracticeTestsProps {
   user: User | null;
 }
+
+const instructionsSections = [
+  {
+    title: 'Task Overview',
+    items: ['You will see a text on screen. You have 40 seconds to read and understand it, then 40 seconds to read it aloud.'],
+  },
+  {
+    title: 'Time Allocation',
+    items: ['Reading time: 40 seconds', 'Recording time: 40 seconds'],
+  },
+  {
+    title: 'Tips',
+    items: [
+      'Read the text silently first',
+      'Note punctuation and intonation',
+      'Speak clearly and at natural pace',
+      'Don\'t rush or speak too slowly',
+    ],
+  },
+  {
+    title: 'Scoring',
+    items: [
+      'Content: Reading all words correctly',
+      'Pronunciation: Clear articulation',
+      'Fluency: Natural rhythm and pace',
+    ],
+  },
+];
 
 const useAudioRecording = (preparationTime: number | null, recordingTime = 40000) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -121,18 +98,15 @@ const useAudioRecording = (preparationTime: number | null, recordingTime = 40000
           const url = URL.createObjectURL(blob);
           setRecordedAudioUrl(url);
           stream.getTracks().forEach((track) => track.stop());
-          console.log('Recording stopped, blob created');
         };
 
         mediaRecorder.start();
         setIsRecording(true);
-        console.log('Recording started');
 
         timerRef.current = setTimeout(() => {
           if (mediaRecorderRef.current?.state === 'recording') {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
-            console.log(`Recording auto-stopped after ${recordingTime / 1000}s`);
           }
         }, recordingTime);
       } catch (error) {
@@ -144,7 +118,6 @@ const useAudioRecording = (preparationTime: number | null, recordingTime = 40000
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) clearTimeout(timerRef.current);
-      console.log('Recording manually stopped');
     }
   };
 
@@ -165,7 +138,8 @@ const useAudioRecording = (preparationTime: number | null, recordingTime = 40000
 };
 
 export const ReadAloud: React.FC<PracticeTestsProps> = ({ user }) => {
-  const [selectedQuestion, setSelectedQuestion] = useState<ReadAloudQuestion>(readAloudQuestions[0]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedQuestion, setSelectedQuestion] = useState<ReadAloudQuestion>(readAloudQuestions[currentQuestionIndex]);
   const [questionNumber, setQuestionNumber] = useState(65535);
   const [studentName] = useState('John Doe');
   const [testedCount] = useState(30);
@@ -176,12 +150,32 @@ export const ReadAloud: React.FC<PracticeTestsProps> = ({ user }) => {
   const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
   const [showTopicSelector, setShowTopicSelector] = useState(false);
   const [attempts, setAttempts] = useState<UserAttempt[]>([]);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const completedQuestions = attempts.length;
 
   const audioRecording = useAudioRecording(preparationTime, selectedQuestion.recordingTime * 1000);
   const prepTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const completedQuestions = attempts.length;
+
+  // Timer state for preparation
+  const [timer, setTimer] = useState({
+    timeRemaining: selectedQuestion.preparationTime,
+    isRunning: false,
+    warningThreshold: 10,
+    autoSubmit: false,
+  });
+
+  // Sync state when question changes
+  useEffect(() => {
+    setSelectedQuestion(readAloudQuestions[currentQuestionIndex]);
+    setTimer({
+      timeRemaining: readAloudQuestions[currentQuestionIndex].preparationTime,
+      isRunning: false,
+      warningThreshold: 10,
+      autoSubmit: false,
+    });
+    audioRecording.resetRecording();
+    setPreparationTime(null);
+    setShowRecordingPrompt(false);
+  }, [currentQuestionIndex]);
 
   // Load attempts from localStorage
   useEffect(() => {
@@ -196,7 +190,7 @@ export const ReadAloud: React.FC<PracticeTestsProps> = ({ user }) => {
     }
   }, []);
 
-  // Save attempt to localStorage
+  // Save attempt to localStorage when recording is available
   useEffect(() => {
     if (audioRecording.recordedBlob && audioRecording.recordedAudioUrl) {
       const attempt: UserAttempt = {
@@ -221,221 +215,187 @@ export const ReadAloud: React.FC<PracticeTestsProps> = ({ user }) => {
     if (preparationTime !== null && preparationTime > 0) {
       prepTimerRef.current = setTimeout(() => {
         setPreparationTime((prev) => (prev !== null ? prev - 1 : null));
+        setTimer(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
       }, 1000);
     } else if (preparationTime === 0) {
       setShowRecordingPrompt(true);
       setPreparationTime(null);
-      console.log('Preparation time ended');
+      setTimer(prev => ({ ...prev, isRunning: false }));
     }
     return () => {
       if (prepTimerRef.current) clearTimeout(prepTimerRef.current);
     };
   }, [preparationTime]);
 
-  // Handlers
   const handleSubmit = () => {
-    console.log('Submit clicked');
     if (audioRecording.recordedBlob) {
       alert('Recording submitted! Score will be available after processing.');
       setQuestionNumber((prev) => prev + 1);
-      audioRecording.resetRecording();
-      setPreparationTime(null);
-      setShowRecordingPrompt(false);
+      handleRedo();
     } else {
       alert('Please record your reading before submitting.');
     }
   };
 
   const handleRedo = () => {
-    console.log('Redo clicked');
     audioRecording.resetRecording();
     setPreparationTime(null);
     setShowRecordingPrompt(false);
-  };
-
-  const handleTranslate = () => {
-    console.log('Translate clicked');
-    setShowTranslate(true);
-  };
-
-  const handleShowAnswer = () => {
-    console.log('Show Answer clicked');
-    setShowAnswer(true);
-  };
-
-  const handleViewAttempts = () => {
-    console.log('View Attempts clicked');
-    setShowAttempts(true);
+    setTimer({
+      timeRemaining: selectedQuestion.preparationTime,
+      isRunning: false,
+      warningThreshold: 10,
+      autoSubmit: false,
+    });
   };
 
   const handlePrevious = () => {
-    console.log('Previous clicked');
-    const currentIndex = readAloudQuestions.findIndex(q => q.id === selectedQuestion.id);
-    if (currentIndex > 0) {
-      setSelectedQuestion(readAloudQuestions[currentIndex - 1]);
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
       setQuestionNumber(questionNumber - 1);
-      audioRecording.resetRecording();
-      setPreparationTime(null);
-      setShowRecordingPrompt(false);
     }
   };
 
   const handleNext = () => {
-    console.log('Next clicked');
-    const currentIndex = readAloudQuestions.findIndex(q => q.id === selectedQuestion.id);
-    if (currentIndex < readAloudQuestions.length - 1) {
-      setSelectedQuestion(readAloudQuestions[currentIndex + 1]);
+    if (currentQuestionIndex < readAloudQuestions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
       setQuestionNumber(questionNumber + 1);
-      audioRecording.resetRecording();
-      setPreparationTime(null);
-      setShowRecordingPrompt(false);
     }
+  };
+
+  const handleSearch = () => {
+    setShowTopicSelector(true);
+  };
+
+  const handleTopicSelect = (topic: any) => {
+    const newIndex = readAloudQuestions.findIndex(q => q.id === topic.id);
+    if (newIndex !== -1) {
+      setCurrentQuestionIndex(newIndex);
+      setQuestionNumber(readAloudQuestions.findIndex(q => q.id === topic.id) + 65535);
+    }
+    setShowTopicSelector(false);
   };
 
   const handleStartPreparation = () => {
     setPreparationTime(selectedQuestion.preparationTime);
+    setTimer(prev => ({ ...prev, isRunning: true }));
   };
 
-  const handleTopicSelect = (topic: any) => {
-    console.log('Topic selected:', topic);
-    setSelectedQuestion(topic);
-    setQuestionNumber(readAloudQuestions.findIndex(q => q.id === topic.id) + 65535);
-    audioRecording.resetRecording();
-    setPreparationTime(null);
-    setShowRecordingPrompt(false);
-    setShowTopicSelector(false);
+  const handleViewAttempts = () => {
+    setShowAttempts(true);
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: isMobile ? 1 : 2 }}>
-      {/* Stage Goal Banner */}
+    <GradientBackground>
       <StageGoalBanner />
-
-      {/* Progress Display */}
-      <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }}>
-        Progress: {completedQuestions}/{readAloudQuestions.length} questions attempted
-      </Typography>
-
-      {/* Main Content */}
-      <Card sx={{ maxWidth: isMobile ? '100%' : 1200, mx: 'auto', mb: 3 }}>
-        <CardContent sx={{ p: isMobile ? 2 : 3 }}>
-          {/* Header */}
-          <Stack
-            direction={isMobile ? 'column' : 'row'}
-            alignItems={isMobile ? 'flex-start' : 'center'}
-            spacing={2}
-            sx={{ mb: 3 }}
+      
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 4 }}>
+        {/* Main Content */}
+        <Box sx={{ width: { xs: '100%', lg: '70%' } }}>
+          <PracticeCard
+            icon="RA"
+            title="Read Aloud"
+            subtitle={`Progress: ${completedQuestions}/${readAloudQuestions.length} questions attempted`}
+            instructions="You will see a text on screen. You have 40 seconds to read and understand it, then 40 seconds to read it aloud."
+            difficulty={selectedQuestion.difficulty}
           >
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                bgcolor: '#2196f3',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '20px',
-                fontWeight: 'bold',
-              }}
-            >
-              RA
-            </Box>
-            <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: '#333' }}>
-              Read Aloud
-            </Typography>
-          </Stack>
+            <QuestionHeader
+              questionNumber={questionNumber}
+              studentName={studentName}
+              testedCount={testedCount}
+            />
 
-          {/* Question Header */}
-          <QuestionHeader
-            questionNumber={questionNumber}
-            studentName={studentName}
-            testedCount={testedCount}
-          />
-
-          {/* Scoring Unavailable Notice */}
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <Typography>Scoring is currently unavailable and will be processed after submission.</Typography>
-          </Alert>
-
-          {/* Text Display */}
-          <Paper sx={{ p: isMobile ? 2 : 3, mb: 3, bgcolor: 'grey.50' }}>
-            <Typography variant="body1" lineHeight={1.8} fontWeight="medium">
-              {selectedQuestion.text}
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" mt={2}>
-              <Chip
-                label={selectedQuestion.difficulty}
-                size="small"
-                color={
-                  selectedQuestion.difficulty === 'Beginner' ? 'success' :
-                  selectedQuestion.difficulty === 'Intermediate' ? 'warning' : 'error'
-                }
+            {preparationTime !== null && (
+              <TimerDisplay
+                timeRemaining={timer.timeRemaining}
+                isRunning={timer.isRunning}
+                warningThreshold={timer.warningThreshold}
+                autoSubmit={timer.autoSubmit}
+                showStartMessage={false}
               />
-              <Chip
-                label={selectedQuestion.category}
-                size="small"
-                variant="outlined"
+            )}
+
+            <ContentDisplay
+              title="Text to Read"
+              content={
+                <Box>
+                  {!preparationTime && (
+                    <Box sx={{ mb: 2, textAlign: 'center' }}>
+                      <button 
+                        onClick={handleStartPreparation}
+                        style={{
+                          padding: '12px 24px',
+                          backgroundColor: '#4caf50',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Start Preparation Timer
+                      </button>
+                    </Box>
+                  )}
+                  <Box sx={{ fontSize: '18px', lineHeight: 1.8, fontWeight: 'medium' }}>
+                    {selectedQuestion.text}
+                  </Box>
+                </Box>
+              }
+              category={selectedQuestion.category}
+              difficulty={selectedQuestion.difficulty}
+              tags={selectedQuestion.tags}
+            />
+
+            <RecordingSection
+              isRecording={audioRecording.isRecording}
+              recordedBlob={audioRecording.recordedBlob}
+              recordedAudioUrl={audioRecording.recordedAudioUrl}
+              micPermission={audioRecording.micPermission}
+              showRecordingPrompt={showRecordingPrompt}
+              preparationTime={preparationTime}
+              recordingType="Read Aloud"
+              recordingTime={selectedQuestion.recordingTime}
+              onToggleRecording={audioRecording.toggleRecording}
+            />
+
+            <ProgressIndicator
+              current={audioRecording.recordedBlob ? 1 : 0}
+              total={1}
+              label="recording completed"
+            />
+
+            <ActionButtons
+              hasResponse={audioRecording.recordedBlob !== null}
+              recordedBlob={audioRecording.recordedBlob}
+              onSubmit={handleSubmit}
+              onRedo={handleRedo}
+              onTranslate={() => setShowTranslate(true)}
+              onShowAnswer={() => setShowAnswer(true)}
+              handleViewAttempts={handleViewAttempts}
+            />
+
+          
+          </PracticeCard>
+          {/* Navigation Card */}
+          <StyledCard sx={{ mb: 4, mt: 2 }}>
+            <CardContent>
+              <NavigationSection
+              onSearch={handleSearch}
+              onPrevious={handlePrevious}
+              onNext={handleNext}
+              questionNumber={questionNumber}
               />
-            </Stack>
-          </Paper>
+            </CardContent>
+          </StyledCard>
+        </Box>
 
-          {/* Preparation Timer */}
-          {preparationTime !== null && preparationTime > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body1" sx={{ mb: 1, color: '#ff9800' }}>
-                Preparation Time: {preparationTime} seconds
-              </Typography>
-              <LinearProgress variant="determinate" value={(preparationTime / selectedQuestion.preparationTime) * 100} />
-            </Box>
-          )}
+        {/* Instructions Panel */}
+        <Box sx={{ width: { xs: '100%', lg: '30%' } }}>
+          <InstructionsCard title="Instructions" sections={instructionsSections} />
+        </Box>
+      </Box>
 
-          {/* Recording Section */}
-          <RecordingSection
-            isRecording={audioRecording.isRecording}
-            recordedBlob={audioRecording.recordedBlob}
-            recordedAudioUrl={audioRecording.recordedAudioUrl}
-            micPermission={audioRecording.micPermission}
-            showRecordingPrompt={showRecordingPrompt}
-            preparationTime={preparationTime}
-            recordingType="Read Aloud"
-            recordingTime={selectedQuestion.recordingTime}
-            onToggleRecording={audioRecording.toggleRecording}
-          />
-
-          {/* Action Buttons */}
-          <ActionButtons
-            hasResponse={false} // Placeholder; adjust based on requirements
-            recordedBlob={audioRecording.recordedBlob}
-            onSubmit={handleSubmit}
-            onRedo={handleRedo}
-            onTranslate={handleTranslate}
-            onShowAnswer={handleShowAnswer}
-          />
-
-          {/* Navigation Section */}
-          <NavigationSection
-            onSearch={() => setShowTopicSelector(true)}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            questionNumber={questionNumber}
-          />
-
-          {/* View Attempts Button */}
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleViewAttempts}
-            aria-label="View past attempts"
-            sx={{ mt: 2, minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
-          >
-            View Attempts
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Topic Selection Drawer */}
       <TopicSelectionDrawer
         open={showTopicSelector}
         onClose={() => setShowTopicSelector(false)}
@@ -450,62 +410,32 @@ export const ReadAloud: React.FC<PracticeTestsProps> = ({ user }) => {
         type="question"
       />
 
-      {/* Answer Dialog */}
-      <Dialog open={showAnswer} onClose={() => setShowAnswer(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Sample Answer</Typography>
-            <IconButton onClick={() => setShowAnswer(false)}><Close /></IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            <strong>Text:</strong> {selectedQuestion.text}
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            <strong>Guidance:</strong> {selectedQuestion.expectedAnswer}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowAnswer(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={selectedQuestion.text.substring(0, 50) + '...'}
+        text={selectedQuestion.text}
+        answers={[{
+          id: '1',
+          position: 1,
+          correctAnswer: selectedQuestion.expectedAnswer
+        }]}
+      />
 
-      {/* Translate Dialog */}
-      <Dialog open={showTranslate} onClose={() => setShowTranslate(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Translation Options</Typography>
-            <IconButton onClick={() => setShowTranslate(false)}><Close /></IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Select Language</InputLabel>
-            <Select defaultValue="spanish" label="Select Language">
-              <MenuItem value="spanish">Spanish</MenuItem>
-              <MenuItem value="french">French</MenuItem>
-              <MenuItem value="german">German</MenuItem>
-              <MenuItem value="chinese">Chinese</MenuItem>
-              <MenuItem value="japanese">Japanese</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="body2" sx={{ color: '#666' }}>
-            Translate the text into your preferred language.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowTranslate(false)}>Cancel</Button>
-          <Button variant="contained">Translate</Button>
-        </DialogActions>
-      </Dialog>
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the text content in your preferred language."
+      />
 
       {/* Past Attempts Dialog */}
       <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography variant="h6">Past Attempts</Typography>
-            <IconButton onClick={() => setShowAttempts(false)}><Close /></IconButton>
+            <IconButton onClick={() => setShowAttempts(false)}>
+              <Close />
+            </IconButton>
           </Stack>
         </DialogTitle>
         <DialogContent>
@@ -525,7 +455,7 @@ export const ReadAloud: React.FC<PracticeTestsProps> = ({ user }) => {
                             Time: {new Date(attempt.timestamp).toLocaleString()}
                           </Typography>
                           {attempt.recordedAudioUrl && (
-                            <audio controls src={attempt.recordedAudioUrl} style={{ width: '100%' }}>
+                            <audio controls src={attempt.recordedAudioUrl} style={{ width: '100%', marginTop: '8px' }}>
                               Your browser does not support the audio element.
                             </audio>
                           )}
@@ -539,15 +469,20 @@ export const ReadAloud: React.FC<PracticeTestsProps> = ({ user }) => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button color="error" onClick={() => { setAttempts([]); localStorage.removeItem('readAloudAttempts'); }}>
+          <Button
+            color="error"
+            onClick={() => {
+              setAttempts([]);
+              localStorage.removeItem('readAloudAttempts');
+            }}
+          >
             Clear Attempts
           </Button>
           <Button onClick={() => setShowAttempts(false)}>Close</Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </GradientBackground>
   );
 };
-
 
 export default ReadAloud;

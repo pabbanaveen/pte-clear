@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Box } from '@mui/material';
+import { Box, Typography, Stack, Paper, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText } from '@mui/material';
 import {
   PracticeCard,
   TimerDisplay,
@@ -13,12 +13,14 @@ import {
 } from '../../../common';
 import InputField from '../../../common/InputField';
 import { mockListeningPassages, mockStudentProgress } from './FillinTheBlanksMockData';
-import { ListeningPassage, BlankPosition, TimerState, QuestionResult } from './FillinTheBlanksTypes';
+import { ListeningPassage, BlankPosition, TimerState, QuestionResult, UserAttempt } from './FillinTheBlanksTypes';
 import QuestionHeader from '../../common/QuestionHeader';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
-import AudioPlayer from '../../common/AudioPlayer';
+import TextToSpeech from '../../common/TextToSpeech';
 import StageGoalBanner from '../../common/StageGoalBanner';
+import { Close } from '@mui/icons-material';
+import { questionTopics } from '../../speaking/answer-short-questions/questionTopics';
 
 interface ListeningFillBlanksProps { }
 
@@ -41,56 +43,44 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolume] = useState<number>(100);
-  const [audioError, setAudioError] = useState<string | null>(null);
 
   const [showAnswer, setShowAnswer] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [currentResult, setCurrentResult] = useState<QuestionResult | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [attempts, setAttempts] = useState<UserAttempt[]>([]);
+  const [showAttempts, setShowAttempts] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Audio setup
+  // Load attempts from localStorage
   useEffect(() => {
-    if (passage.audioUrl) {
-      audioRef.current = new Audio(passage.audioUrl);
-
-      const audio = audioRef.current;
-
-      const handleLoadedMetadata = () => {
-        setDuration(audio.duration);
-      };
-
-      const handleTimeUpdate = () => {
-        setCurrentTime(audio.currentTime);
-      };
-
-      const handleEnded = () => {
-        setIsPlaying(false);
-        setCurrentTime(0);
-      };
-
-      const handleError = () => {
-        setAudioError('Failed to load audio file');
-      };
-
-      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('ended', handleEnded);
-      audio.addEventListener('error', handleError);
-
-      return () => {
-        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        audio.removeEventListener('timeupdate', handleTimeUpdate);
-        audio.removeEventListener('ended', handleEnded);
-        audio.removeEventListener('error', handleError);
-        audio.pause();
-      };
+    const savedAttempts = localStorage.getItem('listeningFillBlanksAttempts');
+    if (savedAttempts) {
+      try {
+        setAttempts(JSON.parse(savedAttempts));
+      } catch (error) {
+        console.error('Failed to parse attempts:', error);
+        localStorage.removeItem('listeningFillBlanksAttempts');
+      }
     }
-  }, [passage.audioUrl]);
+  }, []);
+
+  // Save attempt to localStorage
+  const saveAttempt = useCallback((attempt: UserAttempt) => {
+    setAttempts((prev) => {
+      const newAttempts = [...prev, attempt];
+      try {
+        localStorage.setItem('listeningFillBlanksAttempts', JSON.stringify(newAttempts));
+      } catch (error) {
+        console.error('Failed to save attempts:', error);
+      }
+      return newAttempts;
+    });
+  }, []);
 
   // Sync state when passage changes
   useEffect(() => {
@@ -104,14 +94,7 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     setIsSubmitted(false);
     setShowResults(false);
     setCurrentResult(null);
-    setCurrentTime(0);
-    setIsPlaying(false);
-
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.pause();
-    }
-
+    setAudioError(null);
     startTimeRef.current = new Date();
   }, [passage]);
 
@@ -181,26 +164,6 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     return blanks.every(blank => blank.filledWord && blank.filledWord.trim() !== '');
   }, [blanks]);
 
-  // Audio controls
-  const handleTogglePlayback = () => {
-    if (!audioRef.current) return;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleVolumeChange = (event: Event, newValue: number | number[]) => {
-    const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
-    setVolume(volumeValue);
-    if (audioRef.current) {
-      audioRef.current.volume = volumeValue / 100;
-    }
-  };
-
   // Handle text input change for blanks
   const handleBlankInputChange = (blankId: string, value: string) => {
     // Start timer on first input
@@ -218,12 +181,6 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
 
     setIsSubmitted(true);
     setTimer(prev => ({ ...prev, isRunning: false }));
-
-    // Pause audio if playing
-    if (audioRef.current && isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    }
 
     const endTime = new Date();
     const timeSpent = Math.floor((endTime.getTime() - startTimeRef.current.getTime()) / 1000);
@@ -251,6 +208,20 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     setBlanks(evaluatedBlanks);
     setCurrentResult(result);
     setShowResults(true);
+
+    // Save attempt
+    const attempt: UserAttempt = {
+      questionId: passage.id,
+      answers: evaluatedBlanks.map(blank => ({
+        blankId: blank.id,
+        userAnswer: blank.filledWord || '',
+        correctAnswer: blank.correctAnswer,
+        isCorrect: blank.isCorrect || false
+      })),
+      score,
+      timestamp: new Date().toISOString(),
+    };
+    saveAttempt(attempt);
   };
 
   const handleRedo = () => {
@@ -264,18 +235,14 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     setIsSubmitted(false);
     setShowResults(false);
     setCurrentResult(null);
-    setCurrentTime(0);
-    setIsPlaying(false);
-
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.pause();
-    }
-
     startTimeRef.current = new Date();
   };
 
   const questionNumber = studentProgress.questionNumber + currentQuestionIndex;
+
+  const handleViewAttempts = () => {
+    setShowAttempts(true);
+  };
 
   // Render text with input fields for blanks
   const renderTextWithBlanks = () => {
@@ -333,17 +300,13 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
           autoSubmit={timer.autoSubmit}
         />
 
-        {/* Audio Player */}
-        <AudioPlayer
-          selectedTopic={passage}
-          isPlaying={isPlaying}
-          currentTime={currentTime}
-          duration={duration}
-          volume={volume}
-          audioError={audioError}
-          onTogglePlayback={handleTogglePlayback}
-          onVolumeChange={handleVolumeChange}
-          formatTime={formatTime}
+        {/* Text-to-Speech Player */}
+        <TextToSpeech
+          text={passage.audioText || "This is the listening passage for fill in the blanks exercise. Listen carefully and fill in the missing words."}
+          autoPlay={false}
+          onStart={() => console.log('Audio started')}
+          onEnd={() => console.log('Audio ended')}
+          onError={(error) => setAudioError(error)}
         />
 
         {/* Passage with Input Fields */}
@@ -373,6 +336,13 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
           onTranslate={() => setShowTranslate(true)}
           onShowAnswer={() => setShowAnswer(true)}
           recordedBlob={null}
+          additionalActions={[
+            {
+              label: 'View Attempts',
+              onClick: handleViewAttempts,
+              variant: 'outlined'
+            }
+          ]}
         />
 
         {/* Navigation */}
@@ -421,6 +391,68 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
         onClose={() => setShowTranslate(false)}
         description="Translation feature will help you understand the audio content in your preferred language."
       />
+
+
+      {/* Past Attempts Dialog */}
+      <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Past Attempts</Typography>
+            <IconButton onClick={() => setShowAttempts(false)}>
+              <Close />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {attempts.length === 0 ? (
+            <Typography variant="body2">No attempts recorded yet.</Typography>
+          ) : (
+            <List>
+              {attempts.map((attempt, index) => {
+                const question = questionTopics.find(q => q.id === attempt.questionId);
+                return (
+                  <ListItem key={index}>
+                    <ListItemText
+                      primary={`Question: ${question?.title || 'Unknown'}`}
+                      secondary={
+                        <>
+                          <Typography component="span" variant="body2">
+                            Time: {new Date(attempt.timestamp).toLocaleString()}
+                          </Typography>
+                          <Box mt={1}>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                              Score: {attempt.score}/{passage.maxScore}
+                            </Typography>
+                            {attempt.answers.map((answer, answerIndex) => (
+                              <Typography key={answerIndex} variant="body2" sx={{ fontSize: '12px', mb: 0.5 }}>
+                                Blank {answerIndex + 1}: "{answer.userAnswer}"
+                                {answer.isCorrect ? ' ✓' : ` ✗ (Correct: "${answer.correctAnswer}")`}
+                              </Typography>
+                            ))}
+                          </Box>
+
+                        </>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            color="error"
+            onClick={() => {
+              setAttempts([]);
+              localStorage.removeItem('answerShortQuestionsAttempts');
+            }}
+          >
+            Clear Attempts
+          </Button>
+          <Button onClick={() => setShowAttempts(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </GradientBackground>
   );
 };

@@ -20,3 +20,23 @@ export interface SummaryResponse {
   timeSpent: number;
   isSubmitted: boolean;
 }
+
+export interface SummaryResult {
+  questionId: string;
+  userSummary: string;
+  sampleSummary: string;
+  score: number;
+  maxScore: number;
+  wordCount: number;
+  timeSpent: number;
+  completedAt: Date;
+  keyPointsCovered: string[];
+}
+
+export interface UserAttempt {
+  questionId: number;
+  userSummary: string;
+  wordCount: number;
+  score: number;
+  timestamp: string;
+}

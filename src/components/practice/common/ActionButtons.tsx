@@ -3,39 +3,48 @@ import { Stack, Button, Box, useMediaQuery, useTheme } from '@mui/material';
 import { Help, Refresh, Send, Translate } from '@mui/icons-material';
 
 interface ActionButtonsProps {
-    hasResponse? : boolean
+  hasResponse?: boolean
   recordedBlob: Blob | null;
   onSubmit: () => void;
   onRedo: () => void;
   onTranslate: () => void;
   onShowAnswer: () => void;
+  handleViewAttempts?: () => void;
+  additionalActions?: Array<{
+    label: string;
+    onClick: () => void;
+    variant?: 'contained' | 'outlined' | 'text';
+    color?: 'primary' | 'secondary' | 'info' | 'warning' | 'error';
+  }>;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
-    hasResponse,
+  hasResponse,
   recordedBlob,
   onSubmit,
   onRedo,
   onTranslate,
   onShowAnswer,
+  handleViewAttempts,
+  additionalActions = [],
 }) => {
-   const theme = useTheme();
+  const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
 
-    const [disableSave, setDisableSave] = useState<boolean>();
-    useEffect(() => {
-        console.log(recordedBlob, "asfafadfdf")
-        if (recordedBlob == null && hasResponse) {
-            setDisableSave(!hasResponse)
-        } else if (recordedBlob) {
-            console.log(!recordedBlob, "asfafadfdf")
-            setDisableSave(!recordedBlob)
-        }
-    }, [recordedBlob, hasResponse]);
-   
+  const [disableSave, setDisableSave] = useState<boolean>();
+  useEffect(() => {
+    console.log(recordedBlob, "asfafadfdf")
+    if (recordedBlob == null && hasResponse) {
+      setDisableSave(!hasResponse)
+    } else if (recordedBlob) {
+      console.log(!recordedBlob, "asfafadfdf")
+      setDisableSave(!recordedBlob)
+    }
+  }, [recordedBlob, hasResponse]);
+
   return (
-   <Stack
+    <Stack
       direction={isMobile ? 'column' : 'row'}
       spacing={isMobile ? 1 : 2}
       sx={{ flexWrap: 'wrap' }}
@@ -93,6 +102,29 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
       >
         Show Answer
       </Button>
+      {/* View Attempts Button */}
+      {handleViewAttempts && (
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={handleViewAttempts}
+          sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
+        >
+          View Attempts
+        </Button>
+      )}
+      {/* Additional Actions */}
+      {additionalActions.map((action, index) => (
+        <Button
+          key={index}
+          variant={action.variant || 'outlined'}
+          color={action.color || 'info'}
+          onClick={action.onClick}
+          sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+        >
+          {action.label}
+        </Button>
+      ))}
     </Stack>
   );
 };
