@@ -50,3 +50,11 @@ export interface TimerState {
   warningThreshold: number;
   autoSubmit: boolean;
 }
+
+export interface UserAttempt {
+  questionId: number;
+  selectedOption: 'A' | 'B' | 'C' | 'D' | null;
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  score: number;
+  timestamp: string;
+}

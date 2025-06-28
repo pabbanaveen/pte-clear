@@ -36,7 +36,7 @@ import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import { multipleChoiceQuestions } from './multipleChoiceQuestions';
 import { MultipleChoiceQuestion, SubmissionResult } from './multipleChoiceTypes';
-import { User } from '../../../../types/user';
+ import { User } from '../../../../types';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
 import { TimerState, QuestionResult } from './multipleChoiceTypes';

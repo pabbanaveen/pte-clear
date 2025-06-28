@@ -188,7 +188,7 @@ const [showPerformance, setShowPerformance] = useState(false);
   // Handle submit
   const handleSubmit = () => {
     if (selectedAnswer === null && !isSubmitted) {
-      alert('Please select an answer before submitting.');
+      // alert('Please select an answer before submitting.');
       return;
     }
 

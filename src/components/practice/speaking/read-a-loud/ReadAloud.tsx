@@ -21,7 +21,7 @@ import InstructionsCard from '../../common/InstructionsCard';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { readAloudQuestions } from './ReadALoudMockData';
 import { ReadAloudQuestion, UserAttempt } from './ReadAloudTypes';
-import { User } from '../../../../types/user';
+ import { User } from '../../../../types';
 
 interface PracticeTestsProps {
   user: User | null;

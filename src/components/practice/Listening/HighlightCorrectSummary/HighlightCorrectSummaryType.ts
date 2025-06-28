@@ -1,4 +1,4 @@
-import { User } from "../../../../types/user";
+import { User } from "../../../../types";
 import { BaseTopic } from "../../common/types";
 
 
@@ -59,6 +59,14 @@ export interface TimerState {
   isRunning: boolean;
   warningThreshold: number;
   autoSubmit: boolean;
+}
+
+export interface UserAttempt {
+  questionId: number;
+  selectedOption: 'A' | 'B' | 'C' | 'D' | null;
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  score: number;
+  timestamp: string;
 }
 
 export interface AudioTopic extends BaseTopic {

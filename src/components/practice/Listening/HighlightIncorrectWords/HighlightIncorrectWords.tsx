@@ -1,35 +1,38 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
-  Chip,
   Stack,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
-  Divider,
-  Paper,
   IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  LinearProgress,
+  List,
+  ListItem,
+  ListItemText,
+  Chip
 } from '@mui/material';
-import { Close, Timer } from '@mui/icons-material';
-
-import { mockHighlightIncorrectWordsQuestions, mockStudentProgress } from './HighlightIncorrectWordsMockData';
-import { HighlightIncorrectWordsQuestion, TimerState, HighlightIncorrectWordsResult, IncorrectWord } from './HighlightIncorrectWordsTypes';
-import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
+import { Close } from '@mui/icons-material';
+import {
+  PracticeCard,
+  TimerDisplay,
+  ProgressIndicator,
+  ResultsDialog,
+  AnswerDialog,
+  TranslationDialog,
+  ContentDisplay,
+  GradientBackground,
+  TopicSelectionDrawer,
+} from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import TextToSpeech from '../../common/TextToSpeech';
+import { mockHighlightIncorrectWordsQuestions, mockStudentProgress } from './HighlightIncorrectWordsMockData';
+import { HighlightIncorrectWordsQuestion, TimerState, HighlightIncorrectWordsResult, IncorrectWord, UserAttempt } from './HighlightIncorrectWordsTypes';
 
 interface HighlightIncorrectWordsProps {}
 
@@ -37,25 +40,56 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [question, setQuestion] = useState<HighlightIncorrectWordsQuestion>(mockHighlightIncorrectWordsQuestions[currentQuestionIndex]);
   const [showQuestionSelector, setShowQuestionSelector] = useState(false);
-
-  // State management
   const [clickedWords, setClickedWords] = useState<Set<string>>(new Set());
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [showAttempts, setShowAttempts] = useState(false);
+  const [currentResult, setCurrentResult] = useState<HighlightIncorrectWordsResult | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [attempts, setAttempts] = useState<UserAttempt[]>([]);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
+  // Timer state
   const [timer, setTimer] = useState<TimerState>({
     timeRemaining: question.timeLimit,
     isRunning: false,
     warningThreshold: 60,
     autoSubmit: true,
   });
-  
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [showTranslate, setShowTranslate] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [currentResult, setCurrentResult] = useState<HighlightIncorrectWordsResult | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [hasPlayedAudio, setHasPlayedAudio] = useState(false);
+
+  // Student info
+  const [studentName] = useState(mockStudentProgress.studentName);
+  const [testedCount] = useState(mockStudentProgress.testedCount);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
+
+  // Load attempts from localStorage
+  useEffect(() => {
+    const savedAttempts = localStorage.getItem('highlightIncorrectWordsAttempts');
+    if (savedAttempts) {
+      try {
+        setAttempts(JSON.parse(savedAttempts));
+      } catch (error) {
+        console.error('Failed to parse attempts:', error);
+        localStorage.removeItem('highlightIncorrectWordsAttempts');
+      }
+    }
+  }, []);
+
+  // Save attempt to localStorage
+  const saveAttempt = useCallback((attempt: UserAttempt) => {
+    setAttempts((prev) => {
+      const newAttempts = [...prev, attempt];
+      try {
+        localStorage.setItem('highlightIncorrectWordsAttempts', JSON.stringify(newAttempts));
+      } catch (error) {
+        console.error('Failed to save attempts:', error);
+      }
+      return newAttempts;
+    });
+  }, []);
 
   // Sync state when question changes
   useEffect(() => {
@@ -69,8 +103,13 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
     setIsSubmitted(false);
     setShowResults(false);
     setCurrentResult(null);
-    setHasPlayedAudio(false);
+    setAudioError(null);
     startTimeRef.current = new Date();
+
+    // Clear existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
   }, [question]);
 
   // Timer functionality
@@ -97,45 +136,6 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
       startTimeRef.current = new Date();
     }
   }, [timer.isRunning, isSubmitted]);
-
-  const [results, setResults] = useState<HighlightIncorrectWordsResult[]>([]);
-  const studentProgress = mockStudentProgress;
-
-  const handleNext = () => {
-    if (currentQuestionIndex < mockHighlightIncorrectWordsQuestions.length - 1) {
-      const newIndex = currentQuestionIndex + 1;
-      setCurrentQuestionIndex(newIndex);
-      setQuestion(mockHighlightIncorrectWordsQuestions[newIndex]);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      const newIndex = currentQuestionIndex - 1;
-      setCurrentQuestionIndex(newIndex);
-      setQuestion(mockHighlightIncorrectWordsQuestions[newIndex]);
-    }
-  };
-
-  const handleSearch = () => {
-    console.log('Search functionality triggered');
-    setShowQuestionSelector(true);
-  };
-
-  const handleQuestionSelect = (option: any) => {
-    const newIndex = mockHighlightIncorrectWordsQuestions.findIndex(q => q.id === option.id);
-    if (newIndex !== -1) {
-      setCurrentQuestionIndex(newIndex);
-      setQuestion(option);
-    }
-    setShowQuestionSelector(false);
-  };
-
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
 
   const hasResponse = useCallback((): boolean => {
     return clickedWords.size > 0;
@@ -165,22 +165,52 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
     const endTime = new Date();
     const timeSpent = Math.floor((endTime.getTime() - startTimeRef.current.getTime()) / 1000);
 
-    // Calculate results
+    // Calculate results more accurately
     const correctWordIds = question.incorrectWords.map(word => word.id);
     const clickedWordIds = Array.from(clickedWords);
     
+    // Separate correct clicks (target words) from incorrect clicks (non-target words)
     const correctClicks = clickedWordIds.filter(id => correctWordIds.includes(id)).length;
     const incorrectClicks = clickedWordIds.filter(id => !correctWordIds.includes(id)).length;
     const missedWords = correctWordIds.filter(id => !clickedWordIds.includes(id)).length;
     
+    // Improved scoring algorithm
     const totalPossiblePoints = question.maxScore;
-    const pointsPerCorrectWord = totalPossiblePoints / correctWordIds.length;
-    const penaltyPerIncorrectClick = pointsPerCorrectWord * 0.5; // 50% penalty for wrong clicks
+    const totalTargetWords = correctWordIds.length;
     
-    const score = Math.max(0, Math.round(
-      (correctClicks * pointsPerCorrectWord) - (incorrectClicks * penaltyPerIncorrectClick)
-    ));
+    if (totalTargetWords === 0) {
+      // Edge case: no target words
+      const score = incorrectClicks === 0 ? totalPossiblePoints : 0;
+      createResult(score, correctClicks, incorrectClicks, missedWords, correctWordIds, clickedWordIds, endTime, timeSpent);
+      return;
+    }
     
+    // Points per correct word
+    const pointsPerCorrectWord = totalPossiblePoints / totalTargetWords;
+    
+    // Calculate base score from correct clicks
+    const correctScore = correctClicks * pointsPerCorrectWord;
+    
+    // Apply penalty for incorrect clicks (50% of points per correct word)
+    const penaltyPerIncorrectClick = pointsPerCorrectWord * 0.5;
+    const incorrectPenalty = incorrectClicks * penaltyPerIncorrectClick;
+    
+    // Final score (minimum 0)
+    const score = Math.max(0, Math.round(correctScore - incorrectPenalty));
+    
+    createResult(score, correctClicks, incorrectClicks, missedWords, correctWordIds, clickedWordIds, endTime, timeSpent);
+  };
+
+  const createResult = (
+    score: number, 
+    correctClicks: number, 
+    incorrectClicks: number, 
+    missedWords: number, 
+    correctWordIds: string[], 
+    clickedWordIds: string[], 
+    endTime: Date, 
+    timeSpent: number
+  ) => {
     const accuracy = correctWordIds.length > 0 ? 
       Math.round((correctClicks / correctWordIds.length) * 100) : 100;
 
@@ -200,7 +230,16 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
 
     setCurrentResult(result);
     setShowResults(true);
-    setResults(prev => [...prev, result]);
+
+    // Save attempt
+    const attempt: UserAttempt = {
+      questionId: question.id,
+      clickedWords: clickedWordIds,
+      correctWords: correctWordIds,
+      score,
+      timestamp: new Date().toISOString(),
+    };
+    saveAttempt(attempt);
   };
 
   const handleRedo = () => {
@@ -214,239 +253,375 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
     setIsSubmitted(false);
     setShowResults(false);
     setCurrentResult(null);
-    setHasPlayedAudio(false);
     startTimeRef.current = new Date();
+
+    // Clear existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
   };
 
-  const questionNumber = studentProgress.questionNumber + currentQuestionIndex;
-
-  const handleAudioStart = () => {
-    setHasPlayedAudio(true);
+  // Navigation handlers
+  const handleNext = () => {
+    if (currentQuestionIndex < mockHighlightIncorrectWordsQuestions.length - 1) {
+      const newIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(newIndex);
+      setQuestion(mockHighlightIncorrectWordsQuestions[newIndex]);
+    }
   };
 
-  // Render transcription with clickable words
-  const renderTranscription = () => {
-    const words = question.displayText.split(/(\s+)/);
-    const incorrectWordTexts = question.incorrectWords.map(word => word.word);
-    
-    return words.map((word, index) => {
-      const cleanWord = word.trim();
-      const incorrectWord = question.incorrectWords.find(iw => iw.word === cleanWord);
-      
-      if (incorrectWord) {
-        const isClicked = clickedWords.has(incorrectWord.id);
-        const isCorrectAfterSubmission = isSubmitted && question.incorrectWords.some(iw => iw.id === incorrectWord.id);
-        const isMissedAfterSubmission = isSubmitted && !isClicked && isCorrectAfterSubmission;
-        
-        return (
-          <span
-            key={index}
-            onClick={() => handleWordClick(incorrectWord.id)}
-            style={{
-              cursor: isSubmitted ? 'default' : 'pointer',
-              backgroundColor: isSubmitted 
-                ? (isCorrectAfterSubmission && isClicked) 
-                  ? '#e8f5e9' // Correct click (green)
-                  : isMissedAfterSubmission 
-                    ? '#ffebee' // Missed word (red)
-                    : 'transparent'
-                : isClicked 
-                  ? '#e3f2fd' // Selected (blue)
-                  : 'transparent',
-              padding: '2px 4px',
-              borderRadius: '4px',
-              border: isSubmitted
-                ? (isCorrectAfterSubmission && isClicked)
-                  ? '2px solid #4caf50'
-                  : isMissedAfterSubmission
-                    ? '2px solid #f44336'
-                    : 'none'
-                : isClicked
-                  ? '2px solid #1976d2'
-                  : '2px solid transparent',
-              transition: 'all 0.2s ease-in-out'
-            }}
-          >
-            {word}
-          </span>
-        );
-      } else if (cleanWord && !cleanWord.match(/^\s*$/)) {
-        // Regular words that might be incorrectly clicked
-        const isIncorrectlyClicked = isSubmitted && Array.from(clickedWords).some(id => {
-          // Check if this word was clicked but is not in the correct words list
-          return !question.incorrectWords.some(iw => iw.id === id) && clickedWords.has(id);
-        });
-        
-        return (
-          <span
-            key={index}
-            style={{
-              backgroundColor: isSubmitted && isIncorrectlyClicked ? '#ffebee' : 'transparent',
-              border: isSubmitted && isIncorrectlyClicked ? '2px solid #f44336' : 'none',
-              padding: '2px 4px',
-              borderRadius: '4px'
-            }}
-          >
-            {word}
-          </span>
-        );
-      }
-      
-      return <span key={index}>{word}</span>;
-    });
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      const newIndex = currentQuestionIndex - 1;
+      setCurrentQuestionIndex(newIndex);
+      setQuestion(mockHighlightIncorrectWordsQuestions[newIndex]);
+    }
   };
+
+  const handleSearch = () => {
+    setShowQuestionSelector(true);
+  };
+
+  const handleQuestionSelect = (option: any) => {
+    const newIndex = mockHighlightIncorrectWordsQuestions.findIndex(q => q.id === option.id);
+    if (newIndex !== -1) {
+      setCurrentQuestionIndex(newIndex);
+      setQuestion(option);
+    }
+    setShowQuestionSelector(false);
+  };
+
+  const handleViewAttempts = () => {
+    setShowAttempts(true);
+  };
+
+  const questionNumber = mockStudentProgress.questionNumber + currentQuestionIndex;
+
+  // Create result for dialog
+  const resultForDialog = currentResult ? {
+    questionId: currentResult.questionId,
+    score: currentResult.score,
+    maxScore: currentResult.maxScore,
+    correctAnswers: currentResult.correctClicks,
+    totalQuestions: currentResult.correctWords.length,
+    completedAt: currentResult.completedAt,
+    timeSpent: currentResult.timeSpent,
+    percentage: currentResult.accuracy,
+    answers: currentResult.correctWords.map((wordId, index) => ({
+      id: wordId,
+      position: index + 1,
+      selectedAnswer: currentResult.clickedWords.includes(wordId) ? 'Selected' : 'Not Selected',
+      correctAnswer: question.incorrectWords.find(w => w.id === wordId)?.word || '',
+      isCorrect: currentResult.clickedWords.includes(wordId)
+    }))
+  } : null;
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', p: { xs: 1, sm: 2 } }}>
+    <GradientBackground>
       <StageGoalBanner />
+      
+      <PracticeCard
+        icon="HIW"
+        title="Highlight Incorrect Words"
+        instructions={question.instructions}
+        difficulty={question.difficulty}
+      >
+        {/* Question Header */}
+        <QuestionHeader
+          questionNumber={questionNumber}
+          studentName={studentName}
+          testedCount={testedCount}
+        />
 
-      <Card sx={{ maxWidth: 1200, mx: 'auto', mb: 3 }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 3 }}>
-            <Box
-              sx={{
-                width: { xs: 50, sm: 55, md: 60 },
-                height: { xs: 50, sm: 55, md: 60 },
-                bgcolor: '#e91e63',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: { xs: '11px', sm: '13px', md: '14px' },
-                fontWeight: 'bold',
-                flexShrink: 0,
-                lineHeight: 1.2
-              }}
-            >
-              HIW
-            </Box>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
-                <Typography 
-                  variant="h5" 
-                  sx={{ 
-                    fontWeight: 'bold', 
-                    color: '#333',
-                    fontSize: { xs: '18px', sm: '20px', md: '24px' },
-                    lineHeight: 1.3,
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  Highlight Incorrect Words
-                </Typography>
-                <Chip label="Study Guide" color="primary" size="small" />
-              </Stack>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: '#666', 
-                  mt: 1,
-                  fontSize: { xs: '12px', sm: '13px', md: '14px' },
-                  lineHeight: 1.5,
-                  wordBreak: 'break-word'
-                }}
-              >
+        {/* Timer */}
+        <TimerDisplay
+          timeRemaining={timer.timeRemaining}
+          isRunning={timer.isRunning}
+          warningThreshold={timer.warningThreshold}
+          showStartMessage={!timer.isRunning && !isSubmitted}
+          startMessage="Timer will start when you click a word"
+          autoSubmit={timer.autoSubmit}
+        />
+
+        {/* Text-to-Speech Player */}
+        <TextToSpeech
+          text={question.audioText}
+          autoPlay={false}
+          onStart={() => console.log('Audio started')}
+          onEnd={() => console.log('Audio ended')}
+          onError={(error) => setAudioError(error)}
+        />
+
+        {/* Instructions and Visual Guide */}
+        <ContentDisplay
+          title="Instructions"
+          content={
+            <Box>
+              <Typography variant="body1" sx={{ mb: 2 }}>
                 {question.instructions}
               </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: 2, 
+                p: 2, 
+                backgroundColor: '#f8f9fa', 
+                borderRadius: 2,
+                border: '1px solid #e9ecef'
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ 
+                    width: 20, 
+                    height: 20, 
+                    backgroundColor: '#1976d2', 
+                    borderRadius: 1,
+                    border: '2px solid #0d47a1'
+                  }} />
+                  <Typography variant="caption">Selected</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ 
+                    width: 20, 
+                    height: 20, 
+                    backgroundColor: '#4caf50', 
+                    borderRadius: 1,
+                    border: '2px solid #2e7d32'
+                  }} />
+                  <Typography variant="caption">Correct</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ 
+                    width: 20, 
+                    height: 20, 
+                    backgroundColor: '#f44336', 
+                    borderRadius: 1,
+                    border: '2px solid #d32f2f'
+                  }} />
+                  <Typography variant="caption">Missed</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ 
+                    width: 20, 
+                    height: 20, 
+                    backgroundColor: '#ff9800', 
+                    borderRadius: 1,
+                    border: '2px solid #f57c00'
+                  }} />
+                  <Typography variant="caption">Wrong Click</Typography>
+                </Box>
+              </Box>
             </Box>
-          </Stack>
+          }
+          showMetadata={false}
+        />
 
-          <Divider sx={{ my: 3 }} />
+        {/* Transcription with Clickable Words */}
+        <ContentDisplay
+          title="Transcription - Click on words that are different from what you heard:"
+          content={
+            <Box sx={{ 
+              p: 3, 
+              lineHeight: 2.2,
+              wordBreak: 'break-word',
+              userSelect: 'none',
+              border: '1px solid #e0e0e0',
+              borderRadius: 2,
+              backgroundColor: '#fafafa'
+            }}>
+              {question.displayText.split(/(\s+)/).map((part, index) => {
+                const cleanWord = part.trim().toLowerCase();
+                const wordText = part.trim();
+                
+                // Skip empty strings and whitespace
+                if (!wordText) {
+                  return <Typography key={index} component="span">{part}</Typography>;
+                }
+                
+                // Create a unique ID for this word
+                const wordId = `word-${index}-${cleanWord}`;
+                
+                // Check if this word is one of the incorrect words we need to find
+                const incorrectWord = question.incorrectWords.find(iw => 
+                  iw.word.toLowerCase() === cleanWord
+                );
+                
+                const isClicked = clickedWords.has(incorrectWord ? incorrectWord.id : wordId);
+                const isTargetWord = Boolean(incorrectWord);
+                
+                // Determine styling based on state
+                let wordStyle: any = {
+                  cursor: isSubmitted ? 'default' : 'pointer',
+                  padding: '3px 6px',
+                  margin: '0 1px',
+                  borderRadius: '6px',
+                  border: '2px solid transparent',
+                  transition: 'all 0.3s ease',
+                  display: 'inline-block',
+                  fontSize: 'inherit',
+                  fontWeight: 'normal',
+                  backgroundColor: 'transparent',
+                  color: '#333'
+                };
 
-          <QuestionHeader 
-            questionNumber={questionNumber}
-            studentName={studentProgress.studentName}
-            testedCount={studentProgress.testedCount}
+                if (isSubmitted) {
+                  // After submission - show results
+                  if (isTargetWord && isClicked) {
+                    // Correctly identified incorrect word (GREEN)
+                    wordStyle = {
+                      ...wordStyle,
+                      backgroundColor: '#4caf50',
+                      color: 'white',
+                      border: '2px solid #2e7d32',
+                      fontWeight: 'bold',
+                      boxShadow: '0 2px 4px rgba(76, 175, 80, 0.3)'
+                    };
+                  } else if (isTargetWord && !isClicked) {
+                    // Missed incorrect word (RED with underline)
+                    wordStyle = {
+                      ...wordStyle,
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: '2px solid #d32f2f',
+                      fontWeight: 'bold',
+                      textDecoration: 'underline',
+                      boxShadow: '0 2px 4px rgba(244, 67, 54, 0.3)'
+                    };
+                  } else if (!isTargetWord && isClicked) {
+                    // Incorrectly clicked correct word (ORANGE)
+                    wordStyle = {
+                      ...wordStyle,
+                      backgroundColor: '#ff9800',
+                      color: 'white',
+                      border: '2px solid #f57c00',
+                      fontWeight: 'bold',
+                      boxShadow: '0 2px 4px rgba(255, 152, 0, 0.3)'
+                    };
+                  }
+                } else {
+                  // During interaction - show selection state
+                  if (isClicked) {
+                    // Word is selected (DARK BLUE)
+                    wordStyle = {
+                      ...wordStyle,
+                      backgroundColor: '#1976d2',
+                      color: 'white',
+                      border: '2px solid #0d47a1',
+                      fontWeight: 'bold',
+                      transform: 'scale(1.05)',
+                      boxShadow: '0 3px 6px rgba(25, 118, 210, 0.4)'
+                    };
+                  } else {
+                    // Word is not selected - will use hover in sx prop
+                    // Keep base styling
+                  }
+                }
+                
+                return (
+                  <Typography
+                    key={index}
+                    component="span"
+                    onClick={() => handleWordClick(incorrectWord ? incorrectWord.id : wordId)}
+                    sx={{
+                      ...wordStyle,
+                      // Add hover effect only when not submitted and not clicked
+                      ...(!isSubmitted && !isClicked && {
+                        '&:hover': {
+                          backgroundColor: '#e3f2fd',
+                          border: '2px solid #bbdefb',
+                          transform: 'scale(1.02)'
+                        }
+                      })
+                    }}
+                  >
+                    {part}
+                  </Typography>
+                );
+              })}
+            </Box>
+          }
+          showMetadata={false}
+        />
+
+        {/* Progress Indicator */}
+        <ProgressIndicator
+          current={clickedWords.size}
+          total={question.incorrectWords.length}
+          label="incorrect words selected"
+          customLabel={`${clickedWords.size} word(s) selected`}
+          color={clickedWords.size > question.incorrectWords.length ? 'warning' : 'success'}
+        />
+
+        {/* Show score after submission */}
+        {isSubmitted && currentResult && (
+          <ContentDisplay
+            title="Results"
+            content={
+              <Stack spacing={2}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <Chip 
+                    label={`Score: ${currentResult.score}/${currentResult.maxScore}`}
+                    color={currentResult.score >= currentResult.maxScore * 0.7 ? 'success' : 'error'}
+                    size="medium"
+                    sx={{ fontWeight: 'bold', fontSize: '1rem' }}
+                  />
+                  <Chip 
+                    label={`Accuracy: ${currentResult.accuracy}%`}
+                    color={currentResult.accuracy >= 70 ? 'success' : 'warning'}
+                    size="medium"
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                  <Chip 
+                    label={`${currentResult.correctClicks}/${currentResult.correctWords.length} correct`}
+                    color="info"
+                    size="medium"
+                  />
+                </Stack>
+                <Box sx={{ 
+                  p: 2, 
+                  backgroundColor: currentResult.score >= currentResult.maxScore * 0.7 ? '#e8f5e9' : '#fff3e0', 
+                  borderRadius: 2,
+                  border: `1px solid ${currentResult.score >= currentResult.maxScore * 0.7 ? '#4caf50' : '#ff9800'}`
+                }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                    Detailed Results:
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    ✅ Correct clicks: {currentResult.correctClicks} | 
+                    ❌ Incorrect clicks: {currentResult.incorrectClicks} | 
+                    ⚠️ Missed words: {currentResult.missedWords}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                    Total words to find: {question.incorrectWords.length} | 
+                    Total clicks made: {currentResult.clickedWords.length}
+                  </Typography>
+                </Box>
+              </Stack>
+            }
+            showMetadata={false}
           />
+        )}
 
-          {/* Timer Display */}
-          <Paper sx={{ p: 2, mb: 3, bgcolor: timer.timeRemaining <= timer.warningThreshold ? '#ffebee' : '#e3f2fd' }}>
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <Timer sx={{ color: timer.timeRemaining <= timer.warningThreshold ? '#f44336' : '#2196f3' }} />
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  fontWeight: 'bold',
-                  color: timer.timeRemaining <= timer.warningThreshold ? '#f44336' : '#2196f3'
-                }}
-              >
-                Time: {formatTime(timer.timeRemaining)}
-              </Typography>
-              {timer.timeRemaining <= timer.warningThreshold && (
-                <Chip label="Hurry Up!" color="error" size="small" />
-              )}
-              {!timer.isRunning && !isSubmitted && (
-                <Chip label="Timer will start when you click a word" color="info" size="small" />
-              )}
-            </Stack>
-          </Paper>
+        {/* Action Buttons */}
+        <ActionButtons
+          hasResponse={hasResponse()}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={() => setShowTranslate(true)}
+          onShowAnswer={() => setShowAnswer(true)}
+          recordedBlob={null}
+          handleViewAttempts={handleViewAttempts}
+        />
 
-          {/* Text-to-Speech Player */}
-          <TextToSpeech 
-            text={question.audioText}
-            autoPlay={false}
-            onStart={handleAudioStart}
-            onEnd={() => console.log('Audio ended')}
-          />
+        {/* Navigation */}
+        <NavigationSection
+          onSearch={handleSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          questionNumber={questionNumber}
+        />
+      </PracticeCard>
 
-          {/* Transcription with Clickable Words */}
-          <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-              Transcription - Click on words that are different from what you heard:
-            </Typography>
-            
-            <Typography 
-              variant="body1" 
-              component="div"
-              sx={{ 
-                lineHeight: 2,
-                fontSize: { xs: '14px', sm: '15px', md: '16px' },
-                textAlign: 'justify',
-                userSelect: 'none'
-              }}
-            >
-              {renderTranscription()}
-            </Typography>
-          </Paper>
-
-          {/* Progress Indicator */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-              Progress: {clickedWords.size} word(s) selected
-            </Typography>
-            <LinearProgress
-              variant="determinate"
-              value={Math.min((clickedWords.size / Math.max(question.incorrectWords.length, 1)) * 100, 100)}
-              sx={{
-                height: 8,
-                borderRadius: 1,
-                bgcolor: '#e0e0e0',
-                '& .MuiLinearProgress-bar': {
-                  bgcolor: clickedWords.size > question.incorrectWords.length ? '#ff9800' : '#4caf50',
-                },
-              }}
-            />
-          </Box>
-
-          <ActionButtons
-            hasResponse={hasResponse()}
-            onSubmit={handleSubmit}
-            onRedo={handleRedo}
-            onTranslate={() => setShowTranslate(true)}
-            onShowAnswer={() => setShowAnswer(true)}
-            recordedBlob={null}
-          />
-
-          <NavigationSection
-            onSearch={handleSearch}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            questionNumber={questionNumber}
-          />
-        </CardContent>
-      </Card>
-
+      {/* Topic Selection Drawer */}
       <TopicSelectionDrawer
         open={showQuestionSelector}
         onClose={() => setShowQuestionSelector(false)}
@@ -457,142 +632,112 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
       />
 
       {/* Results Dialog */}
-      <Dialog open={showResults} onClose={() => setShowResults(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Results</Typography>
-            <IconButton onClick={() => setShowResults(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          {currentResult && (
+      <ResultsDialog
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        result={resultForDialog}
+        onTryAgain={handleRedo}
+        showAnswerReview={true}
+        customContent={
+          currentResult && (
             <Box>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
-                <Chip 
-                  label={`Score: ${currentResult.score}/${currentResult.maxScore}`} 
-                  color={currentResult.score >= (currentResult.maxScore * 0.7) ? 'success' : 'error'}
-                  size="medium"
-                />
-                <Chip 
-                  label={`Accuracy: ${currentResult.accuracy}%`} 
-                  color={currentResult.accuracy >= 70 ? 'success' : 'error'}
-                  size="medium"
-                />
-                <Chip 
-                  label={`Time: ${Math.floor(currentResult.timeSpent / 60)}:${(currentResult.timeSpent % 60).toString().padStart(2, '0')}`} 
-                  color="default"
-                  size="medium"
-                />
-              </Stack>
-              
-              <Typography variant="h6" sx={{ mb: 2 }}>Detailed Results:</Typography>
-              
-              <Stack spacing={1} sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>Detailed Analysis:</Typography>
+              <Stack spacing={1} sx={{ mb: 2 }}>
                 <Typography variant="body2">
-                  <strong>Correct clicks:</strong> {currentResult.correctClicks}
+                  <strong>Incorrect words to find:</strong> {question.incorrectWords.map(w => w.word).join(', ')}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Incorrect clicks:</strong> {currentResult.incorrectClicks}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Missed words:</strong> {currentResult.missedWords}
+                  <strong>Words you clicked:</strong> {
+                    currentResult.clickedWords.map(id => 
+                      question.incorrectWords.find(w => w.id === id)?.word || 'Unknown'
+                    ).join(', ') || 'None'
+                  }
                 </Typography>
               </Stack>
-
-              {question.explanation && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    Explanation:
-                  </Typography>
-                  <Typography variant="body2">
-                    {question.explanation}
-                  </Typography>
-                </Box>
-              )}
             </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowResults(false)}>Close</Button>
-          <Button variant="contained" onClick={handleRedo}>Try Again</Button>
-        </DialogActions>
-      </Dialog>
+          )
+        }
+      />
 
       {/* Answer Dialog */}
-      <Dialog open={showAnswer} onClose={() => setShowAnswer(false)} maxWidth="md" fullWidth>
+      <AnswerDialog
+        open={showAnswer}
+        onClose={() => setShowAnswer(false)}
+        title={question.title}
+        text={question.audioText}
+        answers={question.incorrectWords.map((word, index) => ({
+          id: word.id,
+          position: index + 1,
+          correctAnswer: word.word
+        }))}
+        explanation={question.explanation}
+      />
+
+      {/* Translation Dialog */}
+      <TranslationDialog
+        open={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        description="Translation feature will help you understand the audio content in your preferred language."
+      />
+
+      {/* View Attempts Dialog */}
+      <Dialog open={showAttempts} onClose={() => setShowAttempts(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Correct Answers</Typography>
-            <IconButton onClick={() => setShowAnswer(false)}>
+            <Typography variant="h6">Past Attempts</Typography>
+            <IconButton onClick={() => setShowAttempts(false)}>
               <Close />
             </IconButton>
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            <strong>Question:</strong> {question.title}
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            The following words in the transcription were different from what the speaker said:
-          </Typography>
-          
-          {question.incorrectWords.map((word, index) => (
-            <Box key={word.id} sx={{ mb: 2, p: 2, bgcolor: '#ffebee', borderRadius: 1, border: '1px solid #f44336' }}>
-              <Typography variant="body2">
-                <strong>Incorrect word:</strong> "{word.word}" → <strong>Correct word:</strong> "{word.correctWord}"
-              </Typography>
-            </Box>
-          ))}
-
-          {question.explanation && (
-            <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                Explanation:
-              </Typography>
-              <Typography variant="body2">
-                {question.explanation}
-              </Typography>
-            </Box>
+          {attempts.length === 0 ? (
+            <Typography variant="body2">No attempts recorded yet.</Typography>
+          ) : (
+            <List>
+              {attempts.map((attempt, index) => (
+                <ListItem key={index}>
+                  <ListItemText
+                    primary={`Attempt ${index + 1} - Score: ${attempt.score}/${question.maxScore}`}
+                    secondary={
+                      <>
+                        <Typography component="span" variant="body2">
+                          Time: {new Date(attempt.timestamp).toLocaleString()}
+                        </Typography>
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="body2">
+                            Clicked Words: {attempt.clickedWords.map(id => 
+                              question.incorrectWords.find(w => w.id === id)?.word || 'Unknown'
+                            ).join(', ') || 'None'}
+                          </Typography>
+                          <Typography variant="body2">
+                            Correct Words: {attempt.correctWords.map(id => 
+                              question.incorrectWords.find(w => w.id === id)?.word || 'Unknown'
+                            ).join(', ')}
+                          </Typography>
+                        </Box>
+                      </>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowAnswer(false)}>Close</Button>
+          <Button
+            color="error"
+            onClick={() => {
+              setAttempts([]);
+              localStorage.removeItem('highlightIncorrectWordsAttempts');
+            }}
+          >
+            Clear Attempts
+          </Button>
+          <Button onClick={() => setShowAttempts(false)}>Close</Button>
         </DialogActions>
       </Dialog>
-
-      {/* Translation Dialog */}
-      <Dialog open={showTranslate} onClose={() => setShowTranslate(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="h6">Translation Options</Typography>
-            <IconButton onClick={() => setShowTranslate(false)}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Select Language</InputLabel>
-            <Select defaultValue="spanish" label="Select Language">
-              <MenuItem value="spanish">Spanish</MenuItem>
-              <MenuItem value="french">French</MenuItem>
-              <MenuItem value="german">German</MenuItem>
-              <MenuItem value="chinese">Chinese</MenuItem>
-              <MenuItem value="japanese">Japanese</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="body2" sx={{ color: '#666' }}>
-            Translation feature will help you understand the audio content in your preferred language.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowTranslate(false)}>Cancel</Button>
-          <Button variant="contained">Translate</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+    </GradientBackground>
   );
 };
 

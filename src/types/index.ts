@@ -1,12 +1,12 @@
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  joinDate: string;
-  totalTests: number;
-  averageScore: number;
-}
+// export interface User {
+//   id: string;
+//   name: string;
+//   email: string;
+//   avatar?: string;
+//   joinDate: string;
+//   totalTests: number;
+//   averageScore: number;
+// }
 
 export interface PracticeTest {
   id: string;
@@ -93,9 +93,13 @@ export interface UserProgress {
   writing: number;
   reading: number;
   listening: number;
-  totalTests: number;
-  averageScore: number;
   lastTestDate?: string;
+  totalTests: number;
+  completedTests: number;
+  averageScore: number;
+  strongAreas: string[];
+  weakAreas: string[];
+  createdAt: string;
 }
 
 // Question types
@@ -111,9 +115,9 @@ export interface BaseQuestion {
   question_id?: string; // Unique identifier for the question
 }
 
-export type QuestionType = 
+export type QuestionType =
   // Speaking
-  | 'read-aloud' | 'repeat-sentence' | 'describe-image' | 'answer-short-question' 
+  | 'read-aloud' | 'repeat-sentence' | 'describe-image' | 'answer-short-question'
   | 'respond-situation' | 'retell-lecture'
   // Writing  
   | 'summarize-written-text' | 'write-email' | 'write-essay'
@@ -122,7 +126,7 @@ export type QuestionType =
   | 'multiple-choice-multiple' | 'reorder-paragraphs'
   // Listening
   | 'summarize-spoken-text' | 'listening-fill-blanks' | 'listening-multiple-choice-single'
-  | 'listening-multiple-choice-multiple' | 'select-missing-word' 
+  | 'listening-multiple-choice-multiple' | 'select-missing-word'
   | 'highlight-incorrect-words' | 'write-from-dictation' | 'highlight-correct-summary';
 
 export type PteSkill = 'speaking' | 'writing' | 'reading' | 'listening';

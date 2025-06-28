@@ -54,3 +54,11 @@ export interface TimerState {
   warningThreshold: number;
   autoSubmit: boolean;
 }
+
+export interface UserAttempt {
+  questionId: number;
+  clickedWords: string[];
+  correctWords: string[];
+  score: number;
+  timestamp: string;
+}

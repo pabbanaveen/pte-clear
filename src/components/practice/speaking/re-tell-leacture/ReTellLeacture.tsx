@@ -19,7 +19,7 @@ import StageGoalBanner from '../../common/StageGoalBanner';
 import TextToSpeech from '../../common/TextToSpeech';
 import InstructionsCard from '../../common/InstructionsCard';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
-import { User } from '../../../../types/user';
+ import { User } from '../../../../types';
 import { LectureTopic, UserAttempt } from './ReTellLeactureType';
 import { audioTopics } from './audioTopic';
 

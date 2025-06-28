@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Alert, Snackbar } from '@mui/material';
 import theme from './theme';
-import { User } from './types/user';
+import { User } from './types/index';
 import { Header } from './components/Header';
 import HomePage from './components/HomePage';
 import LoginModal from './components/LoginModal';
@@ -40,6 +41,7 @@ import AdminLayout from './components/admin/AdminLayout';
 import SummarizeTextAdmin from './components/admin/writing/SummarizeTextAdmin';
 import FillBlanksAdmin from './components/admin/reading/FillBlanksAdmin';
 import MultipleChoiceSingleListening from './components/practice/Listening/MultipleChoiceSingle/MultipleChoiceSingle';
+import { authService } from './services/authService';
 
 // import * as Components from './components';
 
@@ -47,28 +49,124 @@ const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tokenExpiryWarning, setTokenExpiryWarning] = useState(false);
 
-  const handleLogin = (credentials: { email: string; password: string }) => {
-    setUser({
-      name: credentials.email.split('@')[0],
-      email: credentials.email,
-      avatar: 'https://images.pexels.com/photos/5303547/pexels-photo-5303547.jpeg',
-      progress: {
-        totalTests: 15,
-        completedTests: 8,
-        averageScore: 78,
-        strongAreas: ['Reading', 'Listening'],
-        weakAreas: ['Speaking', 'Writing'],
+  // Initialize authentication state from localStorage
+  useEffect(() => {
+    const initAuth = () => {
+      try {
+        const { isAuthenticated, user: storedUser } = authService.initializeAuth();
+
+        if (isAuthenticated && storedUser) {
+          setIsLoggedIn(true);
+          setUser(storedUser);
+
+          // Setup token expiry monitoring
+          const cleanup = authService.setupTokenExpiryCheck(() => {
+            handleTokenExpiry();
+          });
+
+          // Check if token expires soon (within 1 minute)
+          const { remainingTime } = authService.getTokenExpiryInfo();
+          if (remainingTime > 0 && remainingTime < 60000) { // Less than 1 minute
+            setTokenExpiryWarning(true);
+          }
+
+          return cleanup;
+        } else {
+          setIsLoggedIn(false);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+        setError('Failed to restore session');
+        setIsLoggedIn(false);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    });
-    setIsLoggedIn(true);
-    setLoginOpen(false);
+    };
+
+    const cleanup = initAuth();
+
+    // Cleanup function
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+
+  const handleTokenExpiry = () => {
+    setError('Your session has expired. Please login again.');
+    handleLogout();
+  };
+
+  const handleLogin = async (credentials: { email: string; password: string }) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await authService.login(credentials);
+
+      if (response.success && response.data) {
+        setUser(response.data.user);
+        setIsLoggedIn(true);
+        setLoginOpen(false);
+
+        // Setup token expiry monitoring
+        authService.setupTokenExpiryCheck(() => {
+          handleTokenExpiry();
+        });
+
+        // Show success message
+        setError(null);
+      } else {
+        setError(response.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = () => {
+    authService.logout();
     setUser(null);
     setIsLoggedIn(false);
+    setTokenExpiryWarning(false);
+    setError(null);
   };
+
+  const handleCloseError = () => {
+    setError(null);
+  };
+
+  const handleCloseTokenWarning = () => {
+    setTokenExpiryWarning(false);
+  };
+
+  // Show loading spinner while initializing
+  if (loading) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="100vh"
+          sx={{ backgroundColor: '#f5f5f5' }}
+        >
+          <Box textAlign="center">
+            <div>Loading...</div>
+          </Box>
+        </Box>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -92,85 +190,62 @@ const App: React.FC = () => {
                 )
               }
             />
-            {/* <Route 
-              path="/practice" 
-              element={<PracticeTests user={user} />} 
-            />
-            <Route 
-              path="/materials" 
-              element={<StudyMaterials user={user} />} 
-            />
-            <Route 
-              path="/progress" 
-              element={<ProgressTracking user={user} />} 
-            />
-            <Route 
-              path="/profile" 
-              element={<Profile user={user} setUser={setUser} />} 
-            /> */}
-            <Route path="/" element={<HomePage onGetStarted={() => setLoginOpen(true)} />} />
-            <Route path="/dashboard" element={<Dashboard user={user} />} />
-            <Route path="/practice-tests" element={<PracticeTests user={user} />} />
-            <Route path="/study-materials" element={<StudyMaterials user={user} />} />
-            <Route path="/ai-practice" element={<AIPracticeSection />} />
-            <Route path="/progress" element={<ProgressTracking user={user} />} />
-            <Route path="/profile" element={<Profile user={user} setUser={function (user: User): void {
-              throw new Error('Function not implemented.');
-            }} />} />
+            {/* Public routes */}
+            <Route path="/dashboard" element={isLoggedIn ? <Dashboard user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice-tests" element={isLoggedIn ? <PracticeTests user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/study-materials" element={isLoggedIn ? <StudyMaterials user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/ai-practice" element={isLoggedIn ? <AIPracticeSection /> : <Navigate to="/" replace />} />
+            <Route path="/progress" element={isLoggedIn ? <ProgressTracking user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/profile" element={isLoggedIn ? <Profile user={user} setUser={setUser} /> : <Navigate to="/" replace />} />
+
             {/* Speaking Practice Routes */}
-            <Route path="/practice/speaking/read-aloud" element={<ReadAloud user={user}/>} />
-            <Route path="/practice/speaking/repeat-sentence" element={<RepeatSentence user={user}/>} />
-            <Route path="/practice/speaking/describe-image" element={<DescribeImage />} />
-            <Route path="/practice/speaking/answer-short-question" element={<AnswerShortQuestionsScreen user={user} />} />
-            <Route path="/practice/speaking/respond-situation" element={<PracticeTests user={user} />} />
-            <Route path="/practice/speaking/retell-lecture" element={<ReTellLeacture user={user} />} />
+            <Route path="/practice/speaking/read-aloud" element={isLoggedIn ? <ReadAloud user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/speaking/repeat-sentence" element={isLoggedIn ? <RepeatSentence user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/speaking/describe-image" element={isLoggedIn ? <DescribeImage /> : <Navigate to="/" replace />} />
+            <Route path="/practice/speaking/answer-short-question" element={isLoggedIn ? <AnswerShortQuestionsScreen user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/speaking/respond-situation" element={isLoggedIn ? <PracticeTests user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/speaking/retell-lecture" element={isLoggedIn ? <ReTellLeacture user={user} /> : <Navigate to="/" replace />} />
 
             {/* Writing Practice Routes */}
-            <Route path="/practice/writing/summarize-text" element={<SummarizeText user={user} />} />
-            <Route path="/practice/writing/write-email" element={<WriteEmail user={user} />} />
-            <Route path="/practice/writing/summarize-text-pta" element={<PracticeTests user={user} />} />
-            <Route path="/practice/writing/write-essay" element={<WritingEssay />} />
+            <Route path="/practice/writing/summarize-text" element={isLoggedIn ? <SummarizeText user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/writing/write-email" element={isLoggedIn ? <WriteEmail user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/writing/summarize-text-core" element={isLoggedIn ? <PracticeTests user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/writing/write-essay" element={isLoggedIn ? <WritingEssay /> : <Navigate to="/" replace />} />
 
             {/* Reading Practice Routes */}
-            <Route path="/practice/reading/fill-blanks-rw" element={<ReadingFillBlanks />} />
-            <Route path="/practice/reading/multiple-choice-multiple" element={<MultipleChoice user={user} />} />
-            <Route path="/practice/reading/reorder-paragraphs" element={<ReorderParagraphs />} />
-            <Route path="/practice/reading/fill-blanks" element={<FillInBlanks />} />
-            <Route path="/practice/reading/multiple-choice-single" element={<MultipleChoiceSingle />} />
+            <Route path="/practice/reading/fill-blanks-rw" element={isLoggedIn ? <ReadingFillBlanks /> : <Navigate to="/" replace />} />
+            <Route path="/practice/reading/multiple-choice-multiple" element={isLoggedIn ? <MultipleChoice user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/reading/reorder-paragraphs" element={isLoggedIn ? <ReorderParagraphs /> : <Navigate to="/" replace />} />
+            <Route path="/practice/reading/fill-blanks" element={isLoggedIn ? <FillInBlanks /> : <Navigate to="/" replace />} />
+            <Route path="/practice/reading/multiple-choice-single" element={isLoggedIn ? <MultipleChoiceSingle /> : <Navigate to="/" replace />} />
 
             {/* Listening Practice Routes */}
-            <Route path="/practice/listening/summarize-spoken-text" element={<SummarizeSpokenText />} />
-            <Route path="/practice/listening/multiple-choice-multiple" element={<ListeningMultipleChoice user={user} />} />
-            <Route path="/practice/listening/fill-blanks" element={<ListeningFillBlanks />} />
-            <Route path="/practice/listening/multiple-choice-single" element={<MultipleChoiceSingleListening />} />
-            <Route path="/practice/listening/select-missing-word" element={<SelectMissingWord />} />
-            <Route path="/practice/listening/highlight-incorrect" element={<HighlightIncorrectWords />} />
-            <Route path="/practice/listening/write-dictation" element={<WriteFromDictation />} />
-            <Route path="/practice/listening/summarize-spoken-pta" element={<PracticeTests user={user} />} />
-            <Route path="/practice/listening/highlight-summary" element={<HighlightCorrectSummary />} />
+            <Route path="/practice/listening/summarize-spoken-text" element={isLoggedIn ? <SummarizeSpokenText /> : <Navigate to="/" replace />} />
+            <Route path="/practice/listening/multiple-choice-multiple" element={isLoggedIn ? <ListeningMultipleChoice user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/listening/fill-blanks" element={isLoggedIn ? <ListeningFillBlanks /> : <Navigate to="/" replace />} />
+            <Route path="/practice/listening/multiple-choice-single" element={isLoggedIn ? <MultipleChoiceSingleListening /> : <Navigate to="/" replace />} />
+            <Route path="/practice/listening/select-missing-word" element={isLoggedIn ? <SelectMissingWord /> : <Navigate to="/" replace />} />
+            <Route path="/practice/listening/highlight-incorrect" element={isLoggedIn ? <HighlightIncorrectWords /> : <Navigate to="/" replace />} />
+            <Route path="/practice/listening/write-dictation" element={isLoggedIn ? <WriteFromDictation /> : <Navigate to="/" replace />} />
+            <Route path="/practice/listening/summarize-spoken-text-core" element={isLoggedIn ? <PracticeTests user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/practice/listening/highlight-summary" element={isLoggedIn ? <HighlightCorrectSummary /> : <Navigate to="/" replace />} />
 
             {/* Additional Feature Routes */}
-            <Route path="/vocab-books" element={<StudyMaterials user={user} />} />
-            <Route path="/shadowing" element={<AIPracticeSection />} />
-            <Route path="/ai-analysis" element={<ProgressTracking user={user} />} />
-            <Route path="/ai-study-plan" element={<Dashboard user={user} />} />
-            <Route path="/mock-tests" element={<PracticeTests user={user} />} />
-            <Route path="/downloads" element={<StudyMaterials user={user} />} />
+            <Route path="/vocab-books" element={isLoggedIn ? <StudyMaterials user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/shadowing" element={isLoggedIn ? <AIPracticeSection /> : <Navigate to="/" replace />} />
+            <Route path="/ai-analysis" element={isLoggedIn ? <ProgressTracking user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/ai-study-plan" element={isLoggedIn ? <Dashboard user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/mock-tests" element={isLoggedIn ? <PracticeTests user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/downloads" element={isLoggedIn ? <StudyMaterials user={user} /> : <Navigate to="/" replace />} />
+
             {/* Admin Routes */}
             <Route path="/admin" element={
-              // <ProtectedRoute adminOnly>
-              <AdminLayout children={undefined} />
-              // </ProtectedRoute>
+              isLoggedIn && authService.isAdmin() ? <AdminLayout children={undefined} /> : <Navigate to="/" replace />
             } />
             <Route path="/admin/questions" element={
-              // <ProtectedRoute adminOnly>
-              <AdminQuestions />
-              // </ProtectedRoute>
+              isLoggedIn && authService.isAdmin() ? <AdminQuestions /> : <Navigate to="/" replace />
             } />
-            {/* Admin Routes */}
-            {/* <Route path="/admin/*" element={
-            <AdminLayout>
-              <Routes> */}
+
             <Route path="dashboard" element={<AdminDashboard />} />
 
             {/* Speaking Module Routes */}
@@ -195,7 +270,6 @@ const App: React.FC = () => {
             {/* Writing Module Routes */}
             <Route path="/admin/writing/summarize-text" element={
               <Box sx={{ p: 3 }}>
-                {/* <h2>Summarize Text Admin - Coming Soon</h2> */}
                 <SummarizeTextAdmin />
               </Box>
             } />
@@ -214,7 +288,6 @@ const App: React.FC = () => {
             <Route path="/admin/reading/fill-blanks" element={
               <Box sx={{ p: 3 }}>
                 <FillBlanksAdmin />
-                {/* <h2>Reading Fill Blanks Admin - Coming Soon</h2> */}
               </Box>
             } />
             <Route path="/admin/reading/multiple-choice" element={
@@ -280,14 +353,37 @@ const App: React.FC = () => {
             {/* Default admin route */}
             <Route path="/admin/dashboard" element={<Navigate to="dashboard" replace />} />
           </Routes>
-          {/* </AdminLayout>
-          } />
-          </Routes> */}
+
           <LoginModal
             open={loginOpen}
             onClose={() => setLoginOpen(false)}
             onLogin={handleLogin}
+            loading={loading}
           />
+
+          {/* Error Snackbar */}
+          <Snackbar
+            open={!!error}
+            autoHideDuration={6000}
+            onClose={handleCloseError}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          >
+            <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+              {error}
+            </Alert>
+          </Snackbar>
+
+          {/* Token Expiry Warning */}
+          <Snackbar
+            open={tokenExpiryWarning}
+            autoHideDuration={10000}
+            onClose={handleCloseTokenWarning}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          >
+            <Alert onClose={handleCloseTokenWarning} severity="warning" sx={{ width: '100%' }}>
+              Your session will expire soon. Please save your work.
+            </Alert>
+          </Snackbar>
         </div>
       </Router>
     </ThemeProvider>

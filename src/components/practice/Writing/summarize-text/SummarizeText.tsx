@@ -34,7 +34,7 @@ import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import { textPassages } from './textPassages';
-import { User } from '../../../../types/user';
+ import { User } from '../../../../types';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
 import { TimerState, QuestionResult } from '../writing-essay/constants';

@@ -18,7 +18,7 @@ import StageGoalBanner from '../../common/StageGoalBanner';
 import TextToSpeech from '../../common/TextToSpeech';
 import { listeningMultipleChoiceQuestions } from './MutlipleChoiceMultipleMockData';
 import { ListeningMultipleChoiceQuestion, SubmissionResult, UserAttempt } from './MultipleChoiceMultipleType';
-import { User } from '../../../../types/user';
+ import { User } from '../../../../types';
 import { Close } from '@mui/icons-material';
 
 interface ListeningMultipleChoiceProps {

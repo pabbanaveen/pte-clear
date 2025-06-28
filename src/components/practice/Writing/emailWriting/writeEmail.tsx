@@ -33,7 +33,7 @@ import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import { emailScenarios } from './emailMockData';
 import { EmailScenario } from './emailTypes';
-import { User } from '../../../../types/user';
+ import { User } from '../../../../types';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
 

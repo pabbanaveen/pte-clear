@@ -199,7 +199,7 @@ import React, { useState } from 'react';
 import { AppBar, Toolbar, Box, Typography, Button, IconButton, Avatar, Menu, MenuItem, Divider, ListItemIcon, ListItemText } from '@mui/material';
 import { Settings, Logout, Menu as MenuIcon, Dashboard, AdminPanelSettings } from '@mui/icons-material';
 import { Link, useNavigate } from 'react-router-dom';
-import { User } from '../types/user';
+import { User } from '../types';
 import PtePracticeMenu from './PtePracticeMenu';
 
 interface HeaderProps {

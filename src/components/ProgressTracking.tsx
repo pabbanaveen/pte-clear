@@ -1,7 +1,7 @@
 import React from 'react';
 import { Container, Typography, Grid, Card, Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { Star, CheckCircle } from '@mui/icons-material';
-import { User } from '../types/user';
+import { User } from '../types';
 
 interface ProgressTrackingProps {
   user: User | null;
