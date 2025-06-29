@@ -15,7 +15,6 @@ export interface RegisterData {
 
 export interface AuthToken {
   token: string;
-  expiresAt: number; // timestamp
   refreshToken?: string;
 }
 
@@ -24,8 +23,7 @@ const DUMMY_USERS = [
   {
     email: 'admin@pte.com',
     password: 'admin123',
-        createdAt: '2023-10-01T12:00:00Z',
-
+    createdAt: '2023-10-01T12:00:00Z',
     user: {
       id: '1',
       name: 'Admin User',
@@ -39,7 +37,7 @@ const DUMMY_USERS = [
         strongAreas: ['Reading', 'Listening', 'Writing'],
         weakAreas: ['Speaking'],
       } 
-    }  as User,
+    } as User,
   },
   {
     email: 'user@pte.com',
@@ -62,30 +60,15 @@ const DUMMY_USERS = [
   }
 ];
 
-// Token expiration time: 5 minutes
-const TOKEN_EXPIRY_MINUTES = 5;
-
 // Generate a dummy JWT-like token
 const generateToken = (): string => {
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const payload = btoa(JSON.stringify({ 
-    sub: Date.now().toString(), 
-    exp: Math.floor(Date.now() / 1000) + (TOKEN_EXPIRY_MINUTES * 60),
+    sub: Date.now().toString(),
     iat: Math.floor(Date.now() / 1000)
   }));
   const signature = btoa('dummy-signature-' + Date.now());
   return `${header}.${payload}.${signature}`;
-};
-
-// Check if token is expired
-const isTokenExpired = (token: string): boolean => {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const now = Math.floor(Date.now() / 1000);
-    return payload.exp < now;
-  } catch {
-    return true;
-  }
 };
 
 // Dummy API call simulator
@@ -98,7 +81,7 @@ const simulateApiCall = <T>(data: T, delay: number = 500): Promise<{ success: bo
 };
 
 export const authService = {
-  // Dummy login function (replace with real API call when backend is ready)
+  // Login function
   login: async (credentials: LoginCredentials): Promise<{ success: boolean; data?: { user: User; token: string }; message?: string }> => {
     try {
       // Simulate API delay
@@ -117,7 +100,6 @@ export const authService = {
       }
 
       const token = generateToken();
-      const expiresAt = Date.now() + (TOKEN_EXPIRY_MINUTES * 60 * 1000);
 
       const authData = {
         user: { ...userData.user, createdAt: userData.createdAt },
@@ -126,7 +108,6 @@ export const authService = {
 
       // Store in localStorage
       localStorage.setItem('authToken', token);
-      localStorage.setItem('tokenExpiresAt', expiresAt.toString());
       localStorage.setItem('user', JSON.stringify(userData.user));
 
       // Real API call (commented for now)
@@ -136,10 +117,6 @@ export const authService = {
       if (response.success && response.data) {
         localStorage.setItem('authToken', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        
-        // Calculate expiry time (5 minutes from now)
-        const expiresAt = Date.now() + (TOKEN_EXPIRY_MINUTES * 60 * 1000);
-        localStorage.setItem('tokenExpiresAt', expiresAt.toString());
       }
       
       return response;
@@ -174,7 +151,6 @@ export const authService = {
 
   logout: () => {
     localStorage.removeItem('authToken');
-    localStorage.removeItem('tokenExpiresAt');
     localStorage.removeItem('user');
     window.location.href = '/';
   },
@@ -186,64 +162,13 @@ export const authService = {
 
   isAuthenticated: (): boolean => {
     const token = localStorage.getItem('authToken');
-    const expiresAt = localStorage.getItem('tokenExpiresAt');
-    
-    if (!token || !expiresAt) {
-      return false;
-    }
-
-    // Check if token is expired
-    const now = Date.now();
-    const expiry = parseInt(expiresAt);
-    
-    if (now >= expiry) {
-      // Token expired, clean up
-      authService.logout();
-      return false;
-    }
-
-    return true;
+    const user = localStorage.getItem('user');
+    return !!(token && user);
   },
 
   isAdmin: (): boolean => {
     const user = authService.getCurrentUser();
     return user?.role === 'admin';
-  },
-
-  // Check token expiry and return remaining time
-  getTokenExpiryInfo: (): { isExpired: boolean; remainingTime: number; expiresAt: Date | null } => {
-    const expiresAtStr = localStorage.getItem('tokenExpiresAt');
-    
-    if (!expiresAtStr) {
-      return { isExpired: true, remainingTime: 0, expiresAt: null };
-    }
-
-    const expiresAt = parseInt(expiresAtStr);
-    const now = Date.now();
-    const remainingTime = Math.max(0, expiresAt - now);
-    const isExpired = remainingTime <= 0;
-
-    return {
-      isExpired,
-      remainingTime,
-      expiresAt: new Date(expiresAt)
-    };
-  },
-
-  // Auto logout when token expires
-  setupTokenExpiryCheck: (onExpiry: () => void) => {
-    const checkExpiry = () => {
-      const { isExpired } = authService.getTokenExpiryInfo();
-      if (isExpired && authService.getCurrentUser()) {
-        onExpiry();
-      }
-    };
-
-    // Check every 30 seconds
-    const interval = setInterval(checkExpiry, 30000);
-    
-    // Return cleanup function
-    return () => clearInterval(interval);
   },
 
   refreshToken: async () => {
@@ -252,10 +177,7 @@ export const authService = {
     
     // Dummy implementation
     const newToken = generateToken();
-    const expiresAt = Date.now() + (TOKEN_EXPIRY_MINUTES * 60 * 1000);
-    
     localStorage.setItem('authToken', newToken);
-    localStorage.setItem('tokenExpiresAt', expiresAt.toString());
     
     return simulateApiCall({ token: newToken });
   },

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
-  TextField, 
-  Button, 
-  Box, 
-  Typography, 
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Box,
+  Typography,
   CircularProgress,
   Alert
 } from '@mui/material';
@@ -26,7 +26,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onLogin, loading
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       return;
     }
@@ -61,7 +61,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onLogin, loading
             User: user@pte.com / user123
           </Alert>
         </Box>
-        
+
         <form onSubmit={handleSubmit}>
           <TextField
             autoFocus
@@ -88,17 +88,17 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onLogin, loading
             required
             sx={{ mb: 2 }}
           />
-          
+
           <DialogActions sx={{ px: 0, pt: 2 }}>
-            <Button 
-              onClick={handleClose} 
+            <Button
+              onClick={handleClose}
               disabled={isLoading}
               color="inherit"
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               variant="contained"
               disabled={isLoading || !email || !password}
               startIcon={isLoading ? <CircularProgress size={16} /> : null}
@@ -108,12 +108,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onLogin, loading
             </Button>
           </DialogActions>
         </form>
-        
-        <Box sx={{ mt: 2, textAlign: 'center' }}>
-          <Typography variant="caption" color="textSecondary">
-            Session expires in 5 minutes for demo purposes
-          </Typography>
-        </Box>
       </DialogContent>
     </Dialog>
   );
