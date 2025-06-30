@@ -465,15 +465,16 @@ const PtePracticeMenu: React.FC<PtePracticeMenuProps> = ({ isMobile: propIsMobil
         }}
         PaperProps={{
           style: {
-            maxWidth: isMobile ? '100%' : '90vw',
+            maxWidth: isMobile ? '95vw' : '90vw',
             width: 'auto',
+            maxHeight: isMobile ? '80vh' : 'auto',
             left: isMobile ? 0 : 'auto',
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
             padding: isMobile ? 8 : 16,
             overflowX: 'hidden',
-            overflowY: 'hidden',
-            borderRadius: isMobile ? 0 : 8,
+            overflowY: isMobile ? 'auto' : 'hidden',
+            borderRadius: isMobile ? 8 : 8,
             boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
             background: '#fff',
             marginTop: isMobile ? 0 : '8px',

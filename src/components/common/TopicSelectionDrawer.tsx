@@ -20,7 +20,9 @@ import {
     Button,
     Badge,
     InputAdornment,
-    TextField
+    TextField,
+    useTheme,
+    useMediaQuery
 } from '@mui/material';
 import { Close, KeyboardArrowDown, Search } from '@mui/icons-material';
 import { type } from '@testing-library/user-event/dist/type';
@@ -52,6 +54,8 @@ interface TopicSelectionDrawerProps {
 
 const TopicSelectionDrawer: React.FC<TopicSelectionDrawerProps> = ({ open, onClose, onSelect, topics, title }) => {
     const [selectedTab, setSelectedTab] = useState(0);
+     const theme = useTheme();
+      const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
     new: 'All',
@@ -169,7 +173,7 @@ const TopicSelectionDrawer: React.FC<TopicSelectionDrawerProps> = ({ open, onClo
           bgcolor: '#f8f9fa',
           zIndex: 1200
         },
-        style: { width: '60%' }
+        style: { width: isMobile ? '95%' : '60%' }
       }}
       ModalProps={{
         sx: {
