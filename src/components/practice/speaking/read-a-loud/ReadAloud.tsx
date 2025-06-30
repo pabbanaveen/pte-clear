@@ -22,6 +22,7 @@ import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { readAloudQuestions } from './ReadALoudMockData';
 import { ReadAloudQuestion, UserAttempt } from './ReadAloudTypes';
  import { User } from '../../../../types';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface PracticeTestsProps {
   user: User | null;
@@ -226,6 +227,19 @@ export const ReadAloud: React.FC<PracticeTestsProps> = ({ user }) => {
       if (prepTimerRef.current) clearTimeout(prepTimerRef.current);
     };
   }, [preparationTime]);
+
+    // Enable floating search button for this component
+  useFloatingSearch({
+    topics: readAloudQuestions,
+    title: 'Read Aloud Practice',
+    type: 'speaking',
+    onTopicSelect: (topic: any) => {
+      const question = topic as ReadAloudQuestion;
+      setSelectedQuestion(question);
+      setCurrentQuestionIndex(readAloudQuestions.findIndex(q => q.id === question.id));
+    },
+    enabled: true
+  });
 
   const handleSubmit = () => {
     if (audioRecording.recordedBlob) {

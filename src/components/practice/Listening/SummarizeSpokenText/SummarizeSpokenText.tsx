@@ -19,6 +19,7 @@ import StageGoalBanner from '../../common/StageGoalBanner';
 import TextToSpeech from '../../common/TextToSpeech';
 import { allSummarizeSpokenTextTopics } from './SummarizeSpokenTextMockData';
 import { SummarizeSpokenTextTopic, SummaryResponse, SummaryResult, UserAttempt } from './SummarizeSpokenTextType';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface SummarizeSpokenTextProps {}
 
@@ -51,6 +52,19 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: allSummarizeSpokenTextTopics,
+    title: 'Summarize Spoken Text',
+    type: 'listening',
+    onTopicSelect: (topic: any) => {
+      const sstTopic = topic as SummarizeSpokenTextTopic;
+      setSelectedTopic(sstTopic);
+      setCurrentQuestionIndex(allSummarizeSpokenTextTopics.findIndex(t => t.id === sstTopic.id));
+    },
+    enabled: true
+  });
 
   // Load attempts from localStorage
   useEffect(() => {

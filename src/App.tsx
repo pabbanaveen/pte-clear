@@ -42,6 +42,9 @@ import SummarizeTextAdmin from './components/admin/writing/SummarizeTextAdmin';
 import FillBlanksAdmin from './components/admin/reading/FillBlanksAdmin';
 import MultipleChoiceSingleListening from './components/practice/Listening/MultipleChoiceSingle/MultipleChoiceSingle';
 import { authService } from './services/authService';
+import { SearchProvider } from './components/contexts/SearchContext';
+import GlobalSearchButton from './components/GlobalSearchButton';
+import FloatingSearchDemo from './components/common/FloatingSearchButton';
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -131,17 +134,22 @@ const App: React.FC = () => {
   }
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <div className="App">
-          <Header
-            isLoggedIn={isLoggedIn}
-            user={user}
-            onLoginClick={() => setLoginOpen(true)}
-            onLogout={handleLogout}
-          />
-          <Routes>
+    <SearchProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Router>
+          <div className="App">
+            <Header
+              isLoggedIn={isLoggedIn}
+              user={user}
+              onLoginClick={() => setLoginOpen(true)}
+              onLogout={handleLogout}
+            />
+            
+            {/* Global Floating Search Button */}
+            <GlobalSearchButton />
+            
+            <Routes>
             <Route
               path="/"
               element={
@@ -199,6 +207,9 @@ const App: React.FC = () => {
             <Route path="/ai-study-plan" element={isLoggedIn ? <Dashboard user={user} /> : <Navigate to="/" replace />} />
             <Route path="/mock-tests" element={isLoggedIn ? <PracticeTests user={user} /> : <Navigate to="/" replace />} />
             <Route path="/downloads" element={isLoggedIn ? <StudyMaterials user={user} /> : <Navigate to="/" replace />} />
+
+            {/* Demo Route */}
+            <Route path="/demo/floating-search" element={<FloatingSearchDemo />} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={
@@ -309,6 +320,7 @@ const App: React.FC = () => {
         </div>
       </Router>
     </ThemeProvider>
+  </SearchProvider>
   );
 };
 

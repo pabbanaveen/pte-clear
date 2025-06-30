@@ -166,9 +166,18 @@ const TopicSelectionDrawer: React.FC<TopicSelectionDrawerProps> = ({ open, onClo
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: 500, md: 600 },
-          bgcolor: '#f8f9fa'
+          bgcolor: '#f8f9fa',
+          zIndex: 1200
         },
         style: { width: '60%' }
+      }}
+      ModalProps={{
+        sx: {
+          zIndex: 1200
+        }
+      }}
+      SlideProps={{
+        direction: 'left'
       }}
     >
       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
