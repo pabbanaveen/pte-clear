@@ -548,10 +548,10 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
             <ListItemIcon><Dashboard sx={{ color: '#333' }} /></ListItemIcon>
             <ListItemText><Typography sx={{ fontSize: '0.9rem', color: '#333' }}>Dashboard</Typography></ListItemText>
           </MenuItem>
-          <MenuItem component={Link} to="/admin" onClick={handleCloseProfileMenu}>
+          {/* <MenuItem component={Link} to="/admin" onClick={handleCloseProfileMenu}>
             <ListItemIcon><AdminPanelSettings sx={{ color: '#333' }} /></ListItemIcon>
             <ListItemText><Typography sx={{ fontSize: '0.9rem', color: '#333' }}>Admin Panel</Typography></ListItemText>
-          </MenuItem>
+          </MenuItem> */}
           <MenuItem component={Link} to="/admin/new" onClick={handleCloseProfileMenu}>
             <ListItemIcon><AdminPanelSettings sx={{ color: '#4DB6AC' }} /></ListItemIcon>
             <ListItemText><Typography sx={{ fontSize: '0.9rem', color: '#4DB6AC', fontWeight: 500 }}>Admin-new</Typography></ListItemText>

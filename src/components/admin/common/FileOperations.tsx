@@ -75,9 +75,9 @@ const FileOperations: React.FC<FileOperationsProps> = ({
     try {
       const response = await adminService.downloadTemplate(selectedModule, selectedSubModule);
       if (response.success) {
-        // In a real app, this would trigger actual file download
-        console.log('Download template:', response.data?.templateUrl);
-        setUploadMessage({ type: 'success', text: 'Template download started!' });
+        setUploadMessage({ type: 'success', text: response.message || 'Template downloaded successfully!' });
+      } else {
+        setUploadMessage({ type: 'error', text: response.error || 'Failed to download template' });
       }
     } catch (error) {
       setUploadMessage({ type: 'error', text: 'Failed to download template' });
@@ -93,9 +93,12 @@ const FileOperations: React.FC<FileOperationsProps> = ({
     try {
       const response = await adminService.exportQuestions(selectedModule, selectedSubModule);
       if (response.success) {
-        // In a real app, this would trigger actual file download
-        console.log('Export questions:', response.data?.exportUrl);
-        setUploadMessage({ type: 'success', text: 'Questions export started!' });
+        setUploadMessage({ 
+          type: 'success', 
+          text: response.message || `Questions exported successfully! Downloaded ${response.data?.exportedCount || 0} questions.`
+        });
+      } else {
+        setUploadMessage({ type: 'error', text: response.error || 'Failed to export questions' });
       }
     } catch (error) {
       setUploadMessage({ type: 'error', text: 'Failed to export questions' });
