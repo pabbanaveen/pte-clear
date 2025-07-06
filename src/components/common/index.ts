@@ -59,6 +59,13 @@ export {
   colors
 } from './CommonStyles';
 
+// Audio Components
+export { default as DualAudioPlayer } from './DualAudioPlayer';
+export type { DualAudioPlayerProps } from './DualAudioPlayer';
+
+// Audio Utilities
+export * from './AudioValidationUtils';
+
 // Existing components (re-exported for consistency)
 // export { default as ActionButtons } from './ActionButtons';
 // export { default as NavigationSection } from './NavigationSection';

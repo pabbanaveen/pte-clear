@@ -1,4 +1,5 @@
 import { SummarizeSpokenTextTopic } from "./SummarizeSpokenTextType";
+import { migrateLegacyAudio, createSampleAudioConfig } from "../../../common/AudioValidationUtils";
 
 export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
   {
@@ -6,7 +7,13 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "Self-domestication",
     taskType: 'SST',
     type: 'listening',
-    audioText: "Self-domestication is a fascinating concept in human evolution. Research suggests that early humans underwent a process similar to animal domestication, but without an external domesticator. This process led to reduced aggression, increased cooperation, and physical changes such as smaller teeth and jaws. Scientists believe this self-domestication may have been crucial in the development of language and complex societies. The evidence includes fossil records showing these physical changes and behavioral studies of modern humans compared to our closest primate relatives.",
+    audio: {
+      audioUrl: 'https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3', // Sample URL
+      audioText: "Self-domestication is a fascinating concept in human evolution. Research suggests that early humans underwent a process similar to animal domestication, but without an external domesticator. This process led to reduced aggression, increased cooperation, and physical changes such as smaller teeth and jaws. Scientists believe this self-domestication may have been crucial in the development of language and complex societies. The evidence includes fossil records showing these physical changes and behavioral studies of modern humans compared to our closest primate relatives.",
+      audioFormat: 'mp3',
+      audioDuration: 75,
+      audioTitle: 'Self-domestication Lecture'
+    },
     wordLimit: {
       min: 50,
       max: 70
@@ -37,7 +44,13 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "Climate Change and Ocean Currents",
     taskType: 'SST',
     type: 'listening',
-    audioText: "Climate change is having profound effects on ocean currents around the world. The global ocean conveyor belt, which helps regulate our planet's temperature and weather patterns, is being disrupted by rising temperatures and melting ice caps. This disruption could lead to more frequent and severe weather events, including storms and droughts. Additionally, changes in ocean currents affect marine ecosystems, potentially disrupting food chains and threatening species that depend on specific water temperatures and nutrient levels.",
+    audio: {
+      audioUrl: 'https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3', // Sample URL
+      audioText: "Climate change is having profound effects on ocean currents around the world. The global ocean conveyor belt, which helps regulate our planet's temperature and weather patterns, is being disrupted by rising temperatures and melting ice caps. This disruption could lead to more frequent and severe weather events, including storms and droughts. Additionally, changes in ocean currents affect marine ecosystems, potentially disrupting food chains and threatening species that depend on specific water temperatures and nutrient levels.",
+      audioFormat: 'mp3',
+      audioDuration: 82,
+      audioTitle: 'Climate Change and Ocean Systems'
+    },
     wordLimit: {
       min: 50,
       max: 70
@@ -68,7 +81,11 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "The Impact of Social Media on Learning",
     taskType: 'SST',
     type: 'listening',
-    audioText: "Social media's impact on learning is complex and multifaceted. On the positive side, these platforms can enhance collaboration among students and provide access to vast educational resources and expert knowledge. However, social media also presents significant challenges for learning. The constant notifications and entertainment content can be highly distracting, making it difficult for students to focus on their studies. Research suggests that frequent social media use may also contribute to shortened attention spans, potentially affecting students' ability to engage in deep, concentrated learning.",
+    audio: {
+      // No audioUrl - will use text-to-speech only
+      audioText: "Social media's impact on learning is complex and multifaceted. On the positive side, these platforms can enhance collaboration among students and provide access to vast educational resources and expert knowledge. However, social media also presents significant challenges for learning. The constant notifications and entertainment content can be highly distracting, making it difficult for students to focus on their studies. Research suggests that frequent social media use may also contribute to shortened attention spans, potentially affecting students' ability to engage in deep, concentrated learning.",
+      audioTitle: 'Social Media and Education (Text-to-Speech)'
+    },
     wordLimit: {
       min: 50,
       max: 70
@@ -99,7 +116,13 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "Artificial Intelligence in Healthcare",
     taskType: 'SST',
     type: 'listening',
-    audioText: "Artificial intelligence is revolutionizing healthcare in unprecedented ways. AI systems can now analyze medical images with greater accuracy than human radiologists in some cases, leading to earlier disease detection and better patient outcomes. Additionally, AI enables personalized medicine by analyzing patient data to create customized treatment plans. The technology is also accelerating drug discovery, reducing the time and cost of bringing new medications to market. However, implementation faces challenges including data privacy concerns, the need to train medical professionals in AI use, and ensuring these systems remain free from bias that could affect patient care.",
+    audio: {
+      audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3', // Sample URL
+      audioText: "Artificial intelligence is revolutionizing healthcare in unprecedented ways. AI systems can now analyze medical images with greater accuracy than human radiologists in some cases, leading to earlier disease detection and better patient outcomes. Additionally, AI enables personalized medicine by analyzing patient data to create customized treatment plans. The technology is also accelerating drug discovery, reducing the time and cost of bringing new medications to market. However, implementation faces challenges including data privacy concerns, the need to train medical professionals in AI use, and ensuring these systems remain free from bias that could affect patient care.",
+      audioFormat: 'mp3',
+      audioDuration: 95,
+      audioTitle: 'AI in Healthcare Revolution'
+    },
     wordLimit: {
       min: 50,
       max: 70
@@ -130,7 +153,13 @@ export const summarizeSpokenTextTopics: SummarizeSpokenTextTopic[] = [
     title: "Urban Planning and Sustainable Cities",
     taskType: 'SST',
     type: 'listening',
-    audioText: "Modern urban planning is increasingly focused on sustainability and creating cities that can support growing populations while minimizing environmental impact. This involves implementing green building standards, developing efficient public transportation systems to reduce car dependency, and integrating renewable energy sources throughout the urban infrastructure. Planners also prioritize creating community spaces that encourage social interaction and improve quality of life for residents. The goal is to build cities that are not only environmentally sustainable but also socially and economically viable for future generations.",
+    audio: {
+      audioUrl: 'https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg', // Sample URL
+      audioText: "Modern urban planning is increasingly focused on sustainability and creating cities that can support growing populations while minimizing environmental impact. This involves implementing green building standards, developing efficient public transportation systems to reduce car dependency, and integrating renewable energy sources throughout the urban infrastructure. Planners also prioritize creating community spaces that encourage social interaction and improve quality of life for residents. The goal is to build cities that are not only environmentally sustainable but also socially and economically viable for future generations.",
+      audioFormat: 'ogg',
+      audioDuration: 78,
+      audioTitle: 'Sustainable Urban Development'
+    },
     wordLimit: {
       min: 50,
       max: 70
@@ -163,6 +192,13 @@ const generateMoreSSTTopics = (): SummarizeSpokenTextTopic[] => {
   const difficulties: ('Beginner' | 'Intermediate' | 'Advanced')[] = ['Beginner', 'Intermediate', 'Advanced'];
   const statuses: ('Undone' | 'Done' | 'In Progress')[] = ['Undone', 'Done', 'In Progress'];
   
+  const sampleAudioUrls = [
+    'https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3',
+    'https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3',
+    'https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3',
+    'https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg'
+  ];
+  
   const moreTopics: SummarizeSpokenTextTopic[] = [];
   
   for (let i = 6; i <= 25; i++) {
@@ -171,12 +207,22 @@ const generateMoreSSTTopics = (): SummarizeSpokenTextTopic[] => {
     const status = statuses[Math.floor(Math.random() * statuses.length)];
     const transcript = `This is the transcript for ${category.toLowerCase()} topic ${i}. It contains detailed information about the subject matter, including key concepts, research findings, and their implications. The content is designed to test the listener's ability to identify and summarize the most important points within the given word limit.`;
     
+    // 50% chance of having audio URL, otherwise text-to-speech only
+    const hasAudioUrl = Math.random() > 0.5;
+    const audioUrl = hasAudioUrl ? sampleAudioUrls[Math.floor(Math.random() * sampleAudioUrls.length)] : undefined;
+    
     moreTopics.push({
       id: i,
       title: `${category} Research Topic ${i}`,
       taskType: 'SST',
       type: 'listening',
-      audioText: transcript,
+      audio: {
+        audioUrl: audioUrl,
+        audioText: transcript,
+        audioFormat: audioUrl ? (audioUrl.includes('.ogg') ? 'ogg' : 'mp3') : undefined,
+        audioDuration: hasAudioUrl ? Math.floor(Math.random() * 60) + 45 : undefined, // 45-105 seconds
+        audioTitle: `${category} Topic ${i} - ${hasAudioUrl ? 'Audio File' : 'Text-to-Speech'}`
+      },
       wordLimit: {
         min: 50,
         max: 70
@@ -208,3 +254,58 @@ const generateMoreSSTTopics = (): SummarizeSpokenTextTopic[] => {
 };
 
 export const allSummarizeSpokenTextTopics = [...summarizeSpokenTextTopics, ...generateMoreSSTTopics()];
+
+// Export helper functions for backward compatibility and migration
+export const convertLegacyTopic = (topic: any): SummarizeSpokenTextTopic => {
+  if (topic.audio) {
+    return topic; // Already in new format
+  }
+  
+  // Convert legacy format
+  return {
+    ...topic,
+    audio: migrateLegacyAudio(topic.audioText || '', topic.audioUrl),
+    // Keep audioText for backward compatibility
+    audioText: topic.audioText
+  };
+};
+
+// Template for Excel import/export
+export const getExcelTemplate = () => ({
+  headers: [
+    'id',
+    'title', 
+    'audioUrl',
+    'audioText',
+    'audioFormat',
+    'audioDuration',
+    'wordLimitMin',
+    'wordLimitMax', 
+    'timeLimit',
+    'sampleSummary',
+    'keyPoints',
+    'transcript',
+    'difficulty',
+    'category',
+    'tags'
+  ],
+  sampleData: [
+    {
+      id: 1,
+      title: 'Sample Topic',
+      audioUrl: 'https://example.com/audio.mp3',
+      audioText: 'Sample audio text for text-to-speech fallback',
+      audioFormat: 'mp3',
+      audioDuration: 60,
+      wordLimitMin: 50,
+      wordLimitMax: 70,
+      timeLimit: 10,
+      sampleSummary: 'Sample summary response',
+      keyPoints: 'Point 1; Point 2; Point 3',
+      transcript: 'Full transcript of the audio',
+      difficulty: 'Intermediate',
+      category: 'Science',
+      tags: 'science; research; academic'
+    }
+  ]
+});

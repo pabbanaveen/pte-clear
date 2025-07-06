@@ -11,20 +11,26 @@ import {
   ContentDisplay,
   GradientBackground,
   TopicSelectionDrawer,
+  DualAudioPlayer,
+  validateAudioConfig,
+  hasActualAudio,
+  getAudioSourceLabel,
 } from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import TextToSpeech from '../../common/TextToSpeech';
-import { allSummarizeSpokenTextTopics } from './SummarizeSpokenTextMockData';
+import { allSummarizeSpokenTextTopics, convertLegacyTopic } from './SummarizeSpokenTextMockData';
 import { SummarizeSpokenTextTopic, SummaryResponse, SummaryResult, UserAttempt } from './SummarizeSpokenTextType';
 import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface SummarizeSpokenTextProps {}
 
 const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
-  const [selectedTopic, setSelectedTopic] = useState<SummarizeSpokenTextTopic>(allSummarizeSpokenTextTopics[0]);
+  // Convert legacy topics to new format
+  const [selectedTopic, setSelectedTopic] = useState<SummarizeSpokenTextTopic>(
+    convertLegacyTopic(allSummarizeSpokenTextTopics[0])
+  );
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [showTopicSelector, setShowTopicSelector] = useState(false);
   const [summaryText, setSummaryText] = useState<string>('');
@@ -37,6 +43,7 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [attempts, setAttempts] = useState<UserAttempt[]>([]);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioValidation, setAudioValidation] = useState(validateAudioConfig(convertLegacyTopic(allSummarizeSpokenTextTopics[0]).audio));
 
   // Timer state
   const [timer, setTimer] = useState({
@@ -59,7 +66,7 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
     title: 'Summarize Spoken Text',
     type: 'listening',
     onTopicSelect: (topic: any) => {
-      const sstTopic = topic as SummarizeSpokenTextTopic;
+      const sstTopic = convertLegacyTopic(topic as SummarizeSpokenTextTopic);
       setSelectedTopic(sstTopic);
       setCurrentQuestionIndex(allSummarizeSpokenTextTopics.findIndex(t => t.id === sstTopic.id));
     },
@@ -94,8 +101,12 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
 
   // Sync state when topic changes
   useEffect(() => {
+    const topic = convertLegacyTopic(selectedTopic);
+    setSelectedTopic(topic);
+    setAudioValidation(validateAudioConfig(topic.audio));
+    
     setTimer({
-      timeRemaining: selectedTopic.timeLimit * 60,
+      timeRemaining: topic.timeLimit * 60,
       isRunning: false,
       warningThreshold: 60,
       autoSubmit: true,
@@ -233,7 +244,7 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
     if (currentQuestionIndex < allSummarizeSpokenTextTopics.length - 1) {
       const newIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(newIndex);
-      setSelectedTopic(allSummarizeSpokenTextTopics[newIndex]);
+      setSelectedTopic(convertLegacyTopic(allSummarizeSpokenTextTopics[newIndex]));
     }
   };
 
@@ -241,7 +252,7 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
     if (currentQuestionIndex > 0) {
       const newIndex = currentQuestionIndex - 1;
       setCurrentQuestionIndex(newIndex);
-      setSelectedTopic(allSummarizeSpokenTextTopics[newIndex]);
+      setSelectedTopic(convertLegacyTopic(allSummarizeSpokenTextTopics[newIndex]));
     }
   };
 
@@ -250,7 +261,7 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
   };
 
   const handleTopicSelect = (topic: any) => {
-    const sstTopic = topic as SummarizeSpokenTextTopic;
+    const sstTopic = convertLegacyTopic(topic as SummarizeSpokenTextTopic);
     setSelectedTopic(sstTopic);
     setCurrentQuestionIndex(allSummarizeSpokenTextTopics.findIndex(t => t.id === sstTopic.id));
     setShowTopicSelector(false);
@@ -309,13 +320,18 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
           autoSubmit={timer.autoSubmit}
         />
 
-        {/* Text-to-Speech Player */}
-        <TextToSpeech
-          text={selectedTopic.audioText}
+        {/* Dual Audio Player */}
+        <DualAudioPlayer
+          audio={selectedTopic.audio}
           autoPlay={false}
           onStart={() => console.log('Audio started')}
           onEnd={() => console.log('Audio ended')}
           onError={(error) => setAudioError(error)}
+          disabled={false}
+          topicTitle={selectedTopic.title}
+          questionNumber={questionNumber.toString()}
+          remainingTime={`${Math.floor(timer.timeRemaining / 60)}:${String(timer.timeRemaining % 60).padStart(2, '0')}`}
+          testedCount={testedCount}
         />
 
         {/* Topic Information */}
@@ -522,7 +538,7 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
         open={showAnswer}
         onClose={() => setShowAnswer(false)}
         title={selectedTopic.title}
-        text={selectedTopic.audioText}
+        text={selectedTopic.audio.audioText}
         answers={[{
           id: 'sample-summary',
           position: 1,

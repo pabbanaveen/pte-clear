@@ -1,9 +1,10 @@
+import { AudioConfig } from "../../../common/AudioTypes";
 import { BaseTopic } from "../../common/types";
 
 export interface SummarizeSpokenTextTopic extends BaseTopic {
   type: 'listening';
   taskType: 'SST';
-  audioText: string; // Text for TextToSpeech
+  audio: AudioConfig; // Enhanced audio configuration
   wordLimit: {
     min: number;
     max: number;
@@ -12,6 +13,8 @@ export interface SummarizeSpokenTextTopic extends BaseTopic {
   sampleSummary?: string;
   keyPoints?: string[];
   transcript?: string; // For reference
+  // Backward compatibility
+  audioText?: string; // Legacy field - will be deprecated
 }
 
 export interface SummaryResponse {
