@@ -1,4 +1,5 @@
 import { BaseTopic } from "../../common/types";
+import { AudioConfig } from "../../../common/AudioTypes";
 
 // Listening Multiple Choice specific types
 export interface ListeningMultipleChoiceOption {
@@ -11,8 +12,9 @@ export interface ListeningMultipleChoiceQuestion extends BaseTopic {
   category: string;
   timeLimit: number; // in minutes
   testSensitivity: string;
-  audioUrl?: string;
-  audioText?: string; // For TextToSpeech
+  speaker?: string;
+  duration?: string;
+  audio: AudioConfig; // Enhanced audio configuration with dual support
   question: string;
   options: ListeningMultipleChoiceOption[];
   explanation?: string;
@@ -23,6 +25,10 @@ export interface ListeningMultipleChoiceQuestion extends BaseTopic {
   hasExplanation: boolean;
   createdAt: string;
   updatedAt: string;
+  
+  // Backward compatibility - will be deprecated
+  audioUrl?: string;
+  audioText?: string;
 }
 
 // Submission result interface

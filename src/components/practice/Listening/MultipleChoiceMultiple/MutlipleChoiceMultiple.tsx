@@ -10,15 +10,18 @@ import {
   ContentDisplay,
   GradientBackground,
   TopicSelectionDrawer,
+  DualAudioPlayer,
+  validateAudioConfig,
+  hasActualAudio,
+  getAudioSourceLabel,
 } from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import TextToSpeech from '../../common/TextToSpeech';
-import { listeningMultipleChoiceQuestions } from './MutlipleChoiceMultipleMockData';
+import { allListeningMultipleChoiceQuestions, listeningMultipleChoiceQuestions, convertLegacyQuestion } from './MutlipleChoiceMultipleMockData';
 import { ListeningMultipleChoiceQuestion, SubmissionResult, UserAttempt } from './MultipleChoiceMultipleType';
- import { User } from '../../../../types';
+import { User } from '../../../../types';
 import { Close } from '@mui/icons-material';
 
 interface ListeningMultipleChoiceProps {
@@ -26,8 +29,11 @@ interface ListeningMultipleChoiceProps {
 }
 
 const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user }) => {
+  // Convert legacy questions to new format
+  const [selectedQuestion, setSelectedQuestion] = useState<ListeningMultipleChoiceQuestion>(
+    convertLegacyQuestion(allListeningMultipleChoiceQuestions[0])
+  );
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedQuestion, setSelectedQuestion] = useState<ListeningMultipleChoiceQuestion>(listeningMultipleChoiceQuestions[currentQuestionIndex]);
   const [showQuestionSelector, setShowQuestionSelector] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -38,6 +44,7 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [attempts, setAttempts] = useState<UserAttempt[]>([]);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioValidation, setAudioValidation] = useState(validateAudioConfig(convertLegacyQuestion(allListeningMultipleChoiceQuestions[0]).audio));
 
   // Timer state
   const [timer, setTimer] = useState({
@@ -82,6 +89,10 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
 
   // Sync state when question changes
   useEffect(() => {
+    const question = convertLegacyQuestion(selectedQuestion);
+    setSelectedQuestion(question);
+    setAudioValidation(validateAudioConfig(question.audio));
+    
     setSelectedOptions([]);
     setTimer({
       timeRemaining: 300,
@@ -238,10 +249,10 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
 
   // Navigation handlers
   const handleNext = () => {
-    if (currentQuestionIndex < listeningMultipleChoiceQuestions.length - 1) {
+    if (currentQuestionIndex < allListeningMultipleChoiceQuestions.length - 1) {
       const newIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(newIndex);
-      setSelectedQuestion(listeningMultipleChoiceQuestions[newIndex]);
+      setSelectedQuestion(convertLegacyQuestion(allListeningMultipleChoiceQuestions[newIndex]));
     }
   };
 
@@ -249,7 +260,7 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
     if (currentQuestionIndex > 0) {
       const newIndex = currentQuestionIndex - 1;
       setCurrentQuestionIndex(newIndex);
-      setSelectedQuestion(listeningMultipleChoiceQuestions[newIndex]);
+      setSelectedQuestion(convertLegacyQuestion(allListeningMultipleChoiceQuestions[newIndex]));
     }
   };
 
@@ -258,8 +269,9 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
   };
 
   const handleQuestionSelect = (question: any) => {
-    setSelectedQuestion(question);
-    setCurrentQuestionIndex(listeningMultipleChoiceQuestions.findIndex(q => q.id === question.id));
+    const convertedQuestion = convertLegacyQuestion(question);
+    setSelectedQuestion(convertedQuestion);
+    setCurrentQuestionIndex(allListeningMultipleChoiceQuestions.findIndex(q => q.id === convertedQuestion.id));
     setShowQuestionSelector(false);
   };
 
@@ -334,13 +346,18 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
           autoSubmit={timer.autoSubmit}
         />
 
-        {/* Text-to-Speech Player */}
-        <TextToSpeech
-          text={selectedQuestion.audioText || "This is a sample audio for the listening multiple choice question. Listen carefully and select all correct options."}
+        {/* Dual Audio Player */}
+        <DualAudioPlayer
+          audio={selectedQuestion.audio}
           autoPlay={false}
           onStart={() => console.log('Audio started')}
           onEnd={() => console.log('Audio ended')}
           onError={(error) => setAudioError(error)}
+          disabled={false}
+          topicTitle={selectedQuestion.title}
+          questionNumber={questionNumber.toString()}
+          remainingTime={`${Math.floor(timer.timeRemaining / 60)}:${String(timer.timeRemaining % 60).padStart(2, '0')}`}
+          testedCount={testedCount}
         />
 
         {/* Question Display */}
@@ -459,7 +476,7 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
         open={showQuestionSelector}
         onClose={() => setShowQuestionSelector(false)}
         onSelect={handleQuestionSelect}
-        topics={listeningMultipleChoiceQuestions}
+        topics={allListeningMultipleChoiceQuestions}
         title="Select Question"
         type="question"
       />
@@ -478,7 +495,7 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
         open={showAnswer}
         onClose={() => setShowAnswer(false)}
         title={selectedQuestion.title}
-        text={selectedQuestion.audioText || "This is a sample audio for the listening multiple choice question."}
+        text={selectedQuestion.audio.audioText || "Audio content not available."}
         answers={selectedQuestion.options.filter(opt => opt.isCorrect).map((option, index) => ({
           id: option.id,
           position: index + 1,
