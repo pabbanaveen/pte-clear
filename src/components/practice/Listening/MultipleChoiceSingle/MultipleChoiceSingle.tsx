@@ -10,13 +10,13 @@ import {
   ContentDisplay,
   GradientBackground,
   TopicSelectionDrawer,
+  DualAudioPlayer,
 } from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import TextToSpeech from '../../common/TextToSpeech';
-import { MULTIPLE_CHOICE_QUESTIONS } from './MultipleChoiceSingleMockData';
+import { MULTIPLE_CHOICE_QUESTIONS, convertLegacyQuestion } from './MultipleChoiceSingleMockData';
 import { MultipleChoiceQuestion, QuestionResult, UserAttempt } from './MutlipleChoiceSingleType';
 import { Close } from '@mui/icons-material';
 import { questionTopics } from '../../speaking/answer-short-questions/questionTopics';
@@ -24,8 +24,11 @@ import { questionTopics } from '../../speaking/answer-short-questions/questionTo
 interface MultipleChoiceSingleProps { }
 
 const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
+  // Ensure questions are in the new format
+  const questions = MULTIPLE_CHOICE_QUESTIONS.map(convertLegacyQuestion);
+  
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedQuestion, setSelectedQuestion] = useState<MultipleChoiceQuestion>(MULTIPLE_CHOICE_QUESTIONS[currentQuestionIndex]);
+  const [selectedQuestion, setSelectedQuestion] = useState<MultipleChoiceQuestion>(questions[currentQuestionIndex]);
   const [showQuestionSelector, setShowQuestionSelector] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [showAnswer, setShowAnswer] = useState(false);
@@ -207,10 +210,10 @@ const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
 
   // Navigation handlers
   const handleNext = () => {
-    if (currentQuestionIndex < MULTIPLE_CHOICE_QUESTIONS.length - 1) {
+    if (currentQuestionIndex < questions.length - 1) {
       const newIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(newIndex);
-      setSelectedQuestion(MULTIPLE_CHOICE_QUESTIONS[newIndex]);
+      setSelectedQuestion(questions[newIndex]);
     }
   };
 
@@ -218,7 +221,7 @@ const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
     if (currentQuestionIndex > 0) {
       const newIndex = currentQuestionIndex - 1;
       setCurrentQuestionIndex(newIndex);
-      setSelectedQuestion(MULTIPLE_CHOICE_QUESTIONS[newIndex]);
+      setSelectedQuestion(questions[newIndex]);
     }
   };
 
@@ -228,7 +231,7 @@ const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
 
   const handleQuestionSelect = (question: any) => {
     setSelectedQuestion(question);
-    setCurrentQuestionIndex(MULTIPLE_CHOICE_QUESTIONS.findIndex(q => q.id === question.id));
+    setCurrentQuestionIndex(questions.findIndex(q => q.id === question.id));
     setShowQuestionSelector(false);
   };
 
@@ -302,13 +305,20 @@ const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
           autoSubmit={timer.autoSubmit}
         />
 
-        {/* Text-to-Speech Player */}
-        <TextToSpeech
-          text={selectedQuestion.audioText || "This is a sample audio for the listening multiple choice single question. Listen carefully and select the correct option."}
-          autoPlay={false}
-          onStart={() => console.log('Audio started')}
-          onEnd={() => console.log('Audio ended')}
-          onError={(error) => setAudioError(error)}
+        {/* Dual Audio Player - supports both audio files and text-to-speech */}
+        <ContentDisplay
+          title="Listening Audio"
+          content={
+            <DualAudioPlayer
+              audio={selectedQuestion.audio}
+              onStart={() => console.log('Audio started')}
+              onEnd={() => console.log('Audio ended')}
+              onError={(error) => setAudioError(error)}
+              // ={false}
+              autoPlay={false}
+            />
+          }
+          showMetadata={false}
         />
 
         {/* Question Display */}
@@ -438,7 +448,7 @@ const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
         open={showQuestionSelector}
         onClose={() => setShowQuestionSelector(false)}
         onSelect={handleQuestionSelect}
-        topics={MULTIPLE_CHOICE_QUESTIONS}
+        topics={questions}
         title="Select Question"
         type="question"
       />

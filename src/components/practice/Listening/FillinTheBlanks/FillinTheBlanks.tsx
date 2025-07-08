@@ -9,15 +9,15 @@ import {
   TranslationDialog,
   ContentDisplay,
   GradientBackground,
-  TopicSelectionDrawer
+  TopicSelectionDrawer,
+  DualAudioPlayer,
 } from '../../../common';
 import InputField from '../../../common/InputField';
-import { mockListeningPassages, mockStudentProgress } from './FillinTheBlanksMockData';
+import { mockListeningPassages, mockStudentProgress, convertLegacyPassage } from './FillinTheBlanksMockData';
 import { ListeningPassage, BlankPosition, TimerState, QuestionResult, UserAttempt } from './FillinTheBlanksTypes';
 import QuestionHeader from '../../common/QuestionHeader';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
-import TextToSpeech from '../../common/TextToSpeech';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import { Close } from '@mui/icons-material';
 import { questionTopics } from '../../speaking/answer-short-questions/questionTopics';
@@ -25,8 +25,11 @@ import { questionTopics } from '../../speaking/answer-short-questions/questionTo
 interface ListeningFillBlanksProps { }
 
 const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
+  // Ensure passages are in the new format
+  const passages = mockListeningPassages.map(convertLegacyPassage);
+  
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [passage, setPassage] = useState<ListeningPassage>(mockListeningPassages[currentQuestionIndex]);
+  const [passage, setPassage] = useState<ListeningPassage>(passages[currentQuestionIndex]);
   const [showFillinBlanksSelector, setShowFillinBlanksSelector] = useState(false);
 
   // State management
@@ -126,10 +129,10 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
   const studentProgress = mockStudentProgress;
 
   const handleNext = () => {
-    if (currentQuestionIndex < mockListeningPassages.length - 1) {
+    if (currentQuestionIndex < passages.length - 1) {
       const newIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(newIndex);
-      setPassage(mockListeningPassages[newIndex]);
+      setPassage(passages[newIndex]);
     }
   };
 
@@ -137,7 +140,7 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     if (currentQuestionIndex > 0) {
       const newIndex = currentQuestionIndex - 1;
       setCurrentQuestionIndex(newIndex);
-      setPassage(mockListeningPassages[newIndex]);
+      setPassage(passages[newIndex]);
     }
   };
 
@@ -146,7 +149,7 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
   };
 
   const handleFillinBlankSelect = (option: any) => {
-    const newIndex = mockListeningPassages.findIndex(p => p.id === option.id);
+    const newIndex = passages.findIndex(p => p.id === option.id);
     if (newIndex !== -1) {
       setCurrentQuestionIndex(newIndex);
       setPassage(option);
@@ -300,13 +303,20 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
           autoSubmit={timer.autoSubmit}
         />
 
-        {/* Text-to-Speech Player */}
-        <TextToSpeech
-          text={passage.audioText || "This is the listening passage for fill in the blanks exercise. Listen carefully and fill in the missing words."}
-          autoPlay={false}
-          onStart={() => console.log('Audio started')}
-          onEnd={() => console.log('Audio ended')}
-          onError={(error) => setAudioError(error)}
+        {/* Dual Audio Player - supports both audio files and text-to-speech */}
+        <ContentDisplay
+          title="Listening Audio"
+          content={
+            <DualAudioPlayer
+              audio={passage.audio}
+              onStart={() => console.log('Audio started')}
+              onEnd={() => console.log('Audio ended')}
+              onError={(error) => setAudioError(error)}
+              // showTranscript={false}
+              autoPlay={false}
+            />
+          }
+          showMetadata={false}
         />
 
         {/* Passage with Input Fields */}
@@ -359,7 +369,7 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
         open={showFillinBlanksSelector}
         onClose={() => setShowFillinBlanksSelector(false)}
         onSelect={handleFillinBlankSelect}
-        topics={mockListeningPassages}
+        topics={passages}
         title="Listening: Fill in the Blanks"
         type="question"
       />
@@ -445,7 +455,7 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
             color="error"
             onClick={() => {
               setAttempts([]);
-              localStorage.removeItem('answerShortQuestionsAttempts');
+              localStorage.removeItem('listeningFillBlanksAttempts');
             }}
           >
             Clear Attempts

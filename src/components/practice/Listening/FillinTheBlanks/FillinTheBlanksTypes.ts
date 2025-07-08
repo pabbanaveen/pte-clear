@@ -2,6 +2,14 @@
 
 import { BaseTopic } from "../../common/types";
 
+// Audio configuration interface following the established pattern
+export interface AudioConfig {
+  audioUrl?: string;
+  audioText: string;
+  audioFormat?: 'mp3' | 'wav' | 'ogg';
+  audioDuration?: number;
+  audioTitle?: string;
+}
 
 export interface WordBankWord {
   id: string;
@@ -23,8 +31,7 @@ export interface ListeningPassage extends BaseTopic {
   title: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   timeLimit: number; // in seconds
-  audioUrl?: string;
-  audioText?: string; // For TextToSpeech
+  audio: AudioConfig; // Changed from audioUrl/audioText to audio object
   duration: string;
   text: string;
   blanks: BlankPosition[];
@@ -33,6 +40,9 @@ export interface ListeningPassage extends BaseTopic {
   category: string;
   tags: string[];
   maxScore: number;
+  // Legacy support - will be removed once migration is complete
+  audioUrl?: string;
+  audioText?: string;
 }
 
 export interface QuestionResult {
