@@ -1,4 +1,5 @@
 import { BaseTopic } from "../../common/types";
+import { AudioConfig } from "../../../common/AudioTypes";
 
 // Write From Dictation specific interfaces
 export interface WriteFromDictationQuestion extends BaseTopic {
@@ -6,7 +7,8 @@ export interface WriteFromDictationQuestion extends BaseTopic {
   title: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   timeLimit: number; // in seconds
-  audioText: string; // The exact sentence to be dictated
+  audio: AudioConfig; // Audio configuration object
+  audioText: string; // Backward compatibility - will be deprecated
   instructions: string;
   category: string;
   tags: string[];
@@ -14,6 +16,7 @@ export interface WriteFromDictationQuestion extends BaseTopic {
   keyWords: string[]; // Important words that carry more weight in scoring
   acceptableVariations?: { [key: string]: string[] }; // Alternative spellings/forms
   explanation?: string;
+  speaker?: string; // Speaker information
 }
 
 export interface WriteFromDictationResult {

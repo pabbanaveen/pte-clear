@@ -1,4 +1,5 @@
 import { WriteFromDictationQuestion, StudentProgress } from "./WriteFromDictationTypes";
+import { AudioConfig } from "../../../common/AudioTypes";
 
 export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
   // Beginner Level
@@ -10,9 +11,15 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     category: 'Daily Life',
     tags: ['daily', 'routine', 'simple'],
     maxScore: 100,
-    type: 'question',
     speaker: 'Native Speaker',
-    audioText: `I usually wake up at seven o'clock in the morning and have breakfast with my family.`,
+    audio: {
+      audioUrl: 'https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3', // Sample URL
+      audioText: `I usually wake up at seven o'clock in the morning and have breakfast with my family.`,
+      audioFormat: 'mp3',
+      audioDuration: 8,
+      audioTitle: 'Daily Routine - Morning Schedule'
+    },
+    audioText: `I usually wake up at seven o'clock in the morning and have breakfast with my family.`, // Backward compatibility
     keyWords: ['wake', 'seven', 'morning', 'breakfast', 'family'],
     acceptableVariations: {
       'seven': ['7', 'seven'],
@@ -29,7 +36,7 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     updatedAt: '2024-01-15T10:00:00Z'
   },
 
-  // Beginner Level
+  // Beginner Level - Text-to-Speech only
   {
     id: 2,
     title: 'Weather Description',
@@ -38,9 +45,13 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     category: 'Weather',
     tags: ['weather', 'description', 'simple'],
     maxScore: 100,
-    type: 'question',
     speaker: 'Native Speaker',
-    audioText: `Today is sunny and warm, perfect weather for a picnic in the park.`,
+    audio: {
+      // No audioUrl - will use text-to-speech only
+      audioText: `Today is sunny and warm, perfect weather for a picnic in the park.`,
+      audioTitle: 'Weather Description (Text-to-Speech)'
+    },
+    audioText: `Today is sunny and warm, perfect weather for a picnic in the park.`, // Backward compatibility
     keyWords: ['sunny', 'warm', 'perfect', 'picnic', 'park'],
     acceptableVariations: {
       'picnic': ['pic nic'],
@@ -67,7 +78,14 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     maxScore: 150,
     type: 'question',
     speaker: 'Professor',
-    audioText: `The research methodology employed in this study demonstrates a comprehensive approach to analyzing contemporary socioeconomic patterns.`,
+    audio: {
+      audioUrl: 'https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3', // Sample URL
+      audioText: `The research methodology employed in this study demonstrates a comprehensive approach to analyzing contemporary socioeconomic patterns.`,
+      audioFormat: 'mp3',
+      audioDuration: 12,
+      audioTitle: 'Academic Research Methodology'
+    },
+    audioText: `The research methodology employed in this study demonstrates a comprehensive approach to analyzing contemporary socioeconomic patterns.`, // Backward compatibility
     keyWords: ['research', 'methodology', 'comprehensive', 'analyzing', 'socioeconomic', 'patterns'],
     acceptableVariations: {
       'methodology': ['methodolgy'],
@@ -96,7 +114,14 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     maxScore: 150,
     type: 'question',
     speaker: 'Technology Expert',
-    audioText: `Digital transformation has revolutionized business operations, enabling companies to streamline processes and enhance customer experiences significantly.`,
+    audio: {
+      audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3', // Sample URL (different format)
+      audioText: `Digital transformation has revolutionized business operations, enabling companies to streamline processes and enhance customer experiences significantly.`,
+      audioFormat: 'mp3',
+      audioDuration: 15,
+      audioTitle: 'Digital Transformation in Business'
+    },
+    audioText: `Digital transformation has revolutionized business operations, enabling companies to streamline processes and enhance customer experiences significantly.`, // Backward compatibility
     keyWords: ['digital', 'transformation', 'revolutionized', 'operations', 'streamline', 'enhance', 'experiences'],
     acceptableVariations: {
       'revolutionized': ['revolutionised'],
@@ -124,7 +149,14 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     maxScore: 200,
     type: 'question',
     speaker: 'Policy Analyst',
-    audioText: `The implementation of stringent environmental regulations necessitates unprecedented collaboration between governmental agencies, multinational corporations, and grassroots environmental organizations.`,
+    audio: {
+      audioUrl: 'https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg', // OGG format sample
+      audioText: `The implementation of stringent environmental regulations necessitates unprecedented collaboration between governmental agencies, multinational corporations, and grassroots environmental organizations.`,
+      audioFormat: 'ogg',
+      audioDuration: 18,
+      audioTitle: 'Environmental Policy Implementation'
+    },
+    audioText: `The implementation of stringent environmental regulations necessitates unprecedented collaboration between governmental agencies, multinational corporations, and grassroots environmental organizations.`, // Backward compatibility
     keyWords: ['implementation', 'stringent', 'regulations', 'necessitates', 'unprecedented', 'collaboration', 'governmental', 'multinational', 'grassroots'],
     acceptableVariations: {
       'stringent': ['stringant'],
@@ -144,7 +176,7 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     updatedAt: '2024-01-11T11:20:00Z'
   },
 
-  // Advanced Level
+  // Advanced Level - Audio file with different format
   {
     id: 6,
     title: 'Scientific Research',
@@ -155,7 +187,14 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     maxScore: 200,
     type: 'question',
     speaker: 'Research Scientist',
-    audioText: `The paradigmatic shift in quantum mechanics fundamentally challenged conventional understanding of physical reality, prompting extensive philosophical debates about the nature of observation and measurement.`,
+    audio: {
+      audioUrl: 'https://file-examples.com/storage/fef2cc3a8df74e7da8b4e5a/2017/11/file_example_MP3_700KB.mp3', // Different sample URL
+      audioText: `The paradigmatic shift in quantum mechanics fundamentally challenged conventional understanding of physical reality, prompting extensive philosophical debates about the nature of observation and measurement.`,
+      audioFormat: 'mp3',
+      audioDuration: 20,
+      audioTitle: 'Quantum Mechanics and Philosophy'
+    },
+    audioText: `The paradigmatic shift in quantum mechanics fundamentally challenged conventional understanding of physical reality, prompting extensive philosophical debates about the nature of observation and measurement.`, // Backward compatibility
     keyWords: ['paradigmatic', 'quantum', 'mechanics', 'fundamentally', 'challenged', 'conventional', 'philosophical', 'observation', 'measurement'],
     acceptableVariations: {
       'paradigmatic': ['paradigmattic'],
@@ -184,9 +223,13 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     category: 'Shopping',
     tags: ['shopping', 'daily', 'routine'],
     maxScore: 100,
-    type: 'question',
     speaker: 'Native Speaker',
-    audioText: `She bought three apples, two bananas, and a bottle of orange juice at the supermarket.`,
+    audio: {
+      // Text-to-speech only example
+      audioText: `She bought three apples, two bananas, and a bottle of orange juice at the supermarket.`,
+      audioTitle: 'Shopping Trip (Text-to-Speech)'
+    },
+    audioText: `She bought three apples, two bananas, and a bottle of orange juice at the supermarket.`, // Backward compatibility
     keyWords: ['bought', 'three', 'apples', 'bananas', 'bottle', 'orange', 'juice', 'supermarket'],
     acceptableVariations: {
       'three': ['3'],
@@ -215,7 +258,14 @@ export const mockWriteFromDictationQuestions: WriteFromDictationQuestion[] = [
     maxScore: 150,
     type: 'question',
     speaker: 'Cultural Historian',
-    audioText: `The preservation of cultural heritage sites requires delicate balance between accessibility for tourists and protection of irreplaceable historical artifacts.`,
+    audio: {
+      audioUrl: 'https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3', // Reusing URL for variety
+      audioText: `The preservation of cultural heritage sites requires delicate balance between accessibility for tourists and protection of irreplaceable historical artifacts.`,
+      audioFormat: 'mp3',
+      audioDuration: 16,
+      audioTitle: 'Cultural Heritage Preservation'
+    },
+    audioText: `The preservation of cultural heritage sites requires delicate balance between accessibility for tourists and protection of irreplaceable historical artifacts.`, // Backward compatibility
     keyWords: ['preservation', 'heritage', 'requires', 'delicate', 'balance', 'accessibility', 'tourists', 'protection', 'irreplaceable', 'artifacts'],
     acceptableVariations: {
       'preservation': ['preservasion'],
@@ -267,4 +317,34 @@ export const difficultySettings = {
     keyWordWeight: 3.0,
     regularWordWeight: 1.0
   }
+};
+
+// Backward compatibility helpers
+export const getAudioText = (question: WriteFromDictationQuestion): string => {
+  return question.audio?.audioText || question.audioText;
+};
+
+export const hasAudioUrl = (question: WriteFromDictationQuestion): boolean => {
+  return Boolean(question.audio?.audioUrl && question.audio.audioUrl.trim().length > 0);
+};
+
+export const getAudioSource = (question: WriteFromDictationQuestion): 'url' | 'tts' => {
+  return hasAudioUrl(question) ? 'url' : 'tts';
+};
+
+// Migration helper for legacy question format
+export const migrateQuestionFormat = (legacyQuestion: any): WriteFromDictationQuestion => {
+  // If already has audio config, return as is
+  if (legacyQuestion.audio) {
+    return legacyQuestion;
+  }
+  
+  // Convert legacy format
+  return {
+    ...legacyQuestion,
+    audio: {
+      audioText: legacyQuestion.audioText,
+      audioTitle: `${legacyQuestion.title} (Text-to-Speech)`
+    }
+  };
 };

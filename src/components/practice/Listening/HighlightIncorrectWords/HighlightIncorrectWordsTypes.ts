@@ -1,5 +1,14 @@
 import { BaseTopic } from "../../common/types";
 
+// Audio configuration interface following the established pattern
+export interface AudioConfig {
+  audioUrl?: string;
+  audioText: string;
+  audioFormat?: 'mp3' | 'wav' | 'ogg';
+  audioDuration?: number;
+  audioTitle?: string;
+}
+
 // Highlight Incorrect Words specific interfaces
 export interface IncorrectWord {
   id: string;
@@ -15,7 +24,7 @@ export interface HighlightIncorrectWordsQuestion extends BaseTopic {
   title: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   timeLimit: number; // in seconds
-  audioText: string; // What the speaker actually says
+  audio: AudioConfig; // Changed from audioText to audio object
   displayText: string; // The transcription shown to user (with incorrect words)
   incorrectWords: IncorrectWord[]; // Words that are different from audio
   instructions: string;
@@ -23,6 +32,8 @@ export interface HighlightIncorrectWordsQuestion extends BaseTopic {
   tags: string[];
   maxScore: number;
   explanation?: string;
+  // Legacy support - will be removed once migration is complete
+  audioText?: string;
 }
 
 export interface HighlightIncorrectWordsResult {

@@ -1,5 +1,14 @@
 import { BaseTopic } from "../../common/types";
 
+// Audio configuration interface following the established pattern
+export interface AudioConfig {
+  audioUrl?: string;
+  audioText: string;
+  audioFormat?: 'mp3' | 'wav' | 'ogg';
+  audioDuration?: number;
+  audioTitle?: string;
+}
+
 // Select Missing Word specific interfaces
 export interface MissingWordOption {
   id: string;
@@ -13,7 +22,7 @@ export interface SelectMissingWordQuestion extends BaseTopic {
   title: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   timeLimit: number; // in seconds
-  audioText: string; // Full text to be spoken
+  audio: AudioConfig; // Changed from audioText to audio object
   missingWordPosition: string; // The word/phrase that will be beeped
   instructions: string;
   category: string;
@@ -22,6 +31,8 @@ export interface SelectMissingWordQuestion extends BaseTopic {
   options: MissingWordOption[];
   correctAnswer: 'A' | 'B' | 'C' | 'D';
   explanation?: string;
+  // Legacy support - will be removed once migration is complete
+  audioText?: string;
 }
 
 export interface SelectMissingWordResult {

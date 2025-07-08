@@ -25,12 +25,12 @@ import {
   ContentDisplay,
   GradientBackground,
   TopicSelectionDrawer,
+  DualAudioPlayer
 } from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import TextToSpeech from '../../common/TextToSpeech';
 import { mockHighlightIncorrectWordsQuestions, mockStudentProgress } from './HighlightIncorrectWordsMockData';
 import { HighlightIncorrectWordsQuestion, TimerState, HighlightIncorrectWordsResult, IncorrectWord, UserAttempt } from './HighlightIncorrectWordsTypes';
 
@@ -343,13 +343,17 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
           autoSubmit={timer.autoSubmit}
         />
 
-        {/* Text-to-Speech Player */}
-        <TextToSpeech
-          text={question.audioText}
+        {/* Dual Audio Player */}
+        <DualAudioPlayer
+          audio={question.audio}
           autoPlay={false}
           onStart={() => console.log('Audio started')}
           onEnd={() => console.log('Audio ended')}
           onError={(error) => setAudioError(error)}
+          topicTitle={question.title}
+          questionNumber={questionNumber.toString()}
+          remainingTime={`${Math.floor(timer.timeRemaining / 60)}:${(timer.timeRemaining % 60).toString().padStart(2, '0')}`}
+          testedCount={testedCount}
         />
 
         {/* Instructions and Visual Guide */}
@@ -664,7 +668,7 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
         open={showAnswer}
         onClose={() => setShowAnswer(false)}
         title={question.title}
-        text={question.audioText}
+        text={question.audio.audioText}
         answers={question.incorrectWords.map((word, index) => ({
           id: word.id,
           position: index + 1,

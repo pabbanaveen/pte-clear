@@ -17,13 +17,13 @@ import {
   ContentDisplay,
   GradientBackground,
   TopicSelectionDrawer,
+  DualAudioPlayer
 } from '../../../common';
 import { mockWriteFromDictationQuestions, mockStudentProgress } from './WriteFromDictationMockData';
 import { WriteFromDictationQuestion, TimerState, WriteFromDictationResult, WordAnalysis } from './WriteFromDictationTypes';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
-import TextToSpeech from '../../common/TextToSpeech';
 
 interface WriteFromDictationProps {}
 
@@ -179,7 +179,7 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
 
     // Analyze the response
     const userWords = userInput.trim().split(/\s+/).filter(word => word.length > 0);
-    const expectedWords = question.audioText.split(/\s+/).filter(word => word.length > 0);
+    const expectedWords = (question.audio?.audioText || question.audioText).split(/\s+/).filter(word => word.length > 0);
     
     let wordsCorrect = 0;
     let keyWordsCorrect = 0;
@@ -226,7 +226,7 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
     const result: WriteFromDictationResult = {
       questionId: String(question.id),
       userInput,
-      correctText: question.audioText,
+      correctText: question.audio?.audioText || question.audioText,
       score: Math.max(0, score),
       maxScore: question.maxScore,
       accuracy,
@@ -308,12 +308,17 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
           autoSubmit={timer.autoSubmit}
         />
 
-        {/* Text-to-Speech Player */}
-        <TextToSpeech 
-          text={question.audioText}
+        {/* Dual Audio Player - Supports both audio files and text-to-speech */}
+        <DualAudioPlayer 
+          audio={question.audio}
           autoPlay={false}
           onStart={handleAudioStart}
           onEnd={() => console.log('Audio ended')}
+          onError={(error) => console.error('Audio error:', error)}
+          topicTitle={question.title}
+          questionNumber={String(questionNumber)}
+          remainingTime={`${Math.floor(timer.timeRemaining / 60)}:${(timer.timeRemaining % 60).toString().padStart(2, '0')}`}
+          testedCount={studentProgress.testedCount}
         />
 
         {/* Writing Area */}
@@ -455,7 +460,7 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
         title={question.title}
         answers={[{
           id: 'correct-sentence',
-          correctAnswer: question.audioText,
+          correctAnswer: question.audio?.audioText || question.audioText,
           label: "Correct sentence"
         }]}
         explanation={question.explanation}

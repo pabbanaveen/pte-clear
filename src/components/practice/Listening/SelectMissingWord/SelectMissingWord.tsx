@@ -28,12 +28,12 @@ import {
   ContentDisplay,
   GradientBackground,
   TopicSelectionDrawer,
+  DualAudioPlayer
 } from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import TextToSpeech from '../../common/TextToSpeech';
 import { mockSelectMissingWordQuestions, mockStudentProgress } from './SelectMissingWordMockData';
 import { SelectMissingWordQuestion, TimerState, SelectMissingWordResult, MissingWordOption, UserAttempt } from './SelectMissingWordType';
 
@@ -276,7 +276,17 @@ const SelectMissingWord: React.FC<SelectMissingWordProps> = () => {
   // Function to create audio text with beep simulation
   const getAudioTextWithBeep = () => {
     // Replace the missing word with "BEEP" for text-to-speech
-    return question.audioText.replace(question.missingWordPosition, 'BEEP');
+    return question.audio.audioText.replace(question.missingWordPosition, 'BEEP');
+  };
+
+  // Prepare audio config for DualAudioPlayer with beep simulation
+  const getAudioConfigWithBeep = () => {
+    const audioTextWithBeep = getAudioTextWithBeep();
+    
+    return {
+      ...question.audio,
+      audioText: audioTextWithBeep
+    };
   };
 
   // Create result for dialog
@@ -324,13 +334,17 @@ const SelectMissingWord: React.FC<SelectMissingWordProps> = () => {
           autoSubmit={timer.autoSubmit}
         />
 
-        {/* Text-to-Speech Player */}
-        <TextToSpeech
-          text={getAudioTextWithBeep()}
+        {/* Dual Audio Player */}
+        <DualAudioPlayer
+          audio={getAudioConfigWithBeep()}
           autoPlay={false}
           onStart={() => console.log('Audio started')}
           onEnd={() => console.log('Audio ended')}
           onError={(error) => setAudioError(error)}
+          topicTitle={question.title}
+          questionNumber={questionNumber.toString()}
+          remainingTime={`${Math.floor(timer.timeRemaining / 60)}:${(timer.timeRemaining % 60).toString().padStart(2, '0')}`}
+          testedCount={testedCount}
         />
 
         {/* Instructions and Options */}
@@ -437,7 +451,7 @@ const SelectMissingWord: React.FC<SelectMissingWordProps> = () => {
                   Missing Word Position: "{question.missingWordPosition}"
                 </Typography>
                 <Typography variant="body2">
-                  Complete sentence with correct word: {question.audioText}
+                  Complete sentence with correct word: {question.audio.audioText}
                 </Typography>
               </Box>
               {question.explanation && (
@@ -460,7 +474,7 @@ const SelectMissingWord: React.FC<SelectMissingWordProps> = () => {
         open={showAnswer}
         onClose={() => setShowAnswer(false)}
         title={question.title}
-        text={question.audioText}
+        text={question.audio.audioText}
         answers={[{
           id: 'correct-option',
           position: 1,
