@@ -387,24 +387,141 @@ export class AdminService {
     };
   }
 
-  async uploadExcel(module: string, subModule: string, file: File): Promise<AdminApiResponse> {
-    console.log(`📤 UPLOAD Excel - Module: ${module}, SubModule: ${subModule}, File: ${file.name}`);
-    
-    // Validate file type
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+  // Process Excel import with enhanced audio support
+  async uploadExcel(module: string, subModule: string, file: File): Promise<{ success: boolean; message?: string; error?: string; data?: any }> {
+    try {
+      // Simulate API call with validation
+      const result = await this.processExcelFile(file, module, subModule);
+      
+      if (result.errors.length > 0) {
+        return {
+          success: false,
+          error: `Validation errors found:\n${result.errors.join('\n')}`,
+          data: { errors: result.errors }
+        };
+      }
+
+      return {
+        success: true,
+        message: `Successfully imported ${result.imported} questions`,
+        data: { imported: result.imported, processed: result.data }
+      };
+    } catch (error) {
       return {
         success: false,
-        error: 'Please upload a valid Excel file (.xlsx or .xls)'
+        error: 'Failed to process Excel file. Please check the format and try again.'
+      };
+    }
+  }
+
+  private async processExcelFile(file: File, module: string, subModule: string): Promise<{ imported: number; errors: string[]; data: any[] }> {
+    return new Promise(async (resolve) => {
+      const XLSX = await import('xlsx');
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+          const errors: string[] = [];
+          const processedData: any[] = [];
+          let imported = 0;
+
+          jsonData.forEach((row: any, index: number) => {
+            const rowNumber = index + 2; // Account for header row
+            const validation = this.validateRow(row, module, subModule, rowNumber);
+            
+            if (validation.errors.length > 0) {
+              errors.push(...validation.errors);
+            } else {
+              processedData.push(validation.processedRow);
+              imported++;
+            }
+          });
+
+          resolve({ imported, errors, data: processedData });
+        } catch (error) {
+          resolve({ imported: 0, errors: ['Failed to parse Excel file'], data: [] });
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  private validateRow(row: any, module: string, subModule: string, rowNumber: number): { errors: string[]; processedRow: any } {
+    const errors: string[] = [];
+    const processedRow: any = { ...row };
+
+    // Basic validation
+    if (!row.title) {
+      errors.push(`Row ${rowNumber}: Title is required`);
+    }
+
+    // Listening module audio validation
+    if (module === 'Listening') {
+      const hasAudioUrl = row.audioUrl && row.audioUrl.trim();
+      const hasAudioText = row.audioText && row.audioText.trim();
+
+      if (!hasAudioUrl && !hasAudioText) {
+        errors.push(`Row ${rowNumber}: Either audioUrl or audioText is required for Listening module`);
+      }
+
+      if (hasAudioUrl && !this.isValidUrl(row.audioUrl)) {
+        errors.push(`Row ${rowNumber}: Invalid audioUrl format`);
+      }
+
+      if (hasAudioText && row.audioText.length < 10) {
+        errors.push(`Row ${rowNumber}: audioText should be at least 10 characters long`);
+      }
+
+      // Structure audio data properly
+      processedRow.audio = {
+        audioUrl: row.audioUrl || '',
+        audioText: row.audioText || '',
+        audioFormat: row.audioFormat || (hasAudioUrl ? this.extractAudioFormat(row.audioUrl) : ''),
+        audioDuration: row.audioDuration ? parseInt(row.audioDuration) : undefined,
+        audioTitle: row.audioTitle || row.title || 'Untitled Audio'
       };
     }
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    return {
-      success: true,
-      data: { uploadedCount: Math.floor(Math.random() * 50) + 10 },
-      message: `Successfully uploaded ${file.name} with questions for ${subModule} in ${module} module`
-    };
+    // Module-specific validation
+    switch (`${module}-${subModule}`) {
+      case 'Listening-summarize-spoken-text':
+        if (!row.transcript && !row.audioText) {
+          errors.push(`Row ${rowNumber}: Transcript or audioText is required`);
+        }
+        break;
+      case 'Listening-multiple-choice-multiple':
+      case 'Listening-multiple-choice-single':
+        if (!row.question) {
+          errors.push(`Row ${rowNumber}: Question is required`);
+        }
+        break;
+      case 'Listening-fill-blanks':
+        if (!row.text) {
+          errors.push(`Row ${rowNumber}: Text with blanks is required`);
+        }
+        break;
+    }
+
+    return { errors, processedRow };
+  }
+
+  private isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private extractAudioFormat(url: string): string {
+    const extension = url.split('.').pop()?.toLowerCase();
+    return ['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(extension || '') ? extension || 'mp3' : 'mp3';
   }
 
   async downloadTemplate(module: string, subModule: string): Promise<AdminApiResponse> {
@@ -1097,24 +1214,29 @@ export class AdminService {
           ]
         };
         
-      // Listening Module Exports
+      // Listening Module Exports - Enhanced with Audio Support
       case 'Listening-summarize-spoken-text':
         return {
           sheetName: 'Summarize Spoken Text Questions',
           data: [
-            ['id', 'audioUrl', 'transcript', 'duration', 'wordLimit', 'timeLimit', 'keyPoints', 'sampleSummary', 'difficulty', 'category', 'title'],
+            ['id', 'title', 'audioUrl', 'audioText', 'audioFormat', 'audioDuration', 'audioTitle', 'transcript', 'wordLimitMin', 'wordLimitMax', 'timeLimit', 'keyPoints', 'sampleSummary', 'difficulty', 'category', 'tags'],
             ...questions.map(q => [
               q.id,
-              q.audioUrl || '',
+              q.title || '',
+              q.audio?.audioUrl || q.audioUrl || '',
+              q.audio?.audioText || q.audioText || '',
+              q.audio?.audioFormat || q.audioFormat || '',
+              q.audio?.audioDuration || q.audioDuration || '',
+              q.audio?.audioTitle || q.audioTitle || '',
               q.transcript || q.audioText || '',
-              q.duration || 60,
-              q.wordLimit || 70,
+              q.wordLimit?.min || 50,
+              q.wordLimit?.max || 70,
               q.timeLimit || 10,
               Array.isArray(q.keyPoints) ? q.keyPoints.join(';') : q.keyPoints || '',
               q.sampleSummary || '',
               q.difficulty || 'Beginner',
               q.category || '',
-              q.title || ''
+              Array.isArray(q.tags) ? q.tags.join(',') : q.tags || ''
             ])
           ]
         };
@@ -1123,10 +1245,15 @@ export class AdminService {
         return {
           sheetName: 'Listening MC Multiple Questions',
           data: [
-            ['id', 'audioUrl', 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'optionE', 'correctAnswers', 'transcript', 'difficulty', 'category', 'title'],
+            ['id', 'title', 'audioUrl', 'audioText', 'audioFormat', 'audioDuration', 'audioTitle', 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'optionE', 'correctAnswers', 'transcript', 'speaker', 'difficulty', 'category', 'tags'],
             ...questions.map(q => [
               q.id,
-              q.audioUrl || '',
+              q.title || '',
+              q.audio?.audioUrl || q.audioUrl || '',
+              q.audio?.audioText || q.audioText || '',
+              q.audio?.audioFormat || q.audioFormat || '',
+              q.audio?.audioDuration || q.audioDuration || '',
+              q.audio?.audioTitle || q.audioTitle || '',
               q.question || q.questionText || '',
               q.options?.[0] || q.optionA || '',
               q.options?.[1] || q.optionB || '',
@@ -1135,9 +1262,10 @@ export class AdminService {
               q.options?.[4] || q.optionE || '',
               Array.isArray(q.correctAnswers) ? q.correctAnswers.join(';') : q.correctAnswers || '',
               q.transcript || '',
+              q.speaker || '',
               q.difficulty || 'Beginner',
               q.category || '',
-              q.title || ''
+              Array.isArray(q.tags) ? q.tags.join(',') : q.tags || ''
             ])
           ]
         };
@@ -1146,10 +1274,15 @@ export class AdminService {
         return {
           sheetName: 'Listening MC Single Questions',
           data: [
-            ['id', 'audioUrl', 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctAnswer', 'transcript', 'difficulty', 'category', 'title'],
+            ['id', 'title', 'audioUrl', 'audioText', 'audioFormat', 'audioDuration', 'audioTitle', 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctAnswer', 'transcript', 'speaker', 'difficulty', 'category', 'tags'],
             ...questions.map(q => [
               q.id,
-              q.audioUrl || '',
+              q.title || '',
+              q.audio?.audioUrl || q.audioUrl || '',
+              q.audio?.audioText || q.audioText || '',
+              q.audio?.audioFormat || q.audioFormat || '',
+              q.audio?.audioDuration || q.audioDuration || '',
+              q.audio?.audioTitle || q.audioTitle || '',
               q.question || q.questionText || '',
               q.options?.[0] || q.optionA || '',
               q.options?.[1] || q.optionB || '',
@@ -1157,9 +1290,10 @@ export class AdminService {
               q.options?.[3] || q.optionD || '',
               q.correctAnswer || '',
               q.transcript || '',
+              q.speaker || '',
               q.difficulty || 'Beginner',
               q.category || '',
-              q.title || ''
+              Array.isArray(q.tags) ? q.tags.join(',') : q.tags || ''
             ])
           ]
         };
@@ -1168,29 +1302,25 @@ export class AdminService {
         return {
           sheetName: 'Listening Fill Blanks Questions',
           data: [
-            ['id', 'title', 'audioUrl', 'transcript', 'duration', 'blank1_answer', 'blank1_word', 'blank2_answer', 'blank2_word', 'blank3_answer', 'blank3_word', 'extraWords', 'difficulty', 'category'],
-            ...questions.map(q => {
-              const blanks = q.blanks || [];
-              const wordBank = q.wordBank || [];
-              const extraWords = wordBank.filter((w:any) => !w.correctPosition).map((w:any) => w.word).join(';');
-              
-              return [
-                q.id,
-                q.title || '',
-                q.audioUrl || '',
-                q.text || q.transcript || '',
-                q.duration || '',
-                blanks[0]?.correctAnswer || '',
-                blanks[0]?.correctAnswer || '',
-                blanks[1]?.correctAnswer || '',
-                blanks[1]?.correctAnswer || '',
-                blanks[2]?.correctAnswer || '',
-                blanks[2]?.correctAnswer || '',
-                extraWords,
-                q.difficulty || 'Beginner',
-                q.category || ''
-              ];
-            })
+            ['id', 'title', 'audioUrl', 'audioText', 'audioFormat', 'audioDuration', 'audioTitle', 'text', 'wordBank', 'speaker', 'instructions', 'maxScore', 'timeLimit', 'difficulty', 'category', 'tags'],
+            ...questions.map(q => [
+              q.id,
+              q.title || '',
+              q.audio?.audioUrl || q.audioUrl || '',
+              q.audio?.audioText || q.audioText || '',
+              q.audio?.audioFormat || q.audioFormat || '',
+              q.audio?.audioDuration || q.audioDuration || '',
+              q.audio?.audioTitle || q.audioTitle || '',
+              q.text || '',
+              Array.isArray(q.wordBank) ? q.wordBank.join(';') : q.wordBank || '',
+              q.speaker || '',
+              q.instructions || '',
+              q.maxScore || 100,
+              q.timeLimit || 900,
+              q.difficulty || 'Beginner',
+              q.category || '',
+              Array.isArray(q.tags) ? q.tags.join(',') : q.tags || ''
+            ])
           ]
         };
         
@@ -1198,18 +1328,27 @@ export class AdminService {
         return {
           sheetName: 'Highlight Correct Summary Questions',
           data: [
-            ['id', 'audioUrl', 'summaryA', 'summaryB', 'summaryC', 'correctSummary', 'transcript', 'difficulty', 'category', 'title'],
+            ['id', 'title', 'audioUrl', 'audioText', 'audioFormat', 'audioDuration', 'audioTitle', 'summaryA', 'summaryB', 'summaryC', 'correctSummary', 'transcript', 'speaker', 'instructions', 'maxScore', 'timeLimit', 'difficulty', 'category', 'tags'],
             ...questions.map(q => [
               q.id,
-              q.audioUrl || '',
+              q.title || '',
+              q.audio?.audioUrl || q.audioUrl || '',
+              q.audio?.audioText || q.audioText || '',
+              q.audio?.audioFormat || q.audioFormat || '',
+              q.audio?.audioDuration || q.audioDuration || '',
+              q.audio?.audioTitle || q.audioTitle || '',
               q.summaries?.[0] || q.summaryA || '',
               q.summaries?.[1] || q.summaryB || '',
               q.summaries?.[2] || q.summaryC || '',
               q.correctSummary || '',
               q.transcript || '',
+              q.speaker || '',
+              q.instructions || '',
+              q.maxScore || 100,
+              q.timeLimit || 900,
               q.difficulty || 'Beginner',
               q.category || '',
-              q.title || ''
+              Array.isArray(q.tags) ? q.tags.join(',') : q.tags || ''
             ])
           ]
         };
@@ -1218,20 +1357,25 @@ export class AdminService {
         return {
           sheetName: 'Select Missing Word Questions',
           data: [
-            ['id', 'audioUrl', 'transcript', 'missingWordPosition', 'optionA', 'optionB', 'optionC', 'optionD', 'correctAnswer', 'difficulty', 'category', 'title'],
+            ['id', 'title', 'audioUrl', 'audioText', 'audioFormat', 'audioDuration', 'audioTitle', 'missingWordPosition', 'optionA', 'optionB', 'optionC', 'correctAnswer', 'speaker', 'instructions', 'difficulty', 'category', 'tags'],
             ...questions.map(q => [
               q.id,
-              q.audioUrl || '',
-              q.transcript || '',
+              q.title || '',
+              q.audio?.audioUrl || q.audioUrl || '',
+              q.audio?.audioText || q.audioText || '',
+              q.audio?.audioFormat || q.audioFormat || '',
+              q.audio?.audioDuration || q.audioDuration || '',
+              q.audio?.audioTitle || q.audioTitle || '',
               q.missingWordPosition || '',
               q.options?.[0] || q.optionA || '',
               q.options?.[1] || q.optionB || '',
               q.options?.[2] || q.optionC || '',
-              q.options?.[3] || q.optionD || '',
               q.correctAnswer || '',
+              q.speaker || '',
+              q.instructions || '',
               q.difficulty || 'Beginner',
               q.category || '',
-              q.title || ''
+              Array.isArray(q.tags) ? q.tags.join(',') : q.tags || ''
             ])
           ]
         };
@@ -1240,16 +1384,24 @@ export class AdminService {
         return {
           sheetName: 'Highlight Incorrect Words Questions',
           data: [
-            ['id', 'audioUrl', 'transcript', 'incorrectWords', 'correctTranscript', 'difficulty', 'category', 'title'],
+            ['id', 'title', 'audioUrl', 'audioText', 'audioFormat', 'audioDuration', 'audioTitle', 'displayText', 'incorrectWords', 'speaker', 'instructions', 'maxScore', 'timeLimit', 'difficulty', 'category', 'tags'],
             ...questions.map(q => [
               q.id,
-              q.audioUrl || '',
-              q.transcript || '',
-              Array.isArray(q.incorrectWords) ? q.incorrectWords.join(',') : q.incorrectWords || '',
-              q.correctTranscript || '',
+              q.title || '',
+              q.audio?.audioUrl || q.audioUrl || '',
+              q.audio?.audioText || q.audioText || '',
+              q.audio?.audioFormat || q.audioFormat || '',
+              q.audio?.audioDuration || q.audioDuration || '',
+              q.audio?.audioTitle || q.audioTitle || '',
+              q.displayText || q.audioText || '',
+              Array.isArray(q.incorrectWords) ? q.incorrectWords.join(';') : q.incorrectWords || '',
+              q.speaker || '',
+              q.instructions || '',
+              q.maxScore || 100,
+              q.timeLimit || 1200,
               q.difficulty || 'Beginner',
               q.category || '',
-              q.title || ''
+              Array.isArray(q.tags) ? q.tags.join(',') : q.tags || ''
             ])
           ]
         };
@@ -1258,16 +1410,23 @@ export class AdminService {
         return {
           sheetName: 'Write From Dictation Questions',
           data: [
-            ['id', 'audioUrl', 'sentence', 'playCount', 'difficulty', 'category', 'keyWords', 'title'],
+            ['id', 'title', 'audioUrl', 'audioText', 'audioFormat', 'audioDuration', 'audioTitle', 'keyWords', 'acceptableVariations', 'maxScore', 'timeLimit', 'instructions', 'difficulty', 'category', 'tags'],
             ...questions.map(q => [
               q.id,
-              q.audioUrl || '',
-              q.sentence || q.text || '',
-              q.playCount || 3,
+              q.title || '',
+              q.audio?.audioUrl || q.audioUrl || '',
+              q.audio?.audioText || q.audioText || '',
+              q.audio?.audioFormat || q.audioFormat || '',
+              q.audio?.audioDuration || q.audioDuration || '',
+              q.audio?.audioTitle || q.audioTitle || '',
+              Array.isArray(q.keyWords) ? q.keyWords.join(';') : q.keyWords || '',
+              typeof q.acceptableVariations === 'object' ? JSON.stringify(q.acceptableVariations) : q.acceptableVariations || '',
+              q.maxScore || 100,
+              q.timeLimit || 600,
+              q.instructions || '',
               q.difficulty || 'Beginner',
               q.category || '',
-              Array.isArray(q.keyWords) ? q.keyWords.join(',') : q.keyWords || '',
-              q.title || ''
+              Array.isArray(q.tags) ? q.tags.join(',') : q.tags || ''
             ])
           ]
         };

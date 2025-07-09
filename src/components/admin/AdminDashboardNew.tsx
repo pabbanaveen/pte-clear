@@ -15,11 +15,10 @@ import {
   Refresh as RefreshIcon
 } from '@mui/icons-material';
 
-
 import { adminService } from '../../services/adminService';
-import FileOperations from './common/FileOperations';
+import EnhancedFileOperations from './common/EnhancedFileOperations';
 import ModuleSelector from './common/ModuleSelector';
-import QuestionFormDrawer from './common/QuestionFormDrawer';
+import EnhancedQuestionFormDrawer from './common/EnhancedQuestionFormDrawer';
 import QuestionsTable from './common/QuestionsTable';
 
 interface TabPanelProps {
@@ -232,9 +231,15 @@ const AdminDashboardNew: React.FC = () => {
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Upload Excel files with questions or export existing questions to Excel format.
+              {selectedModule === 'Listening' && (
+                <Box sx={{ mt: 1, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
+                  <strong>Listening Module:</strong> Supports both audio URL and text-to-speech options.
+                  Include audioUrl for direct audio files or audioText for speech synthesis.
+                </Box>
+              )}
             </Typography>
             
-            <FileOperations
+            <EnhancedFileOperations
               selectedModule={selectedModule}
               selectedSubModule={selectedSubModule}
               onUploadSuccess={handleUploadSuccess}
@@ -259,7 +264,7 @@ const AdminDashboardNew: React.FC = () => {
       )}
 
       {/* Question Form Drawer */}
-      <QuestionFormDrawer
+      <EnhancedQuestionFormDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         selectedModule={selectedModule}

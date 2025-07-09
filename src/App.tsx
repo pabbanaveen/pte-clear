@@ -41,6 +41,7 @@ import { SearchProvider } from './components/contexts/SearchContext';
 import GlobalSearchButton from './components/GlobalSearchButton';
 import FloatingSearchDemo from './components/common/FloatingSearchButton';
 import AdminDashboardNew from './components/admin/AdminDashboardNew';
+import EnhancedAdminDemo from './components/admin/EnhancedAdminDemo';
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -207,6 +208,10 @@ const App: React.FC = () => {
               {/* Demo Route */}
               <Route path="/demo/floating-search" element={<FloatingSearchDemo />} />
 
+            {/* Enhanced Admin Demo Route */}
+            <Route path="/admin/demo" element={
+              isLoggedIn && authService.isAdmin() ? <EnhancedAdminDemo /> : <Navigate to="/" replace />
+            } />
 
             <Route path="/admin/new" element={
               isLoggedIn && authService.isAdmin() ? <AdminDashboardNew /> : <Navigate to="/" replace />
