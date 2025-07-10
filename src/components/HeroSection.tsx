@@ -1,68 +1,300 @@
-import React from 'react';
-import { Box, Container, Typography, Button, Chip } from '@mui/material';
-import Grid from '@mui/material/Grid';
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Container, Typography, Button, Chip, IconButton, useTheme } from '@mui/material';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import { heroSlides } from './heroSlides';
 
 interface HeroSectionProps {
   onGetStarted: () => void;
 }
 
-const HeroSection = ({ onGetStarted }:HeroSectionProps) => {
+const AUTO_SLIDE_INTERVAL = 3000; // 3 seconds
+const FADE_DURATION = 400; // Fade transition duration in ms
+
+const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
+  const [current, setCurrent] = useState(0);
+  const [prev, setPrev] = useState(0);
+  const [fade, setFade] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const theme = useTheme();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isHovered = useRef(false);
+
+  // Function to start the auto-slide timer
+  const startAutoSlide = () => {
+    if (isHovered.current) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setIsTransitioning(true);
+      setFade(false);
+      setTimeout(() => {
+        setPrev(current);
+        setCurrent((prevIdx) => (prevIdx === heroSlides.length - 1 ? 0 : prevIdx + 1));
+        setFade(true);
+        setTimeout(() => setIsTransitioning(false), FADE_DURATION);
+      }, FADE_DURATION);
+    }, AUTO_SLIDE_INTERVAL);
+  };
+
+  // Auto-slide logic
+  useEffect(() => {
+    startAutoSlide();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [current]);
+
+  // Handle manual slide navigation
+  const goToSlide = (idx: number) => {
+    if (idx === current) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setIsTransitioning(true);
+    setFade(false);
+    setTimeout(() => {
+      setPrev(current);
+      setCurrent(idx);
+      setFade(true);
+      setTimeout(() => setIsTransitioning(false), FADE_DURATION);
+    }, FADE_DURATION);
+  };
+
+  const handlePrev = () => goToSlide(current === 0 ? heroSlides.length - 1 : current - 1);
+  const handleNext = () => goToSlide(current === heroSlides.length - 1 ? 0 : current + 1);
+
+  // Pause auto-slide on hover
+  const handleMouseEnter = () => {
+    isHovered.current = true;
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  // Resume auto-slide on hover out
+  const handleMouseLeave = () => {
+    isHovered.current = false;
+    startAutoSlide();
+  };
+
   return (
     <Box
       sx={{
         background: 'linear-gradient(135deg, #E0F2F1 0%, #B2DFDB 100%)',
-        py: 8,
+        py: 0,
         position: 'relative',
         overflow: 'hidden',
+        minHeight: { xs: 340, md: 400 },
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        mt: { xs: 6, md: 0.5 },
       }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      <Container maxWidth="lg">
-        <Grid container spacing={4} alignItems="center">
-          <Grid>
-            <Typography variant="h1" sx={{ mb: 2, fontWeight: 700 }}>
-              Practice PTE Academic & PTE Core with{' '}
-              <Box component="span" sx={{ color: 'primary.main' }}>
-                AI Scorings
-              </Box>{' '}
-              for{' '}
-              <Box component="span" sx={{ color: 'secondary.main' }}>
-                FREE
-              </Box>
-            </Typography>
-            <Typography variant="h6" sx={{ mb: 4, color: 'text.secondary' }}>
-              Join 100,000 PTE test takers to practice
-            </Typography>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={onGetStarted}
-              sx={{ py: 2, px: 4, fontSize: '1.1rem' }}
+      {/* Fullscreen Image Crossfade */}
+      {[prev, current].filter((v, i, arr) => arr.indexOf(v) === i).map((idx, i) => (
+        <Box
+          key={idx + '-' + i + (idx === current ? '-current' : '-prev')}
+          component="img"
+          src={heroSlides[idx].image}
+          alt={heroSlides[idx].alt}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 1,
+            opacity:
+              idx === current
+                ? fade
+                  ? 1
+                  : 0
+                : fade
+                ? 0
+                : 1,
+            transition: `opacity ${FADE_DURATION}ms`,
+            filter: 'brightness(0.55) blur(0px)',
+            pointerEvents: 'none',
+          }}
+        />
+      ))}
+      {/* Overlay Content Crossfade */}
+      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2, height: '100%' }}>
+        {[prev, current].filter((v, i, arr) => arr.indexOf(v) === i).map((idx, i) => (
+          <Box
+            key={idx + '-' + i + (idx === current ? '-content-current' : '-content-prev')}
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: { xs: 'center', md: 'flex-start' },
+              justifyContent: 'center',
+              minHeight: { xs: 340, md: 400 },
+              py: { xs: 4, md: 8 },
+              px: { xs: 2, md: 6 },
+              borderRadius: 0,
+              maxWidth: { xs: '95vw', md: 600 },
+              mx: { xs: 'auto', md: 0 },
+              boxShadow: 'none',
+              opacity:
+                idx === current
+                  ? fade
+                    ? 1
+                    : 0
+                  : fade
+                  ? 0
+                  : 1,
+              transform:
+                idx === current
+                  ? fade
+                    ? 'translateY(0)'
+                    : 'translateY(20px)'
+                  : fade
+                  ? 'translateY(20px)'
+                  : 'translateY(0)',
+              transition: `opacity ${FADE_DURATION}ms, transform ${FADE_DURATION}ms`,
+              position: idx === current ? 'relative' : 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              pointerEvents: idx === current ? 'auto' : 'none',
+            }}
+          >
+            <Typography
+              variant="h4"
+              sx={{
+                mb: 1.2,
+                fontWeight: 700,
+                fontSize: { xs: '1.3rem', md: '2rem' },
+                letterSpacing: '-0.5px',
+                textAlign: { xs: 'center', md: 'left' },
+                color: '#fff',
+                textShadow: '0 2px 12px rgba(0,0,0,0.55)',
+              }}
             >
-              Practice Now
-            </Button>
-            <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Chip onClick={() => { }} label="NEW" color="secondary" size="small" />
-              <Typography variant="body2" color="text.secondary">
+              {heroSlides[idx].title}
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                mb: 2,
+                color: '#fff',
+                fontSize: { xs: '1rem', md: '1.15rem' },
+                textAlign: { xs: 'center', md: 'left' },
+                textShadow: '0 2px 12px rgba(0,0,0,0.55)',
+              }}
+            >
+              {heroSlides[idx].subtitle}
+            </Typography>
+            {heroSlides[idx].buttonText && (
+              <Button
+                variant="contained"
+                size="medium"
+                onClick={onGetStarted}
+                sx={{
+                  py: 1.1,
+                  px: 3,
+                  fontSize: '1rem',
+                  mb: 1.5,
+                  borderRadius: 2,
+                  boxShadow: 2,
+                  background: '#4DB6AC',
+                  color: theme.palette.getContrastText(theme.palette.secondary.main),
+                  border: '2px solid #fff',
+                  fontWeight: 700,
+                  letterSpacing: 1,
+                  '&:hover': {
+                    background: theme.palette.secondary.dark,
+                    color: theme.palette.getContrastText(theme.palette.secondary.dark),
+                    border: '2px solid #fff',
+                  },
+                }}
+              >
+                {heroSlides[idx].buttonText}
+              </Button>
+            )}
+            <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1, justifyContent: { xs: 'center', md: 'flex-start' } }}>
+              <Chip label="NEW" color="secondary" size="small" sx={{ color: '#fff', background: 'rgba(0,0,0,0.7)', textShadow: '0 2px 8px #000' }} />
+              <Typography variant="body2" sx={{ color: '#fff', textShadow: '0 2px 8px #000' }}>
                 AI-powered instant scoring
               </Typography>
             </Box>
-          </Grid>
-          <Grid >
-            <Box
-              component="img"
-              src="https://images.pexels.com/photos/18069239/pexels-photo-18069239.png"
-              alt="PTE Practice Platform"
-              sx={{
-                width: '100%',
-                height: 'auto',
-                borderRadius: 2,
-                boxShadow: '0 12px 24px rgba(0,0,0,0.1)',
-              }}
-            />
-          </Grid>
-        </Grid>
+          </Box>
+        ))}
       </Container>
+      {/* Slider Arrows */}
+      <IconButton
+        onClick={handlePrev}
+        disabled={isTransitioning}
+        sx={{
+          position: 'absolute',
+          left: 8,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          background: 'rgba(0,0,0,0.5)',
+          color: '#fff',
+          boxShadow: 2,
+          zIndex: 3,
+          display: { xs: 'flex', md: 'flex' },
+          '&:hover': { background: 'rgba(0,0,0,0.7)' },
+        }}
+        aria-label="Previous slide"
+      >
+        <ArrowBackIosNewIcon />
+      </IconButton>
+      <IconButton
+        onClick={handleNext}
+                disabled={isTransitioning}
+
+        sx={{
+          position: 'absolute',
+          right: 8,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          background: 'rgba(0,0,0,0.5)',
+          color: '#fff',
+          boxShadow: 2,
+          zIndex: 3,
+          display: { xs: 'flex', md: 'flex' },
+          '&:hover': { background: 'rgba(0,0,0,0.7)' },
+        }}
+        aria-label="Next slide"
+      >
+        <ArrowForwardIosIcon />
+      </IconButton>
+      {/* Dots */}
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
+        position: 'absolute',
+        left: 0,
+        bottom: 24,
+        zIndex: 4,
+        gap: 1,
+        pointerEvents: 'auto',
+      }}>
+         {heroSlides.map((_, idx) => (
+          <Box
+            key={idx}
+            sx={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: idx === current ? theme.palette.primary.main : '#fff',
+              border: '1.5px solid #fff',
+              transition: 'background 0.3s',
+              cursor: isTransitioning ? 'not-allowed' : 'pointer',
+              opacity: isTransitioning ? 0.5 : 1,
+            }}
+            onClick={() => {
+              if (!isTransitioning) goToSlide(idx);
+            }}
+          />
+        ))}
+      </Box>
     </Box>
   );
 };
+
 export default HeroSection;
