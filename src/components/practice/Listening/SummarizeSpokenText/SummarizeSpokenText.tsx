@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, TextField, Typography, Stack, Chip, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemText, IconButton } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import {
-  PracticeCard,
   TimerDisplay,
   ProgressIndicator,
   ResultsDialog,
@@ -16,6 +15,7 @@ import {
   hasActualAudio,
   getAudioSourceLabel,
 } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
@@ -297,11 +297,40 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
     <GradientBackground>
       <StageGoalBanner />
       
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="SST"
         title="Summarize Spoken Text"
         instructions="You will hear a short report. Write a summary for a fellow student who was not present. You should write 50-70 words. You have 10 minutes to finish this task. Your response will be judged on the quality of your writing and on how well your response presents the key points presented in the lecture."
         difficulty={selectedTopic.difficulty}
+        instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Listen to a recording and write a summary of 50-70 words', 'You have 10 minutes to complete this task', 'The audio plays automatically and can only be heard once'],
+            },
+            {
+              title: 'Listening Strategy',
+              items: ['Take notes while listening', 'Focus on main ideas and key points', 'Identify topic sentences and supporting details', 'Listen for signal words (first, however, therefore)'],
+            },
+            {
+              title: 'Writing Tips',
+              items: [
+                'Use your own words, not direct quotes',
+                'Include only the most important information',
+                'Write in complete sentences with proper grammar',
+                'Check word count stays within 50-70 words',
+                'Maintain the logical flow of ideas'
+              ],
+            },
+            {
+              title: 'Scoring Criteria',
+              items: ['Content: How well you capture key points', 'Form: Staying within word limit', 'Grammar: Correct sentence structure', 'Vocabulary: Appropriate word choice'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         {/* Question Header */}
         <QuestionHeader
@@ -483,7 +512,7 @@ const SummarizeSpokenText: React.FC<SummarizeSpokenTextProps> = () => {
           onNext={handleNext}
           questionNumber={questionNumber}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       {/* Topic Selection Drawer */}
       <TopicSelectionDrawer

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Typography, RadioGroup, FormControlLabel, Radio, Paper, Stack, Chip, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText } from '@mui/material';
 import {
-  PracticeCard,
   TimerDisplay,
   ProgressIndicator,
   ResultsDialog,
@@ -12,6 +11,7 @@ import {
   TopicSelectionDrawer,
   DualAudioPlayer,
 } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
@@ -282,11 +282,40 @@ const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
     <GradientBackground>
       <StageGoalBanner />
 
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="LCS"
         title="Listening Multiple Choice (Single)"
         instructions="Listen to the recording and answer the question by selecting the correct response. You will need to select only one response."
         difficulty={selectedQuestion.difficulty}
+        instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Listen to a recording and answer the multiple choice question', 'Select ONLY ONE correct response', 'You can replay the audio multiple times'],
+            },
+            {
+              title: 'Listening Strategy',
+              items: ['Listen to the recording completely first', 'Take notes of key information', 'Pay attention to specific details mentioned', 'Focus on the exact question being asked'],
+            },
+            {
+              title: 'Answering Tips',
+              items: [
+                'Read all options before selecting',
+                'Look for exact matches with what you heard',
+                'Eliminate clearly wrong answers first',
+                'Don\'t overthink - go with what you heard',
+                'Only one answer is correct'
+              ],
+            },
+            {
+              title: 'Scoring',
+              items: ['Full points for correct answer', 'No points for incorrect answer', 'No partial credit available'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         {/* Question Header */}
         <QuestionHeader
@@ -441,7 +470,7 @@ const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
           onNext={handleNext}
           questionNumber={questionNumber}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       {/* Topic Selection Drawer */}
       <TopicSelectionDrawer

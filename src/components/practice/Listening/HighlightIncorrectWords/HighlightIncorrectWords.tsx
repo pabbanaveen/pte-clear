@@ -16,7 +16,6 @@ import {
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import {
-  PracticeCard,
   TimerDisplay,
   ProgressIndicator,
   ResultsDialog,
@@ -27,6 +26,7 @@ import {
   TopicSelectionDrawer,
   DualAudioPlayer
 } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
@@ -320,11 +320,40 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
     <GradientBackground>
       <StageGoalBanner />
       
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="HIW"
         title="Highlight Incorrect Words"
         instructions={question.instructions}
         difficulty={question.difficulty}
+        instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Listen to the recording and read the transcription', 'Click on words that are different from what you heard', 'Words in the text may be incorrect compared to the audio'],
+            },
+            {
+              title: 'Strategy Tips',
+              items: ['Listen to the audio first while reading along', 'Pay attention to differences between audio and text', 'Click only on words that are incorrect', 'You can replay the audio as needed'],
+            },
+            {
+              title: 'Clicking Guide',
+              items: [
+                'Click on words that don\'t match the audio',
+                'Be precise - only click incorrect words',
+                'Avoid clicking correct words (penalty applies)',
+                'Selected words are highlighted in blue',
+                'Review your selections before submitting'
+              ],
+            },
+            {
+              title: 'Scoring',
+              items: ['Points for each correctly identified incorrect word', 'Penalty for clicking correct words', 'No points for missed incorrect words'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         {/* Question Header */}
         <QuestionHeader
@@ -623,7 +652,7 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
           onNext={handleNext}
           questionNumber={questionNumber}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       {/* Topic Selection Drawer */}
       <TopicSelectionDrawer

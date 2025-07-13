@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Typography, Stack, Paper, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText } from '@mui/material';
 import {
-  PracticeCard,
   TimerDisplay,
   ProgressIndicator,
   ResultsDialog,
@@ -12,6 +11,7 @@ import {
   TopicSelectionDrawer,
   DualAudioPlayer,
 } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import InputField from '../../../common/InputField';
 import { mockListeningPassages, mockStudentProgress, convertLegacyPassage } from './FillinTheBlanksMockData';
 import { ListeningPassage, BlankPosition, TimerState, QuestionResult, UserAttempt } from './FillinTheBlanksTypes';
@@ -280,11 +280,40 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     <GradientBackground>
       <StageGoalBanner />
 
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="FIB"
         title="Listening: Fill in the Blanks"
         instructions={passage.instructions}
         difficulty={passage.difficulty}
+        instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Listen to a recording and fill in the missing words', 'You can listen to the audio multiple times', 'Type the missing words in the correct blanks'],
+            },
+            {
+              title: 'Listening Strategy',
+              items: ['Listen to the entire recording first', 'Take notes of key information', 'Focus on the context around each blank', 'Listen for grammar cues (articles, plurals, verb forms)'],
+            },
+            {
+              title: 'Answering Tips',
+              items: [
+                'Listen for exact words - no synonyms needed',
+                'Pay attention to spelling and grammar',
+                'Consider word forms (singular/plural, verb tenses)',
+                'Use context clues from surrounding text',
+                'Listen multiple times to confirm answers'
+              ],
+            },
+            {
+              title: 'Scoring',
+              items: ['Each correct word scores points', 'Spelling must be exact', 'Grammar and word form must be correct'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         {/* Question Header */}
         <QuestionHeader
@@ -362,7 +391,7 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
           onNext={handleNext}
           questionNumber={questionNumber}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       {/* Topic Selection Drawer */}
       <TopicSelectionDrawer

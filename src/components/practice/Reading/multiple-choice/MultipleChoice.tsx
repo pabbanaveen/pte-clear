@@ -38,7 +38,8 @@ import { multipleChoiceQuestions } from './multipleChoiceQuestions';
 import { MultipleChoiceQuestion, SubmissionResult } from './multipleChoiceTypes';
  import { User } from '../../../../types';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
-import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import { GradientBackground, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import { TimerState, QuestionResult } from './multipleChoiceTypes';
 
 // Import types and data
@@ -290,11 +291,40 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
     <GradientBackground>
       <StageGoalBanner />
 
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="MCM"
         title="Multiple Choice (Multiple)"
         instructions="Read the text and answer the question by selecting all the correct responses. More than one response is correct."
         difficulty={selectedQuestion.difficulty}
+        instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Read the passage carefully and answer the multiple choice question', 'Select ALL correct responses - more than one answer is correct'],
+            },
+            {
+              title: 'Time Management',
+              items: ['Read the question first to focus your reading', 'Scan the passage for relevant information', 'Check each option carefully before selecting'],
+            },
+            {
+              title: 'Strategy Tips',
+              items: [
+                'Don\'t assume only one answer is correct',
+                'Look for keywords that match each option',
+                'Consider partial truths - multiple statements can be correct',
+                'Eliminate obviously wrong answers first',
+                'Select all options that are supported by the text'
+              ],
+            },
+            {
+              title: 'Scoring',
+              items: ['Points awarded for each correct selection', 'Points deducted for incorrect selections', 'Partial credit possible'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         <QuestionHeader 
           questionNumber={questionNumber}
@@ -414,7 +444,7 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
           onNext={handleNext}
           questionNumber={questionNumber}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showQuestionSelector}

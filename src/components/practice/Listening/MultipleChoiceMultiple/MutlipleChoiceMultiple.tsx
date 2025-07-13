@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, FormGroup, FormControlLabel, Checkbox, Typography, Stack, Chip, Paper, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText } from '@mui/material';
 import {
-  PracticeCard,
   TimerDisplay,
   ProgressIndicator,
   ResultsDialog,
@@ -15,6 +14,7 @@ import {
   hasActualAudio,
   getAudioSourceLabel,
 } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
@@ -323,11 +323,40 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
     <GradientBackground>
       <StageGoalBanner />
       
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="LCM"
         title="Listening Multiple Choice (Multiple)"
         instructions="Listen to the recording and answer the question by selecting all the correct responses. You will need to select more than one response."
         difficulty={selectedQuestion.difficulty}
+        instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Listen to a recording and answer the multiple choice question', 'Select ALL correct responses - more than one answer is correct', 'You can replay the audio multiple times'],
+            },
+            {
+              title: 'Listening Strategy',
+              items: ['Listen to the recording completely first', 'Take notes of key information', 'Pay attention to details and specific information', 'Listen for keywords that match the options'],
+            },
+            {
+              title: 'Answering Tips',
+              items: [
+                'Don\'t assume only one answer is correct',
+                'Check each option against what you heard',
+                'Look for partial truths - multiple statements can be correct',
+                'Eliminate obviously wrong answers first',
+                'Select all options that are supported by the audio'
+              ],
+            },
+            {
+              title: 'Scoring',
+              items: ['Points awarded for each correct selection', 'Points deducted for incorrect selections', 'Partial credit possible'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         {/* Question Header */}
         <QuestionHeader
@@ -469,7 +498,7 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
           onNext={handleNext}
           questionNumber={questionNumber}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       {/* Topic Selection Drawer */}
       <TopicSelectionDrawer

@@ -28,6 +28,7 @@ import {
   ContentDisplay,
   GradientBackground,
   TopicSelectionDrawer,
+  PracticeCardWithInstructionsPopover,
 } from '../../../common';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
@@ -295,11 +296,40 @@ const HighlightCorrectSummary: React.FC<HighlightCorrectSummaryProps> = () => {
     <GradientBackground>
       <StageGoalBanner />
       
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="HCS"
         title="Highlight Correct Summary"
         instructions={question.instructions}
         difficulty={question.difficulty}
+         instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Listen to the recording completely', 'At the end, a missing word is replaced with a beep sound', 'Select the correct option that best fits the context'],
+            },
+            {
+              title: 'Listening Strategy',
+              items: ['Focus on the context before and after the beep', 'Listen for grammatical clues (word forms, tense)', 'Pay attention to the meaning and logical flow', 'Consider what type of word fits (noun, verb, adjective)'],
+            },
+            {
+              title: 'Selection Tips',
+              items: [
+                'Read all options before selecting',
+                'Consider which option makes grammatical sense',
+                'Think about the meaning and context',
+                'Eliminate options that don\'t fit logically',
+                'Trust your first instinct if unsure'
+              ],
+            },
+            {
+              title: 'Scoring',
+              items: ['Full points for correct selection', 'No points for incorrect selection', 'No partial credit available'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         {/* Question Header */}
         <QuestionHeader
@@ -403,7 +433,7 @@ const HighlightCorrectSummary: React.FC<HighlightCorrectSummaryProps> = () => {
           onNext={handleNext}
           questionNumber={questionNumber}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       {/* Topic Selection Drawer */}
       <TopicSelectionDrawer

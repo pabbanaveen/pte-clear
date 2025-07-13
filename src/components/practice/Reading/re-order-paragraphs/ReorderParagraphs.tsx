@@ -29,7 +29,6 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { Paragraph, Question, QUESTIONS } from './constants';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import ActionButtons from '../../common/ActionButtons';
-import InstructionsCard from '../../common/InstructionsCard';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
@@ -37,7 +36,8 @@ import { GradientBackground } from '../../../common/CommonStyles';
 import TranslationDialog from '../../../common/TranslationDialog';
 import { DragStartEvent, DragEndEvent, DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { DragIndicator } from '@mui/icons-material';
-import { PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog } from '../../../common';
+import { TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -397,11 +397,40 @@ const ReorderParagraphs: React.FC = () => {
     <GradientBackground>
       <StageGoalBanner />
 
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="ROP"
         title="Reading & Writing: Re-order Paragraphs"
         instructions="Drag and drop the paragraphs to arrange them in the correct logical order."
         difficulty="Intermediate"
+        instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Drag and drop the text boxes to put them in the correct order', 'Text boxes can be moved up, down, or reordered by dragging'],
+            },
+            {
+              title: 'Reading Strategy',
+              items: ['Look for chronological indicators (first, then, finally)', 'Identify cause and effect relationships', 'Find pronouns and their references', 'Look for connecting words and phrases'],
+            },
+            {
+              title: 'Logical Flow Tips',
+              items: [
+                'Find the topic sentence (usually comes first)',
+                'Look for supporting details and examples',
+                'Identify conclusion or summary statements',
+                'Check for smooth transitions between ideas',
+                'Ensure the text flows logically from general to specific'
+              ],
+            },
+            {
+              title: 'Scoring',
+              items: ['Points for each correct adjacent pair', 'Maximum score for perfect sequence', 'Partial credit for partial correctness'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         <QuestionHeader 
           questionNumber={currentQuestionIndex + 1}
@@ -508,7 +537,7 @@ const ReorderParagraphs: React.FC = () => {
           onNext={handleNext}
           questionNumber={currentQuestionIndex + 1}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showTopicSelector}
