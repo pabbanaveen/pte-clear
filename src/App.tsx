@@ -141,6 +141,7 @@ const App: React.FC = () => {
               user={user}
               onLoginClick={() => setLoginOpen(true)}
               onLogout={handleLogout}
+              isAdmin={authService.isAdmin()}
             />
 
             {/* Global Floating Search Button */}
