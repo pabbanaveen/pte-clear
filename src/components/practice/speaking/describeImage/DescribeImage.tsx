@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemText, Typography, IconButton, Stack, CardContent } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import {
-  PracticeCard,
   TimerDisplay,
   ContentDisplay,
   ProgressIndicator,
@@ -11,12 +10,12 @@ import {
   GradientBackground,
   StyledCard
 } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import RecordingSection from '../../common/RecordingSection';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import InstructionsCard from '../../common/InstructionsCard';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { questions, mockFeedback, Question, Feedback } from './constants';
 
@@ -380,126 +379,121 @@ const DescribeImage: React.FC = () => {
     <GradientBackground>
       <StageGoalBanner />
 
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 4 }}>
-        {/* Main Content */}
-        <Box sx={{ width: { xs: '100%', lg: '70%' } }}>
-          <PracticeCard
-            icon="DI"
-            title="Describe Image"
-            subtitle={`Progress: ${attempts.length}/${questions.length} questions attempted`}
-            instructions="Describe the image including all relevant details, trends, and key information."
-            difficulty="Intermediate"
-          >
-            <QuestionHeader
-              questionNumber={questionNumber}
-              studentName={studentName}
-              testedCount={testedCount}
-            />
+      <PracticeCardWithInstructionsPopover
+        icon="DI"
+        title="Describe Image"
+        subtitle={`Progress: ${attempts.length}/${questions.length} questions attempted`}
+        instructions="Describe the image including all relevant details, trends, and key information."
+        difficulty="Intermediate"
+        instructionsConfig={{
+          sections: instructionsSections,
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions for Describe Image'
+        }}
+      >
+        <QuestionHeader
+          questionNumber={questionNumber}
+          studentName={studentName}
+          testedCount={testedCount}
+        />
 
-            {preparationTime !== null && (
-              <TimerDisplay
-                timeRemaining={timer.timeRemaining}
-                isRunning={timer.isRunning}
-                warningThreshold={timer.warningThreshold}
-                autoSubmit={timer.autoSubmit}
-                showStartMessage={false}
-              />
-            )}
+        {preparationTime !== null && (
+          <TimerDisplay
+            timeRemaining={timer.timeRemaining}
+            isRunning={timer.isRunning}
+            warningThreshold={timer.warningThreshold}
+            autoSubmit={timer.autoSubmit}
+            showStartMessage={false}
+          />
+        )}
 
-            <ContentDisplay
-              title={currentQuestion.title}
-              content={
-                <Box>
-                  {!preparationTime && (
-                    <Box sx={{ mb: 2, textAlign: 'center' }}>
-                      <button
-                        onClick={handleStartPreparation}
-                        style={{
-                          padding: '12px 24px',
-                          backgroundColor: '#ff9800',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '16px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Start Preparation (25s)
-                      </button>
-                    </Box>
-                  )}
-                  <Box sx={{ mb: 3 }}>
-                    <img
-                      src={currentQuestion.image}
-                      alt={currentQuestion.title}
-                      style={{
-                        width: '100%',
-                        height: 'auto',
-                        borderRadius: 8,
-                        border: '1px solid #ddd'
-                      }}
-                    />
-                  </Box>
-                  <Box sx={{ fontSize: '14px', color: 'text.secondary' }}>
-                    {currentQuestion.description}
-                  </Box>
+        <ContentDisplay
+          title={currentQuestion.title}
+          content={
+            <Box>
+              {!preparationTime && (
+                <Box sx={{ mb: 2, textAlign: 'center' }}>
+                  <button
+                    onClick={handleStartPreparation}
+                    style={{
+                      padding: '12px 24px',
+                      backgroundColor: '#ff9800',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Start Preparation (25s)
+                  </button>
                 </Box>
-              }
-              category="Image Description"
-              difficulty="Intermediate"
-              tags={['describe', 'image', 'analysis']}
-            />
+              )}
+              <Box sx={{ mb: 3 }}>
+                <img
+                  src={currentQuestion.image}
+                  alt={currentQuestion.title}
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    borderRadius: 8,
+                    border: '1px solid #ddd'
+                  }}
+                />
+              </Box>
+              <Box sx={{ fontSize: '14px', color: 'text.secondary' }}>
+                {currentQuestion.description}
+              </Box>
+            </Box>
+          }
+          category="Image Description"
+          difficulty="Intermediate"
+          tags={['describe', 'image', 'analysis']}
+        />
 
-            <RecordingSection
-              isRecording={audioRecording.isRecording}
-              recordedBlob={audioRecording.recordedBlob}
-              recordedAudioUrl={audioRecording.recordedAudioUrl}
-              micPermission={audioRecording.micPermission}
-              showRecordingPrompt={preparationTime === 0}
-              preparationTime={preparationTime}
-              recordingType="Describe Image"
-              recordingTime={40}
-              onToggleRecording={audioRecording.toggleRecording}
-            />
+        <RecordingSection
+          isRecording={audioRecording.isRecording}
+          recordedBlob={audioRecording.recordedBlob}
+          recordedAudioUrl={audioRecording.recordedAudioUrl}
+          micPermission={audioRecording.micPermission}
+          showRecordingPrompt={preparationTime === 0}
+          preparationTime={preparationTime}
+          recordingType="Describe Image"
+          recordingTime={40}
+          onToggleRecording={audioRecording.toggleRecording}
+        />
 
-            <ProgressIndicator
-              current={audioRecording.recordedBlob ? 1 : 0}
-              total={1}
-              label="recording completed"
-            />
+        <ProgressIndicator
+          current={audioRecording.recordedBlob ? 1 : 0}
+          total={1}
+          label="recording completed"
+        />
 
-            {!showFeedback && (
-              <ActionButtons
-                hasResponse={audioRecording.recordedBlob !== null}
-                recordedBlob={audioRecording.recordedBlob}
-                onSubmit={handleSubmit}
-                onRedo={handleRedo}
-                onTranslate={() => setShowTranslate(true)}
-                onShowAnswer={() => setShowAnswer(true)}
-                handleViewAttempts={handleViewAttempts}
-              />
-            )}
-            <FeedbackDisplay />
-          </PracticeCard>
+        {!showFeedback && (
+          <ActionButtons
+            hasResponse={audioRecording.recordedBlob !== null}
+            recordedBlob={audioRecording.recordedBlob}
+            onSubmit={handleSubmit}
+            onRedo={handleRedo}
+            onTranslate={() => setShowTranslate(true)}
+            onShowAnswer={() => setShowAnswer(true)}
+            handleViewAttempts={handleViewAttempts}
+          />
+        )}
+        
+        <FeedbackDisplay />
 
-          {/* Navigation Card */}
-          <StyledCard sx={{ mb: 4, mt: 2 }}>
-            <CardContent>
-              <NavigationSection
-                onSearch={handleSearch}
-                onPrevious={handlePrevious}
-                onNext={handleNext}
-                questionNumber={questionNumber}
-              />
-            </CardContent>
-          </StyledCard>
+        {/* Navigation Section Integrated */}
+        <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #e0e0e0' }}>
+          <NavigationSection
+            onSearch={handleSearch}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            questionNumber={questionNumber}
+          />
         </Box>
-
-        {/* Instructions Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '30%' } }}>
-          <InstructionsCard title="Instructions" sections={instructionsSections} />
-        </Box>
-      </Box>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showTopicSelector}

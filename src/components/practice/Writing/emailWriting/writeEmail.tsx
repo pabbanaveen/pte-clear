@@ -33,10 +33,40 @@ import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import { emailScenarios } from './emailMockData';
 import { EmailScenario } from './emailTypes';
- import { User } from '../../../../types';
+import { User } from '../../../../types';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
-import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import { GradientBackground, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 
+const instructionsSections = [
+  {
+    title: 'Task Overview',
+    items: ['Read a situation description and write an email based on the scenario provided.'],
+  },
+  {
+    title: 'Time Allocation',
+    items: ['Reading time: Unlimited', 'Writing time: 9 minutes'],
+  },
+  {
+    title: 'Email Requirements',
+    items: [
+      'Word count: At least 100 words',
+      'Address all key points mentioned',
+      'Use appropriate email format',
+      'Include greeting and closing',
+      'Use professional tone',
+    ],
+  },
+  {
+    title: 'Scoring Criteria',
+    items: [
+      'Content: Address all required points',
+      'Format: Proper email structure',
+      'Language: Grammar and vocabulary',
+      'Tone: Appropriate for context',
+    ],
+  },
+];
 
 interface WriteEmailProps {
   user?: User | null;
@@ -53,13 +83,13 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
   const [studentName] = useState<string>('Rachel Carson');
   const [testedCount] = useState<number>(33);
   const [score, setScore] = useState<number | null>(null);
-  
+
   // Dialog states
   const [showAnswer, setShowAnswer] = useState<boolean>(false);
   const [showTranslate, setShowTranslate] = useState<boolean>(false);
   const [showResults, setShowResults] = useState<boolean>(false);
   const [showScenarioSelector, setShowScenarioSelector] = useState<boolean>(false);
-  
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Word counting function
@@ -102,40 +132,40 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
     let score = 0;
     const words = emailText.toLowerCase().split(/\s+/);
     const wordCount = words.length;
-    
+
     // Word count scoring (30 points)
     if (wordCount >= scenario.wordLimit.min) {
       score += 30;
     } else {
       score += Math.round((wordCount / scenario.wordLimit.min) * 30);
     }
-    
+
     // Email structure scoring (25 points)
     const hasGreeting = /dear|hello|hi|greetings/i.test(emailText);
     const hasClosing = /sincerely|regards|best|thank you|yours/i.test(emailText);
     const hasParagraphs = emailText.split('\n\n').length >= 2;
-    
+
     if (hasGreeting) score += 8;
     if (hasClosing) score += 8;
     if (hasParagraphs) score += 9;
-    
+
     // Key points coverage (35 points)
     const keyPointsCovered = scenario.keyPoints.filter(point => {
       const keywords = point.toLowerCase().match(/\b\w+\b/g) || [];
-      return keywords.some(keyword => 
+      return keywords.some(keyword =>
         keyword.length > 3 && emailText.toLowerCase().includes(keyword)
       );
     }).length;
-    
+
     score += Math.round((keyPointsCovered / scenario.keyPoints.length) * 35);
-    
+
     // Professional tone (10 points)
     const professionalWords = ['please', 'thank', 'appreciate', 'would', 'could', 'kindly'];
-    const professionalCount = professionalWords.filter(word => 
+    const professionalCount = professionalWords.filter(word =>
       emailText.toLowerCase().includes(word)
     ).length;
     score += Math.min(professionalCount * 2, 10);
-    
+
     return Math.min(score, 100);
   };
 
@@ -145,7 +175,7 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
       alert(`Please ensure your email is at least ${selectedScenario.wordLimit.min} words.`);
       return;
     }
-    
+
     const calculatedScore = calculateEmailScore(userEmail, selectedScenario);
     setScore(calculatedScore);
     setIsTimerActive(false);
@@ -230,14 +260,22 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
 
   return (
     <GradientBackground>
-      <PracticeCard
+      <StageGoalBanner />
+
+      <PracticeCardWithInstructionsPopover
         icon="WE"
         title="Write Email"
         instructions="Read a description of a situation. Then write an email about the situation. You will have 9 minutes. You should aim to write at least 100 words. Write using complete sentences."
         difficulty={selectedScenario.difficulty}
+        instructionsConfig={{
+          sections: instructionsSections,
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions for Write Email'
+        }}
       >
         {/* Question Header */}
-        <QuestionHeader 
+        <QuestionHeader
           questionNumber={questionNumber}
           studentName={studentName}
           testedCount={testedCount}
@@ -258,10 +296,10 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
           title={`#${questionNumber} ${selectedScenario.title}`}
           content={
             <Box>
-              <Typography 
-                variant="body1" 
-                sx={{ 
-                  lineHeight: 1.8, 
+              <Typography
+                variant="body1"
+                sx={{
+                  lineHeight: 1.8,
                   color: '#333',
                   mb: 2
                 }}
@@ -297,19 +335,19 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
 
         {/* Email Input */}
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Stack 
-            direction={{ xs: 'column', sm: 'row' }} 
-            alignItems={{ xs: 'flex-start', sm: 'center' }} 
-            justifyContent="space-between" 
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            justifyContent="space-between"
             sx={{ mb: 2 }}
             spacing={{ xs: 1, sm: 0 }}
           >
             <Typography variant="h6" sx={{ color: '#333' }}>
               Your Email:
             </Typography>
-            <Typography 
-              variant="body2" 
-              sx={{ 
+            <Typography
+              variant="body2"
+              sx={{
                 color: getWordCountColor(),
                 fontWeight: 'bold'
               }}
@@ -317,7 +355,7 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
               Word Count: {wordCount}
             </Typography>
           </Stack>
-          
+
           {wordCount > 0 && wordCount < selectedScenario.wordLimit.min && (
             <Alert severity="warning" sx={{ mb: 2 }}>
               <Typography>
@@ -325,7 +363,7 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
               </Typography>
             </Alert>
           )}
-          
+
           <TextField
             fullWidth
             multiline
@@ -376,14 +414,16 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
           recordedBlob={null}
         />
 
-        {/* Navigation */}
-        <NavigationSection
-          onSearch={handleSearch}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          questionNumber={questionNumber}
-        />
-      </PracticeCard>
+        {/* Navigation Section Integrated */}
+        <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #e0e0e0' }}>
+          <NavigationSection
+            onSearch={handleSearch}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            questionNumber={questionNumber}
+          />
+        </Box>
+      </PracticeCardWithInstructionsPopover>
 
       {/* Topic Selection Drawer */}
       <TopicSelectionDrawer

@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemText, Typography, IconButton, Stack, CardContent } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import {
-  PracticeCard,
   TimerDisplay,
   ContentDisplay,
   ProgressIndicator,
@@ -11,13 +10,13 @@ import {
   GradientBackground,
   StyledCard
 } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import RecordingSection from '../../common/RecordingSection';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import TextToSpeech from '../../common/TextToSpeech';
-import InstructionsCard from '../../common/InstructionsCard';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
  import { User } from '../../../../types';
 import { REPEAT_SENTENCE_QUESTIONS, MOCK_FEEDBACK, instructionsSections } from './RepeatSentenceMockData';
@@ -331,135 +330,120 @@ export const RepeatSentence: React.FC<PracticeTestsProps> = ({ user }) => {
     <GradientBackground>
       <StageGoalBanner />
       
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 4 }}>
-        {/* Main Content */}
-        <Box sx={{ width: { xs: '100%', lg: '70%' } }}>
-          <PracticeCard
-            icon="RS"
-            title="Speaking: Repeat Sentence"
-            subtitle={`Progress: ${currentQuestionIndex + 1}/${REPEAT_SENTENCE_QUESTIONS.length} questions attempted`}
-            instructions="Listen to the sentence and repeat it as accurately as possible."
-            difficulty={currentQuestion.difficulty}
-          >
-            <QuestionHeader
-              questionNumber={currentQuestionIndex + 1}
-              studentName={studentName}
-              testedCount={testedCount}
-            />
+      <PracticeCardWithInstructionsPopover
+        icon="RS"
+        title="Speaking: Repeat Sentence"
+        subtitle={`Progress: ${currentQuestionIndex + 1}/${REPEAT_SENTENCE_QUESTIONS.length} questions attempted`}
+        instructions="Listen to the sentence and repeat it as accurately as possible."
+        difficulty={currentQuestion.difficulty}
+        instructionsConfig={{
+          sections: instructionsSections,
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions for Repeat Sentence'
+        }}
+      >
+        <QuestionHeader
+          questionNumber={currentQuestionIndex + 1}
+          studentName={studentName}
+          testedCount={testedCount}
+        />
 
-            <TimerDisplay
-              timeRemaining={timer.timeRemaining}
-              isRunning={timer.isRunning}
-              warningThreshold={timer.warningThreshold}
-              autoSubmit={timer.autoSubmit}
-              showStartMessage={!timer.isRunning}
-              startMessage="Click Start Timer to begin practice session"
-            />
+        <TimerDisplay
+          timeRemaining={timer.timeRemaining}
+          isRunning={timer.isRunning}
+          warningThreshold={timer.warningThreshold}
+          autoSubmit={timer.autoSubmit}
+          showStartMessage={!timer.isRunning}
+          startMessage="Click Start Timer to begin practice session"
+        />
 
-            {!timer.isRunning && (
-              <Box sx={{ textAlign: 'center', mb: 3 }}>
-                <button
-                  onClick={handleStartTimer}
-                  style={{
-                    padding: '12px 24px',
-                    backgroundColor: '#4caf50',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Start Practice Timer
-                </button>
+        {!timer.isRunning && (
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <button
+              onClick={handleStartTimer}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#4caf50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                cursor: 'pointer'
+              }}
+            >
+              Start Practice Timer
+            </button>
+          </Box>
+        )}
+
+        <ContentDisplay
+          title="Audio Sentence"
+          content={
+            <Box>
+              <TextToSpeech
+                text={currentQuestion.audio}
+                autoPlay={false}
+                onStart={() => console.log('Question audio started')}
+                onEnd={() => console.log('Question audio ended, ready to record')}
+                onError={(error) => {
+                  setAudioError(error);
+                  console.error('TextToSpeech error:', error);
+                }}
+              />
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Box sx={{ fontSize: '14px', color: 'text.secondary', mb: 1 }}>Transcript:</Box>
+                <Box sx={{ fontSize: '16px', fontWeight: 'medium' }}>{currentQuestion.audio}</Box>
               </Box>
-            )}
+            </Box>
+          }
+          category={currentQuestion.category}
+          difficulty={currentQuestion.difficulty}
+          tags={currentQuestion.tags}
+        />
 
-            <ContentDisplay
-              title="Audio Sentence"
-              content={
-                <Box>
-                  <TextToSpeech
-                    text={currentQuestion.audio}
-                    autoPlay={false}
-                    onStart={() => console.log('Question audio started')}
-                    onEnd={() => console.log('Question audio ended, ready to record')}
-                    onError={(error) => {
-                      setAudioError(error);
-                      console.error('TextToSpeech error:', error);
-                    }}
-                  />
-                  <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Box sx={{ fontSize: '14px', color: 'text.secondary', mb: 1 }}>Transcript:</Box>
-                    <Box sx={{ fontSize: '16px', fontWeight: 'medium' }}>{currentQuestion.audio}</Box>
-                  </Box>
-                </Box>
-              }
-              category={currentQuestion.category}
-              difficulty={currentQuestion.difficulty}
-              tags={currentQuestion.tags}
-            />
+        <RecordingSection
+          isRecording={audioRecording.isRecording}
+          recordedBlob={audioRecording.recordedBlob}
+          recordedAudioUrl={audioRecording.recordedAudioUrl}
+          micPermission={audioRecording.micPermission}
+          showRecordingPrompt={false}
+          preparationTime={null}
+          recordingType="Repeat Sentence"
+          recordingTime={15}
+          onToggleRecording={audioRecording.toggleRecording}
+        />
 
-            <RecordingSection
-              isRecording={audioRecording.isRecording}
-              recordedBlob={audioRecording.recordedBlob}
-              recordedAudioUrl={audioRecording.recordedAudioUrl}
-              micPermission={audioRecording.micPermission}
-              showRecordingPrompt={false}
-              preparationTime={null}
-              recordingType="Repeat Sentence"
-              recordingTime={15}
-              onToggleRecording={audioRecording.toggleRecording}
-            />
+        <ProgressIndicator
+          current={audioRecording.recordedBlob ? 1 : 0}
+          total={1}
+          label="recording completed"
+        />
 
-            <ProgressIndicator
-              current={audioRecording.recordedBlob ? 1 : 0}
-              total={1}
-              label="recording completed"
-            />
+        {!showFeedback && (
+          <ActionButtons
+            hasResponse={audioRecording.recordedBlob !== null}
+            recordedBlob={audioRecording.recordedBlob}
+            onSubmit={handleGetAIFeedback}
+            onRedo={audioRecording.resetRecording}
+            onTranslate={() => setShowTranslate(true)}
+            onShowAnswer={() => setShowAnswer(true)}
+            handleViewAttempts={handleViewAttempts}
+          />
+        )}
 
-            {!showFeedback && (
-              <ActionButtons
-                hasResponse={audioRecording.recordedBlob !== null}
-                recordedBlob={audioRecording.recordedBlob}
-                onSubmit={handleGetAIFeedback}
-                onRedo={audioRecording.resetRecording}
-                onTranslate={() => setShowTranslate(true)}
-                onShowAnswer={() => setShowAnswer(true)}
-                handleViewAttempts={handleViewAttempts}
-              />
-            )}
+        <FeedbackDisplay />
 
-            
-
-            <FeedbackDisplay />
-
-            {/* <NavigationSection
-              onSearch={handleSearch}
-              onPrevious={handlePrevious}
-              onNext={handleNext}
-              questionNumber={currentQuestionIndex + 1}
-            /> */}
-          </PracticeCard>
-
-          {/* Navigation Card */}
-          <StyledCard sx={{ mb: 4, mt: 2 }}>
-            <CardContent>
-              <NavigationSection
-                 onSearch={handleSearch}
-              onPrevious={handlePrevious}
-              onNext={handleNext}
-              questionNumber={currentQuestionIndex + 1}
-              />
-            </CardContent>
-          </StyledCard>
+        {/* Navigation Section Integrated */}
+        <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #e0e0e0' }}>
+          <NavigationSection
+            onSearch={handleSearch}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            questionNumber={currentQuestionIndex + 1}
+          />
         </Box>
-
-        {/* Instructions Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '30%' } }}>
-          <InstructionsCard title="Instructions" sections={instructionsSections} />
-        </Box>
-      </Box>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showTopicSelector}

@@ -26,11 +26,42 @@ import {
   QuestionResult,
   TimerState,
 } from './constants';
-import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, TopicSelectionDrawer, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import { GradientBackground, TimerDisplay, ContentDisplay, ProgressIndicator, TopicSelectionDrawer, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
+
+const instructionsSections = [
+  {
+    title: 'Task Overview',
+    items: ['Write an argumentative essay of 200-300 words in response to the given prompt.'],
+  },
+  {
+    title: 'Time Allocation',
+    items: ['Planning time: 2-3 minutes', 'Writing time: 15-17 minutes', 'Review time: 1-2 minutes'],
+  },
+  {
+    title: 'Essay Structure',
+    items: [
+      'Introduction: State your position clearly',
+      'Body paragraphs: 2-3 paragraphs with examples',
+      'Conclusion: Summarize your main points',
+      'Use transitions between ideas',
+      'Support arguments with examples',
+    ],
+  },
+  {
+    title: 'Scoring Criteria',
+    items: [
+      'Content (40%): Address the topic, develop ideas',
+      'Form (25%): Structure and organization',
+      'Grammar (25%): Sentence variety and accuracy', 
+      'Vocabulary (10%): Word choice and range',
+    ],
+  },
+];
 
 const WritingEssay: React.FC=() => {
   // State management
@@ -284,11 +315,17 @@ const WritingEssay: React.FC=() => {
     <GradientBackground>
       <StageGoalBanner />
 
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="WE"
         title="Write Essay"
         instructions={`Write an essay of ${ESSAY_MIN_WORDS}-${ESSAY_MAX_WORDS} words in response to the prompt below. You have 20 minutes. Your response will be judged on content, form, grammar, vocabulary, and spelling.`}
         difficulty="Advanced"
+        instructionsConfig={{
+          sections: instructionsSections,
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions for Write Essay'
+        }}
       >
         <QuestionHeader 
           questionNumber={questionNumber}
@@ -522,13 +559,16 @@ const WritingEssay: React.FC=() => {
           recordedBlob={null}
         />
 
-        <NavigationSection
-          onSearch={handleSearch}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          questionNumber={questionNumber}
-        />
-      </PracticeCard>
+        {/* Navigation Section Integrated */}
+        <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #e0e0e0' }}>
+          <NavigationSection
+            onSearch={handleSearch}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            questionNumber={questionNumber}
+          />
+        </Box>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showQuestionSelector}

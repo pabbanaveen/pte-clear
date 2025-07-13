@@ -36,8 +36,39 @@ import StageGoalBanner from '../../common/StageGoalBanner';
 import { textPassages } from './textPassages';
  import { User } from '../../../../types';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
-import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import { GradientBackground, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import { TimerState, QuestionResult } from '../writing-essay/constants';
+
+const instructionsSections = [
+  {
+    title: 'Task Overview',
+    items: ['Read the passage below and summarize it using between 25 and 50 words.'],
+  },
+  {
+    title: 'Time Allocation',
+    items: ['Reading time: Unlimited', 'Writing time: 10 minutes'],
+  },
+  {
+    title: 'Writing Requirements',
+    items: [
+      'Word count: 25-50 words exactly',
+      'Use your own words',
+      'Include only the main points',
+      'Write in one sentence if possible',
+      'Check grammar and spelling',
+    ],
+  },
+  {
+    title: 'Scoring Criteria',
+    items: [
+      'Content: Key points covered accurately',
+      'Form: Word count within range',
+      'Grammar: Correct sentence structure',
+      'Vocabulary: Appropriate word choice',
+    ],
+  },
+];
 
 // Import mock data
 interface SummarizeTextProps {
@@ -256,11 +287,17 @@ const SummarizeText = ({ user }:SummarizeTextProps) => {
     <GradientBackground>
       <StageGoalBanner />
 
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="SWT"
         title="Summarize Written Text (Core)"
         instructions="Read the passage below. Summarize the passage using between 25 and 50 words. Type your response in the box at the bottom of the screen. You have 10 minutes to finish this task. Your response will be judged on the quality of your writing and on how well your response presents the key points in the passage."
         difficulty={selectedPassage.difficulty}
+        instructionsConfig={{
+          sections: instructionsSections,
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions for Summarize Written Text'
+        }}
       >
         <QuestionHeader 
           questionNumber={questionNumber}
@@ -370,13 +407,16 @@ const SummarizeText = ({ user }:SummarizeTextProps) => {
           recordedBlob={null}
         />
 
-        <NavigationSection
-          onSearch={handleSearch}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          questionNumber={questionNumber}
-        />
-      </PracticeCard>
+        {/* Navigation Section Integrated */}
+        <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #e0e0e0' }}>
+          <NavigationSection
+            onSearch={handleSearch}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            questionNumber={questionNumber}
+          />
+        </Box>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showPassageSelector}

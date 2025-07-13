@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemText, Typography, IconButton, Stack, CardContent } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import {
-  PracticeCard,
   TimerDisplay,
   ContentDisplay,
   ProgressIndicator,
@@ -11,13 +10,13 @@ import {
   GradientBackground,
   StyledCard
 } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import RecordingSection from '../../common/RecordingSection';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import TextToSpeech from '../../common/TextToSpeech';
-import InstructionsCard from '../../common/InstructionsCard';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
  import { User } from '../../../../types';
 import { QuestionTopic, UserAttempt } from './AnswerShortQuestionsTypes';
@@ -309,106 +308,101 @@ export const AnswerShortQuestionsScreen: React.FC<PracticeTestsProps> = ({ user 
     <GradientBackground>
       <StageGoalBanner />
 
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 4 }}>
-        {/* Main Content */}
-        <Box sx={{ width: { xs: '100%', lg: '70%' } }}>
-          <PracticeCard
-            icon="ASQ"
-            title="Answer Short Questions"
-            subtitle={`Progress: ${completedQuestions}/${questionTopics.length} questions attempted`}
-            instructions={`You will hear a short question. After listening to the question, in ${selectedTopic.preparationTime} seconds, please speak into the microphone and provide a concise answer in your own words. You will have ${selectedTopic.recordingTime} seconds to give your response.`}
-            difficulty={selectedTopic.difficulty}
-          >
-            <QuestionHeader
-              questionNumber={questionNumber}
-              studentName={studentName}
-              testedCount={testedCount}
-            />
+      <PracticeCardWithInstructionsPopover
+        icon="ASQ"
+        title="Answer Short Questions"
+        subtitle={`Progress: ${completedQuestions}/${questionTopics.length} questions attempted`}
+        instructions={`You will hear a short question. After listening to the question, in ${selectedTopic.preparationTime} seconds, please speak into the microphone and provide a concise answer in your own words. You will have ${selectedTopic.recordingTime} seconds to give your response.`}
+        difficulty={selectedTopic.difficulty}
+        instructionsConfig={{
+          sections: instructionsSections,
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions for Answer Short Questions'
+        }}
+      >
+        <QuestionHeader
+          questionNumber={questionNumber}
+          studentName={studentName}
+          testedCount={testedCount}
+        />
 
-            {preparationTime !== null && (
-              <TimerDisplay
-                timeRemaining={timer.timeRemaining}
-                isRunning={timer.isRunning}
-                warningThreshold={timer.warningThreshold}
-                autoSubmit={timer.autoSubmit}
-                showStartMessage={false}
-                startMessage="Preparation time will start after audio"
+        {preparationTime !== null && (
+          <TimerDisplay
+            timeRemaining={timer.timeRemaining}
+            isRunning={timer.isRunning}
+            warningThreshold={timer.warningThreshold}
+            autoSubmit={timer.autoSubmit}
+            showStartMessage={false}
+            startMessage="Preparation time will start after audio"
+          />
+        )}
+
+        <ContentDisplay
+          title={`Question: ${selectedTopic.title}`}
+          content={
+            <Box>
+              <TextToSpeech
+                text={selectedTopic.audioText}
+                autoPlay={false}
+                onStart={() => console.log('Question audio started')}
+                onEnd={() => {
+                  setPreparationTime(selectedTopic.preparationTime);
+                  setTimer(prev => ({ ...prev, isRunning: true }));
+                }}
+                onError={(error) => {
+                  setAudioError(error);
+                  console.error('TextToSpeech error:', error);
+                }}
               />
-            )}
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Box sx={{ fontSize: '14px', color: 'text.secondary', mb: 1 }}>Transcript:</Box>
+                <Box sx={{ fontSize: '16px', fontWeight: 'medium' }}>{selectedTopic.audioText}</Box>
+              </Box>
+            </Box>
+          }
+          category={selectedTopic.category}
+          difficulty={selectedTopic.difficulty}
+          tags={selectedTopic.tags}
+        />
 
-            <ContentDisplay
-              title={`Question: ${selectedTopic.title}`}
-              content={
-                <Box>
-                  <TextToSpeech
-                    text={selectedTopic.audioText}
-                    autoPlay={false}
-                    onStart={() => console.log('Question audio started')}
-                    onEnd={() => {
-                      setPreparationTime(selectedTopic.preparationTime);
-                      setTimer(prev => ({ ...prev, isRunning: true }));
-                    }}
-                    onError={(error) => {
-                      setAudioError(error);
-                      console.error('TextToSpeech error:', error);
-                    }}
-                  />
-                  <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Box sx={{ fontSize: '14px', color: 'text.secondary', mb: 1 }}>Transcript:</Box>
-                    <Box sx={{ fontSize: '16px', fontWeight: 'medium' }}>{selectedTopic.audioText}</Box>
-                  </Box>
-                </Box>
-              }
-              category={selectedTopic.category}
-              difficulty={selectedTopic.difficulty}
-              tags={selectedTopic.tags}
-            />
+        <RecordingSection
+          isRecording={audioRecording.isRecording}
+          recordedBlob={audioRecording.recordedBlob}
+          recordedAudioUrl={audioRecording.recordedAudioUrl}
+          micPermission={audioRecording.micPermission}
+          showRecordingPrompt={showRecordingPrompt}
+          preparationTime={preparationTime}
+          recordingType="answer"
+          recordingTime={selectedTopic.recordingTime}
+          onToggleRecording={audioRecording.toggleRecording}
+        />
 
-            <RecordingSection
-              isRecording={audioRecording.isRecording}
-              recordedBlob={audioRecording.recordedBlob}
-              recordedAudioUrl={audioRecording.recordedAudioUrl}
-              micPermission={audioRecording.micPermission}
-              showRecordingPrompt={showRecordingPrompt}
-              preparationTime={preparationTime}
-              recordingType="answer"
-              recordingTime={selectedTopic.recordingTime}
-              onToggleRecording={audioRecording.toggleRecording}
-            />
+        <ProgressIndicator
+          current={audioRecording.recordedBlob ? 1 : 0}
+          total={1}
+          label="recording completed"
+        />
 
-            <ProgressIndicator
-              current={audioRecording.recordedBlob ? 1 : 0}
-              total={1}
-              label="recording completed"
-            />
+        <ActionButtons
+          recordedBlob={audioRecording.recordedBlob}
+          onSubmit={handleSubmit}
+          onRedo={handleRedo}
+          onTranslate={() => setShowTranslate(true)}
+          onShowAnswer={() => setShowAnswer(true)}
+          handleViewAttempts={handleViewAttempts}
+        />
 
-            <ActionButtons
-              recordedBlob={audioRecording.recordedBlob}
-              onSubmit={handleSubmit}
-              onRedo={handleRedo}
-              onTranslate={() => setShowTranslate(true)}
-              onShowAnswer={() => setShowAnswer(true)}
-              handleViewAttempts={handleViewAttempts}
-            />
-          </PracticeCard>
-          {/* Navigation Card */}
-          <StyledCard sx={{ mb: 4, mt: 2 }}>
-            <CardContent>
-              <NavigationSection
-                onSearch={handleSearch}
-                onPrevious={handlePrevious}
-                onNext={handleNext}
-                questionNumber={questionNumber}
-              />
-            </CardContent>
-          </StyledCard>
+        {/* Navigation Section Integrated */}
+        <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #e0e0e0' }}>
+          <NavigationSection
+            onSearch={handleSearch}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            questionNumber={questionNumber}
+          />
         </Box>
-
-        {/* Instructions Panel */}
-        <Box sx={{ width: { xs: '100%', lg: '30%' } }}>
-          <InstructionsCard title="Instructions" sections={instructionsSections} />
-        </Box>
-      </Box>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showTopicSelector}
