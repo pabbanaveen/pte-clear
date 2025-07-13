@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Container, Typography, Button, Chip, IconButton, useTheme } from '@mui/material';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { heroSlides } from './heroSlides';
+import { heroSlides } from '../heroSlides';
 
 interface HeroSectionProps {
   onGetStarted: () => void;

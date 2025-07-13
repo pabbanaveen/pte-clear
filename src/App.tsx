@@ -6,14 +6,14 @@ import { Alert, Snackbar } from '@mui/material';
 import theme from './theme';
 import { User } from './types/index';
 import { Header } from './components/Header';
-import HomePage from './components/HomePage';
+import HomePage from './components/dashboard/HomePage';
 import LoginModal from './components/LoginModal';
 import PracticeTests from './components/PracticeTests';
 import Profile from './components/Profile';
 import ProgressTracking from './components/ProgressTracking';
 import StudyMaterials from './components/StudyMaterials';
 import Dashboard from './components/Dashboard';
-import AIPracticeSection from './components/AIPracticeSection';
+import AIPracticeSection from './components/dashboard/AIPracticeSection';
 import ReadAloud from './components/practice/speaking/read-a-loud/ReadAloud';
 import DescribeImage from './components/practice/speaking/describeImage/DescribeImage';
 import FillInBlanks from './components/practice/Reading/fillin-blanks/FillInBlanks';
@@ -209,13 +209,13 @@ const App: React.FC = () => {
               <Route path="/demo/floating-search" element={<FloatingSearchDemo />} />
 
             {/* Enhanced Admin Demo Route */}
-            <Route path="/admin/demo" element={
+            {/* <Route path="/admin/demo" element={
               isLoggedIn && authService.isAdmin() ? <EnhancedAdminDemo /> : <Navigate to="/" replace />
-            } />
-
-            <Route path="/admin/new" element={
-              isLoggedIn && authService.isAdmin() ? <AdminDashboardNew /> : <Navigate to="/" replace />
-            } />
+            } /> */}
+              {authService.isAdmin() &&
+                (<Route path="/admin/new" element={
+                  isLoggedIn && authService.isAdmin() ? <AdminDashboardNew /> : <Navigate to="/" replace />
+                } />)}
              
             </Routes>
 
