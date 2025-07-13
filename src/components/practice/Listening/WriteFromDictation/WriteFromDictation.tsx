@@ -25,8 +25,9 @@ import { WriteFromDictationQuestion, TimerState, WriteFromDictationResult, WordA
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
-interface WriteFromDictationProps {}
+interface WriteFromDictationProps { }
 
 const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -41,7 +42,7 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
     warningThreshold: 60,
     autoSubmit: true,
   });
-  
+
   const [showAnswer, setShowAnswer] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -103,6 +104,18 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
 
   const studentProgress = mockStudentProgress;
 
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: mockWriteFromDictationQuestions,
+    title: 'write from dictation',
+    type: 'listening',
+    onTopicSelect: (topic: any) => {
+      setQuestion(topic);
+      setCurrentQuestionIndex(mockWriteFromDictationQuestions.findIndex(t => t.id === topic.id));
+    },
+    enabled: true
+  });
   const handleNext = () => {
     if (currentQuestionIndex < mockWriteFromDictationQuestions.length - 1) {
       const newIndex = currentQuestionIndex + 1;
@@ -139,7 +152,7 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
   // Handle input change
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (isSubmitted) return;
-    
+
     startTimerIfNeeded();
     setUserInput(event.target.value);
   };
@@ -156,16 +169,16 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
   const isWordAcceptable = (userWord: string, expectedWord: string): boolean => {
     const normalizedUser = normalizeText(userWord);
     const normalizedExpected = normalizeText(expectedWord);
-    
+
     if (normalizedUser === normalizedExpected) return true;
-    
+
     // Check acceptable variations
     if (question.acceptableVariations && question.acceptableVariations[expectedWord]) {
-      return question.acceptableVariations[expectedWord].some(variation => 
+      return question.acceptableVariations[expectedWord].some(variation =>
         normalizeText(variation) === normalizedUser
       );
     }
-    
+
     return false;
   };
 
@@ -181,24 +194,24 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
     // Analyze the response
     const userWords = userInput.trim().split(/\s+/).filter(word => word.length > 0);
     const expectedWords = (question.audio?.audioText || question.audioText).split(/\s+/).filter(word => word.length > 0);
-    
+
     let wordsCorrect = 0;
     let keyWordsCorrect = 0;
     const detailedAnalysis: WordAnalysis[] = [];
-    
+
     const maxLength = Math.max(userWords.length, expectedWords.length);
-    
+
     for (let i = 0; i < maxLength; i++) {
       const userWord = userWords[i] || '';
       const expectedWord = expectedWords[i] || '';
       const isKeyWord = question.keyWords.includes(normalizeText(expectedWord));
-      const isCorrect = expectedWord.length>0 && isWordAcceptable(userWord, expectedWord);
-      
+      const isCorrect = expectedWord.length > 0 && isWordAcceptable(userWord, expectedWord);
+
       if (isCorrect) {
         wordsCorrect++;
         if (isKeyWord) keyWordsCorrect++;
       }
-      
+
       if (expectedWord) {
         detailedAnalysis.push({
           expectedWord,
@@ -209,18 +222,18 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
         });
       }
     }
-    
+
     // Calculate score with key word weighting
     const keyWordWeight = 2.5;
     const regularWordWeight = 1.0;
-    
+
     const totalKeyWords = question.keyWords.length;
     const totalRegularWords = expectedWords.length - totalKeyWords;
-    
+
     const keyWordPoints = keyWordsCorrect * keyWordWeight;
     const regularWordPoints = (wordsCorrect - keyWordsCorrect) * regularWordWeight;
     const maxPossiblePoints = (totalKeyWords * keyWordWeight) + (totalRegularWords * regularWordWeight);
-    
+
     const score = Math.round((keyWordPoints + regularWordPoints) / maxPossiblePoints * question.maxScore);
     const accuracy = Math.round((wordsCorrect / expectedWords.length) * 100);
 
@@ -291,7 +304,7 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
         title="Write From Dictation"
         instructions={question.instructions}
         difficulty={question.difficulty}
-         instructionsConfig={{
+        instructionsConfig={{
           sections: [
             {
               title: 'Task Overview',
@@ -322,7 +335,7 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
         }}
       >
         {/* Question Header */}
-        <QuestionHeader 
+        <QuestionHeader
           questionNumber={questionNumber}
           studentName={studentProgress.studentName}
           testedCount={studentProgress.testedCount}
@@ -339,7 +352,7 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
         />
 
         {/* Dual Audio Player - Supports both audio files and text-to-speech */}
-        <DualAudioPlayer 
+        <DualAudioPlayer
           audio={question.audio}
           autoPlay={false}
           onStart={handleAudioStart}
@@ -381,7 +394,7 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
                   },
                 }}
               />
-              
+
               <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body2" color="textSecondary">
                   Word Count: {wordCount}
@@ -443,20 +456,20 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
           currentResult && (
             <Box>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
-                <Chip 
-                  label={`Accuracy: ${currentResult.accuracy}%`} 
+                <Chip
+                  label={`Accuracy: ${currentResult.accuracy}%`}
                   color={currentResult.accuracy >= 70 ? 'success' : 'error'}
                   size="medium"
                 />
-                <Chip 
-                  label={`${currentResult.keyWordsCorrect}/${currentResult.totalKeyWords} key words`} 
+                <Chip
+                  label={`${currentResult.keyWordsCorrect}/${currentResult.totalKeyWords} key words`}
                   color="warning"
                   size="medium"
                 />
               </Stack>
-              
+
               <Typography variant="h6" sx={{ mb: 2 }}>Text Comparison:</Typography>
-              
+
               <Box sx={{ mb: 3 }}>
                 <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
                   Your Answer:
@@ -501,10 +514,10 @@ const WriteFromDictationRefactored: React.FC<WriteFromDictationProps> = () => {
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
               {question.keyWords.map((word, index) => (
-                <Chip 
+                <Chip
                   key={index}
-                  label={word} 
-                  color="primary" 
+                  label={word}
+                  color="primary"
                   size="small"
                   variant="outlined"
                 />

@@ -21,6 +21,7 @@ import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
  import { User } from '../../../../types';
 import { REPEAT_SENTENCE_QUESTIONS, MOCK_FEEDBACK, instructionsSections } from './RepeatSentenceMockData';
 import { RepeatSentenceQuestion } from './RepeatSentenceTypes';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 const RECORDING_DURATION_MS = 15000;
 
@@ -139,6 +140,23 @@ export const RepeatSentence: React.FC<PracticeTestsProps> = ({ user }) => {
   });
 
   const currentQuestion = REPEAT_SENTENCE_QUESTIONS[currentQuestionIndex];
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: REPEAT_SENTENCE_QUESTIONS,
+    title: 'Repeat Sentence Practice',
+    type: 'speaking',
+    onTopicSelect: (topic: any) => {
+      const question = topic as RepeatSentenceQuestion;
+      const index = REPEAT_SENTENCE_QUESTIONS.findIndex(q => q.id === question.id);
+      if (index !== -1) {
+        setCurrentQuestionIndex(index);
+        audioRecording.resetRecording();
+        setShowFeedback(false);
+      }
+    },
+    enabled: true
+  });
 
   // Load attempts from localStorage
   useEffect(() => {

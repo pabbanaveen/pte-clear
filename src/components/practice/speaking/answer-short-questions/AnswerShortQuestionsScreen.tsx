@@ -21,6 +21,7 @@ import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
  import { User } from '../../../../types';
 import { QuestionTopic, UserAttempt } from './AnswerShortQuestionsTypes';
 import { questionTopics } from './questionTopics';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface PracticeTestsProps {
   user: User | null;
@@ -173,6 +174,21 @@ export const AnswerShortQuestionsScreen: React.FC<PracticeTestsProps> = ({ user 
   const audioRecording = useAudioRecording(preparationTime, selectedTopic.recordingTime * 1000);
   const prepTimerRef = useRef<NodeJS.Timeout | null>(null);
   const completedQuestions = attempts.length;
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: questionTopics,
+    title: 'Answer Short Questions Practice',
+    type: 'speaking',
+    onTopicSelect: (topic: any) => {
+      const question = topic as QuestionTopic;
+      const index = questionTopics.findIndex(q => q.id === question.id);
+      if (index !== -1) {
+        setCurrentQuestionIndex(index);
+      }
+    },
+    enabled: true
+  });
 
   // Timer state for preparation
   const [timer, setTimer] = useState({

@@ -41,6 +41,7 @@ import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { GradientBackground, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
 import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import { TimerState, QuestionResult } from './multipleChoiceTypes';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 // Import types and data
 
@@ -76,6 +77,21 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ user }) => {
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: multipleChoiceQuestions,
+    title: 'Multiple Choice (Multiple) Practice',
+    type: 'reading',
+    onTopicSelect: (topic: any) => {
+      const question = topic as MultipleChoiceQuestion;
+      setSelectedQuestion(question);
+      setQuestionNumber(prev => prev + 1);
+      setShowQuestionSelector(false);
+      handleRedo();
+    },
+    enabled: true
+  });
 
   // Sync state when question changes
   useEffect(() => {

@@ -37,8 +37,9 @@ import StageGoalBanner from '../../common/StageGoalBanner';
 import TextToSpeech from '../../common/TextToSpeech';
 import { mockHighlightSummaryQuestions, mockStudentProgress } from './HighlightCorrectSummaryMockData';
 import { HighlightSummaryQuestion, TimerState, SummaryResult, SummaryOption, UserAttempt } from './HighlightCorrectSummaryType';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
-interface HighlightCorrectSummaryProps {}
+interface HighlightCorrectSummaryProps { }
 
 const HighlightCorrectSummary: React.FC<HighlightCorrectSummaryProps> = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -53,6 +54,18 @@ const HighlightCorrectSummary: React.FC<HighlightCorrectSummaryProps> = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [attempts, setAttempts] = useState<UserAttempt[]>([]);
   const [audioError, setAudioError] = useState<string | null>(null);
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: mockHighlightSummaryQuestions,
+    title: 'Highlight Correct Summary',
+    type: 'listening',
+    onTopicSelect: (topic: any) => {
+      setQuestion(topic);
+      setCurrentQuestionIndex(mockHighlightSummaryQuestions.findIndex(t => t.id === topic.id));
+    },
+    enabled: true
+  });
 
   // Timer state
   const [timer, setTimer] = useState<TimerState>({
@@ -295,13 +308,13 @@ const HighlightCorrectSummary: React.FC<HighlightCorrectSummaryProps> = () => {
   return (
     <GradientBackground>
       <StageGoalBanner />
-      
+
       <PracticeCardWithInstructionsPopover
         icon="HCS"
         title="Highlight Correct Summary"
         instructions={question.instructions}
         difficulty={question.difficulty}
-         instructionsConfig={{
+        instructionsConfig={{
           sections: [
             {
               title: 'Task Overview',
@@ -361,13 +374,13 @@ const HighlightCorrectSummary: React.FC<HighlightCorrectSummaryProps> = () => {
         <ContentDisplay
           title="Click on the paragraph that best relates to the recording"
           content={
-            <RadioGroup 
-              value={selectedOption || ''} 
+            <RadioGroup
+              value={selectedOption || ''}
               onChange={(e) => handleOptionSelect(e.target.value as 'A' | 'B' | 'C' | 'D')}
             >
               <Stack spacing={2}>
                 {question.summaryOptions.map((option) => (
-                  <Paper 
+                  <Paper
                     key={option.id}
                     sx={{
                       p: 2,
@@ -381,9 +394,9 @@ const HighlightCorrectSummary: React.FC<HighlightCorrectSummaryProps> = () => {
                       control={<Radio sx={{ mt: -1 }} />}
                       disabled={isSubmitted}
                       label={
-                        <Typography 
-                          variant="body1" 
-                          sx={{ 
+                        <Typography
+                          variant="body1"
+                          sx={{
                             fontSize: { xs: '14px', sm: '15px', md: '16px' },
                             lineHeight: 1.6,
                             pl: 1
@@ -392,8 +405,8 @@ const HighlightCorrectSummary: React.FC<HighlightCorrectSummaryProps> = () => {
                           <strong>{option.label})</strong> {option.text}
                         </Typography>
                       }
-                      sx={{ 
-                        width: '100%', 
+                      sx={{
+                        width: '100%',
                         margin: 0,
                         alignItems: 'flex-start',
                         cursor: isSubmitted ? 'default' : 'pointer'
@@ -513,8 +526,8 @@ const HighlightCorrectSummary: React.FC<HighlightCorrectSummaryProps> = () => {
                         </Typography>
                         <Box sx={{ mt: 1 }}>
                           <Typography variant="body2">
-                            Selected: {attempt.selectedOption} | 
-                            Correct: {attempt.correctAnswer} | 
+                            Selected: {attempt.selectedOption} |
+                            Correct: {attempt.correctAnswer} |
                             Result: {attempt.selectedOption === attempt.correctAnswer ? '✓ Correct' : '✗ Incorrect'}
                           </Typography>
                         </Box>

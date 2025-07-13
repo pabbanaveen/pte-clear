@@ -21,6 +21,7 @@ import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
  import { User } from '../../../../types';
 import { LectureTopic, UserAttempt } from './ReTellLeactureType';
 import { audioTopics } from './audioTopic';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface PracticeTestsProps {
   user: User | null;
@@ -175,6 +176,21 @@ export const ReTellLeacture: React.FC<PracticeTestsProps> = ({ user }) => {
   const audioRecording = useAudioRecording(preparationTime, selectedTopic.recordingTime * 1000);
   const prepTimerRef = useRef<NodeJS.Timeout | null>(null);
   const completedQuestions = attempts.length;
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: audioTopics,
+    title: 'Re-tell Lecture Practice',
+    type: 'speaking',
+    onTopicSelect: (topic: any) => {
+      const lecture = topic as LectureTopic;
+      const index = audioTopics.findIndex(t => t.id === lecture.id);
+      if (index !== -1) {
+        setCurrentTopicIndex(index);
+      }
+    },
+    enabled: true
+  });
 
   // Timer state for preparation
   const [timer, setTimer] = useState({

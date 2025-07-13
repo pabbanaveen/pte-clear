@@ -21,6 +21,7 @@ import NavigationSection from '../../common/NavigationSection';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import { Close } from '@mui/icons-material';
 import { questionTopics } from '../../speaking/answer-short-questions/questionTopics';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface ListeningFillBlanksProps { }
 
@@ -40,6 +41,18 @@ const ListeningFillBlanks: React.FC<ListeningFillBlanksProps> = () => {
     warningThreshold: 30,
     autoSubmit: true,
   });
+
+    // Enable floating search button for this component
+      useFloatingSearch({
+        topics: passages,
+        title: 'Fillin the Blanks',
+        type: 'listening',
+        onTopicSelect: (topic: any) => {
+          setPassage(topic);
+          setCurrentQuestionIndex(passages.findIndex(t => t.id === topic.id));
+        },
+        enabled: true
+      });
 
   // Audio state
   const [isPlaying, setIsPlaying] = useState<boolean>(false);

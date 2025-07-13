@@ -47,6 +47,7 @@ interface HeaderProps {
   user: User | null;
   onLoginClick: () => void;
   onLogout: () => void;
+  isAdmin?: boolean; // Optional prop to check if the user is an admin
 }
 
 interface MenuItem {
@@ -63,7 +64,7 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, onLogout }) => {
+export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, onLogout, isAdmin }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -552,10 +553,10 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
             <ListItemIcon><AdminPanelSettings sx={{ color: '#333' }} /></ListItemIcon>
             <ListItemText><Typography sx={{ fontSize: '0.9rem', color: '#333' }}>Admin Panel</Typography></ListItemText>
           </MenuItem> */}
-          <MenuItem component={Link} to="/admin/new" onClick={handleCloseProfileMenu}>
+          {isAdmin && (<MenuItem component={Link} to="/admin/new" onClick={handleCloseProfileMenu}>
             <ListItemIcon><AdminPanelSettings sx={{ color: '#4DB6AC' }} /></ListItemIcon>
             <ListItemText><Typography sx={{ fontSize: '0.9rem', color: '#4DB6AC', fontWeight: 500 }}>Admin-new</Typography></ListItemText>
-          </MenuItem>
+          </MenuItem>)}
           <MenuItem onClick={handleLogout}>
             <Logout sx={{ mr: 1, color: '#333' }} />
             <Typography sx={{ fontSize: '0.9rem', color: '#333' }}>Logout</Typography>

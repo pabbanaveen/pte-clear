@@ -39,6 +39,7 @@ import { allMultipleChoiceQuestions } from './mutlipleChoiceSingleMockData';
 import { MultipleChoiceQuestion, QuestionProgress, PerformanceData, QuestionResult, TimerState } from './mutlipleChoiceSingleType';
 import { GradientBackground, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
 import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 const MultipleChoiceSingle: React.FC = () => {
  // State management
@@ -73,6 +74,18 @@ const MultipleChoiceSingle: React.FC = () => {
   // Timer reference
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: allMultipleChoiceQuestions,
+    title: 'Multiple Choice (Single) Practice',
+    type: 'reading',
+    onTopicSelect: (topic: any) => {
+      const question = topic as MultipleChoiceQuestion;
+      handleQuestionSelect(question);
+    },
+    enabled: true
+  });
 
   // Initialize timer when question changes
   useEffect(() => {

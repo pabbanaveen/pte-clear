@@ -32,6 +32,7 @@ import { mockReadingPassages, mockStudentProgress } from './ReadingFillInTheBlan
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { DroppableBlank, GradientBackground, TimerDisplay, ContentDisplay, DroppableWordBank, DraggableWord, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
 import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface ReadingFillBlanksProps {}
 
@@ -59,6 +60,18 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
 
+  // Enable floating search button for this component
+    useFloatingSearch({
+      topics: mockReadingPassages,
+      title: 'Reading: Fill in the Blanks',
+      type: 'Readking',
+      onTopicSelect: (topic: any) => {
+        // const sstTopic = convertLegacyTopic(topic as SummarizeSpokenTextTopic);
+        setPassage(topic);
+        setCurrentQuestionIndex(mockReadingPassages.findIndex(t => t.id === topic.id));
+      },
+      enabled: true
+    });
   // Sync state when passage changes
   useEffect(() => {
     setBlanks(passage.blanks.map(blank => ({ ...blank })));

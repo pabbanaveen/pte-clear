@@ -18,6 +18,7 @@ import RecordingSection from '../../common/RecordingSection';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { questions, mockFeedback, Question, Feedback } from './constants';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface UserAttempt {
   questionId: number;
@@ -158,6 +159,35 @@ const DescribeImage: React.FC = () => {
   const [attempts, setAttempts] = useState<UserAttempt[]>([]);
 
   const audioRecording = useAudioRecording(40000);
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: questions.map(q => ({
+      ...q,
+      title: q.title,
+      duration: '65s',
+      speaker: 'Visual',
+      difficulty: 'Intermediate',
+      category: 'Image',
+      tags: ['describe', 'image'],
+      isNew: false,
+      isMarked: false,
+      pracStatus: 'Undone' as const,
+      hasExplanation: true,
+      createdAt: '2024-01-15',
+      updatedAt: '2024-01-15'
+    })),
+    title: 'Describe Image Practice',
+    type: 'speaking',
+    onTopicSelect: (topic: any) => {
+      const question = topic as Question;
+      const index = questions.findIndex(q => q.id === question.id);
+      if (index !== -1) {
+        setCurrentQuestionIndex(index);
+      }
+    },
+    enabled: true
+  });
 
   // Timer state for preparation
   const [timer, setTimer] = useState({

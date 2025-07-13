@@ -20,6 +20,7 @@ import { MULTIPLE_CHOICE_QUESTIONS, convertLegacyQuestion } from './MultipleChoi
 import { MultipleChoiceQuestion, QuestionResult, UserAttempt } from './MutlipleChoiceSingleType';
 import { Close } from '@mui/icons-material';
 import { questionTopics } from '../../speaking/answer-short-questions/questionTopics';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface MultipleChoiceSingleProps { }
 
@@ -207,6 +208,19 @@ const MultipleChoiceSingle: React.FC<MultipleChoiceSingleProps> = () => {
       clearTimeout(timerRef.current);
     }
   };
+
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: questions,
+    title: 'Multiple Choice Single',
+    type: 'listening',
+    onTopicSelect: (topic: any) => {
+      setSelectedQuestion(topic);
+      setCurrentQuestionIndex(questions.findIndex(t => t.id === topic.id));
+    },
+    enabled: true
+  });
 
   // Navigation handlers
   const handleNext = () => {

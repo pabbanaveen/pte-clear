@@ -39,6 +39,7 @@ import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { GradientBackground, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
 import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import { TimerState, QuestionResult } from '../writing-essay/constants';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 const instructionsSections = [
   {
@@ -102,6 +103,21 @@ const SummarizeText = ({ user }:SummarizeTextProps) => {
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: textPassages,
+    title: 'Summarize Written Text Practice',
+    type: 'writing',
+    onTopicSelect: (topic: any) => {
+      const passage = topic;
+      setSelectedPassage(passage);
+      setQuestionNumber(prev => prev + 1);
+      setShowPassageSelector(false);
+      handleRedo();
+    },
+    enabled: true
+  });
 
   // Sync state when passage changes
   useEffect(() => {

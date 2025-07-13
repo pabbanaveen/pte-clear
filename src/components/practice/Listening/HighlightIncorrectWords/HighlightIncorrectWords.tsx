@@ -33,6 +33,7 @@ import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import { mockHighlightIncorrectWordsQuestions, mockStudentProgress } from './HighlightIncorrectWordsMockData';
 import { HighlightIncorrectWordsQuestion, TimerState, HighlightIncorrectWordsResult, IncorrectWord, UserAttempt } from './HighlightIncorrectWordsTypes';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface HighlightIncorrectWordsProps {}
 
@@ -260,6 +261,19 @@ const HighlightIncorrectWords: React.FC<HighlightIncorrectWordsProps> = () => {
       clearTimeout(timerRef.current);
     }
   };
+
+  
+    // Enable floating search button for this component
+    useFloatingSearch({
+      topics: mockHighlightIncorrectWordsQuestions,
+      title: 'Highlight Incorrect Words',
+      type: 'listening',
+      onTopicSelect: (topic: any) => {
+        setQuestion(topic);
+        setCurrentQuestionIndex(mockHighlightIncorrectWordsQuestions.findIndex(t => t.id === topic.id));
+      },
+      enabled: true
+    });
 
   // Navigation handlers
   const handleNext = () => {

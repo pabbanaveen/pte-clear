@@ -36,6 +36,7 @@ import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import { mockSelectMissingWordQuestions, mockStudentProgress } from './SelectMissingWordMockData';
 import { SelectMissingWordQuestion, TimerState, SelectMissingWordResult, MissingWordOption, UserAttempt } from './SelectMissingWordType';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface SelectMissingWordProps {}
 
@@ -220,6 +221,20 @@ const SelectMissingWord: React.FC<SelectMissingWordProps> = () => {
       setQuestion(mockSelectMissingWordQuestions[newIndex]);
     }
   };
+
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: mockSelectMissingWordQuestions,
+    title: 'Select Missing Word',
+    type: 'listening',
+    onTopicSelect: (topic: any) => {
+      setQuestion(topic);
+      setCurrentQuestionIndex(mockSelectMissingWordQuestions.findIndex(t => t.id === topic.id));
+    },
+    enabled: true
+  });
+  
 
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {

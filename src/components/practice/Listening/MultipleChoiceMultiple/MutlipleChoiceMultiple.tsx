@@ -23,6 +23,7 @@ import { allListeningMultipleChoiceQuestions, listeningMultipleChoiceQuestions, 
 import { ListeningMultipleChoiceQuestion, SubmissionResult, UserAttempt } from './MultipleChoiceMultipleType';
 import { User } from '../../../../types';
 import { Close } from '@mui/icons-material';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface ListeningMultipleChoiceProps {
   user?: User | null;
@@ -246,6 +247,19 @@ const ListeningMultipleChoice: React.FC<ListeningMultipleChoiceProps> = ({ user 
       clearTimeout(timerRef.current);
     }
   };
+
+      // Enable floating search button for this component
+      useFloatingSearch({
+        topics: allListeningMultipleChoiceQuestions,
+        title: 'Multiple Choice Multiple',
+        type: 'listening',
+        onTopicSelect: (topic: any) => {
+          setSelectedQuestion(topic);
+          setCurrentQuestionIndex(allListeningMultipleChoiceQuestions.findIndex(t => t.id === topic.id));
+        },
+        enabled: true
+      });
+  
 
   // Navigation handlers
   const handleNext = () => {

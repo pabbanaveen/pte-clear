@@ -37,6 +37,7 @@ import { User } from '../../../../types';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import { GradientBackground, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
 import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 const instructionsSections = [
   {
@@ -91,6 +92,21 @@ const WriteEmail: React.FC<WriteEmailProps> = ({ user }) => {
   const [showScenarioSelector, setShowScenarioSelector] = useState<boolean>(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: emailScenarios,
+    title: 'Email Writing Practice',
+    type: 'writing',
+    onTopicSelect: (topic: any) => {
+      const scenario = topic as EmailScenario;
+      setSelectedScenario(scenario);
+      setQuestionNumber(prev => prev + 1);
+      setShowScenarioSelector(false);
+      handleRedo();
+    },
+    enabled: true
+  });
 
   // Word counting function
   const countWords = (text: string): number => {

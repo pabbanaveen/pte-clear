@@ -40,6 +40,7 @@ import { TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerD
 import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 interface TimerState {
   timeRemaining: number;
@@ -210,6 +211,21 @@ const ReorderParagraphs: React.FC = () => {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: QUESTIONS,
+    title: 'Re-order Paragraphs Practice',
+    type: 'reading',
+    onTopicSelect: (topic: any) => {
+      const question = topic;
+      const index = QUESTIONS.findIndex(q => q.id === question.id);
+      if (index !== -1) {
+        setCurrentQuestionIndex(index);
+      }
+    },
+    enabled: true
+  });
 
   // Initialize question
   useEffect(() => {

@@ -27,6 +27,7 @@ import {
 } from '../../../common';
 import PracticeCardWithInstructions from '../../../common/PracticeCardWithInstructionsPopover';
 import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 const FillInBlanks: React.FC = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
@@ -51,6 +52,21 @@ const FillInBlanks: React.FC = () => {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: questions,
+    title: 'Reading Fill in the Blanks Practice',
+    type: 'reading',
+    onTopicSelect: (topic: any) => {
+      const question = topic as Question;
+      const index = questions.findIndex(q => q.id === question.id);
+      if (index !== -1) {
+        setCurrentQuestionIndex(index);
+      }
+    },
+    enabled: true
+  });
 
   // Sync state when question changes
   useEffect(() => {

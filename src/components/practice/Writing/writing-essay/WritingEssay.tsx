@@ -32,6 +32,7 @@ import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
+import { useFloatingSearch } from '../../../hooks/useFloatingSearch';
 
 const instructionsSections = [
   {
@@ -87,6 +88,23 @@ const WritingEssay: React.FC=() => {
   const [showTranslate, setShowTranslate] = useState<boolean>(false);
   const [showResults, setShowResults] = useState<boolean>(false);
   const [currentResult, setCurrentResult] = useState<QuestionResult | null>(null);
+
+  // Enable floating search button for this component
+  useFloatingSearch({
+    topics: ESSAY_QUESTIONS,
+    title: 'Writing Essay Practice',
+    type: 'writing',
+    onTopicSelect: (topic: any) => {
+      const question = topic;
+      const index = ESSAY_QUESTIONS.findIndex(q => q.id === question.id);
+      if (index !== -1) {
+        setCurrentQuestionIndex(index);
+        handleRedo();
+      }
+    },
+    enabled: true
+  });
+
   const [showQuestionSelector, setShowQuestionSelector] = useState<boolean>(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date>(new Date());
