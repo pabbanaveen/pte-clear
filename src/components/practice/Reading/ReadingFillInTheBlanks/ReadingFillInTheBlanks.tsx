@@ -30,7 +30,8 @@ import StageGoalBanner from '../../common/StageGoalBanner';
 import { ReadingPassage, QuestionResult, BlankPosition, WordBankWord, TimerState } from './ReadingFillInTheBlanksTypes';
 import { mockReadingPassages, mockStudentProgress } from './ReadingFillInTheBlanksMockData';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
-import { DroppableBlank, GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, DroppableWordBank, DraggableWord, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import { DroppableBlank, GradientBackground, TimerDisplay, ContentDisplay, DroppableWordBank, DraggableWord, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 
 interface ReadingFillBlanksProps {}
 
@@ -273,11 +274,40 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
     <GradientBackground>
       <StageGoalBanner />
 
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="FIB"
         title="Reading: Fill in the Blanks"
         instructions={passage.instructions}
         difficulty={passage.difficulty}
+        instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Drag words from the box below to the appropriate place in the text.'],
+            },
+            {
+              title: 'Strategy Tips',
+              items: [
+                'Read the entire text first',
+                'Consider grammar and meaning',
+                'Look for context clues',
+                'Check subject-verb agreement',
+                'Consider collocations',
+              ],
+            },
+            {
+              title: 'What to Consider',
+              items: ['Parts of speech', 'Logical meaning', 'Grammatical correctness', 'Sentence flow', 'Overall coherence'],
+            },
+            {
+              title: 'Scoring',
+              items: ['1 point per correct answer', 'No negative marking', 'All blanks must be filled'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         <QuestionHeader 
           questionNumber={questionNumber}
@@ -346,7 +376,7 @@ const ReadingFillBlanks: React.FC<ReadingFillBlanksProps> = () => {
           onNext={handleNext}
           questionNumber={questionNumber}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showFillinBlanksSelector}

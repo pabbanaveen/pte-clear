@@ -37,7 +37,8 @@ import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
 import { allMultipleChoiceQuestions } from './mutlipleChoiceSingleMockData';
 import { MultipleChoiceQuestion, QuestionProgress, PerformanceData, QuestionResult, TimerState } from './mutlipleChoiceSingleType';
-import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import { GradientBackground, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 
 const MultipleChoiceSingle: React.FC = () => {
  // State management
@@ -293,11 +294,39 @@ const [showPerformance, setShowPerformance] = useState(false);
     <GradientBackground>
       <StageGoalBanner />
 
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="MCS"
         title="Multiple Choice (Single)"
         instructions="Read the text and answer the multiple choice question by selecting the correct response. Only one response is correct."
         difficulty={selectedQuestion.difficulty}
+        instructionsConfig={{
+          sections: [
+            {
+              title: 'Task Overview',
+              items: ['Read the passage carefully and answer the multiple choice question', 'Only one response is correct'],
+            },
+            {
+              title: 'Time Management',
+              items: ['Read the question first to focus your reading', 'Scan the passage for relevant information', 'Choose the best answer from the given options'],
+            },
+            {
+              title: 'Strategy Tips',
+              items: [
+                'Eliminate obviously wrong answers first',
+                'Look for keywords that match the question',
+                'Consider the context and main ideas',
+                'Don\'t overthink - choose the most logical answer'
+              ],
+            },
+            {
+              title: 'Scoring',
+              items: ['1 point for correct answer', '0 points for incorrect answer', 'No negative marking'],
+            },
+          ],
+          size: 'medium',
+          color: 'primary',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         <QuestionHeader 
           questionNumber={questionNumber}
@@ -438,7 +467,7 @@ const [showPerformance, setShowPerformance] = useState(false);
           onNext={handleNext}
           questionNumber={questionNumber}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showTopicSelector}

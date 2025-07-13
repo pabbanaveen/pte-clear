@@ -11,14 +11,22 @@ import TimerIcon from '@mui/icons-material/Timer';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import { BlankAnswer, FeedbackCardProps, instructionsSections, Question, QuestionResult, questions, TimerState } from './FillInBlanksMockData';
-import InstructionsCard from '../../common/InstructionsCard';
 import TopicSelectionDrawer from '../../../common/TopicSelectionDrawer';
 import ActionButtons from '../../common/ActionButtons';
 import NavigationSection from '../../common/NavigationSection';
 import QuestionHeader from '../../common/QuestionHeader';
 import StageGoalBanner from '../../common/StageGoalBanner';
-import { GradientBackground, PracticeCard, TimerDisplay, ContentDisplay, ProgressIndicator, ResultsDialog, AnswerDialog, TranslationDialog } from '../../../common';
-
+import { 
+  GradientBackground, 
+  TimerDisplay, 
+  ContentDisplay, 
+  ProgressIndicator, 
+  ResultsDialog, 
+  AnswerDialog, 
+  TranslationDialog 
+} from '../../../common';
+import PracticeCardWithInstructions from '../../../common/PracticeCardWithInstructionsPopover';
+import PracticeCardWithInstructionsPopover from '../../../common/PracticeCardWithInstructionsPopover';
 
 const FillInBlanks: React.FC = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
@@ -253,11 +261,18 @@ const FillInBlanks: React.FC = () => {
     <GradientBackground>
       <StageGoalBanner />
 
-      <PracticeCard
+      <PracticeCardWithInstructionsPopover
         icon="FIB"
         title="Reading & Writing: Fill in the Blanks"
         instructions="There are some words missing in the following text. Please select the correct word in the drop-down box."
         difficulty={currentQuestion.difficulty}
+        instructionsConfig={{
+          sections: instructionsSections,
+          size: 'medium',
+          color: 'primary',
+          // maxWidth: 'sm',
+          tooltipTitle: 'View detailed instructions'
+        }}
       >
         <QuestionHeader
           questionNumber={currentQuestionIndex + 1}
@@ -309,7 +324,7 @@ const FillInBlanks: React.FC = () => {
           onNext={handleNext}
           questionNumber={currentQuestionIndex + 1}
         />
-      </PracticeCard>
+      </PracticeCardWithInstructionsPopover>
 
       <TopicSelectionDrawer
         open={showTopicSelector}

@@ -3,6 +3,8 @@
 // Layout and Structure
 export { default as PracticeCard } from './PracticeCard';
 export type { PracticeCardProps } from './PracticeCard';
+export { default as PracticeCardWithInstructionsPopover } from './PracticeCardWithInstructionsPopover';
+export type { PracticeCardWithInstructionsPopoverProps } from './PracticeCardWithInstructionsPopover';
 
 // User Interface
 export { default as TimerDisplay } from './TimerDisplay';
@@ -19,6 +21,10 @@ export type { InputFieldProps } from './InputField';
 
 export { default as HighlightableText } from './HighlightableText';
 export type { HighlightableTextProps, HighlightableWord } from './HighlightableText';
+
+// Instructions Components
+export { default as InstructionsPopup } from './InstructionsPopover';
+export type { InstructionSection } from './InstructionsPopover';
 
 // Dialogs
 export { default as DialogWrapper } from './DialogWrapper';
