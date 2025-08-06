@@ -53,15 +53,51 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
+          height: '36px',
+          fontSize: '0.875rem',
+          fontWeight: 500,
           textTransform: 'none',
-          borderRadius: 8,
-          fontWeight: 600,
+          borderRadius: '6px',
+          minWidth: '100px',
         },
         contained: {
-          boxShadow: '0 4px 12px rgba(77, 182, 172, 0.3)',
+          backgroundColor: '#4DB6AC',
+          color: 'white',
+          boxShadow: 'none',
           '&:hover': {
-            boxShadow: '0 6px 16px rgba(77, 182, 172, 0.4)',
+            backgroundColor: '#00695C',
+            boxShadow: '0 4px 12px rgba(77, 182, 172, 0.3)',
           },
+          '&:disabled': {
+            backgroundColor: 'action.disabledBackground',
+            color: 'action.disabled',
+          },
+        },
+        outlined: {
+          borderColor: '#4DB6AC',
+          color: '#4DB6AC',
+          backgroundColor: 'transparent',
+          '&:hover': {
+            backgroundColor: 'rgba(77, 182, 172, 0.1)',
+            borderColor: '#4DB6AC',
+          },
+          '&:disabled': {
+            borderColor: 'action.disabled',
+            color: 'action.disabled',
+          },
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          height: '24px',
+          fontSize: '0.75rem',
+          fontWeight: 500,
+        },
+        outlined: {
+          borderColor: '#4DB6AC',
+          color: '#4DB6AC',
         },
       },
     },

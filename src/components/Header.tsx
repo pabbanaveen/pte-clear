@@ -4,7 +4,6 @@ import {
   Toolbar,
   Box,
   Typography,
-  Button,
   IconButton,
   Avatar,
   Menu,
@@ -19,7 +18,8 @@ import {
   Collapse,
   useTheme,
   useMediaQuery,
-  Paper
+  Paper,
+  Button as MuiButton
 } from '@mui/material';
 import {
   Settings,
@@ -161,9 +161,9 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
 
   // Mobile Drawer Content
   const drawerContent = (
-    <Box sx={{ width: 280, bgcolor: '#fff', height: '100%' }}>
-      <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: '#4DB6AC', mb: 1 }}>
+    <Box sx={{ width: 280, bgcolor: 'background.paper', height: '100%' }}>
+      <Box sx={{ p: 2, borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main', mb: 1 }}>
           Navigation
         </Typography>
       </Box>
@@ -176,11 +176,11 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
             sx={{ 
               borderRadius: 2, 
               mb: 1,
-              '&:hover': { bgcolor: '#e3f2fd' }
+              '&:hover': { bgcolor: 'primary.light', opacity: 0.1 }
             }}
           >
             <ListItemIcon>
-              <Home sx={{ color: '#4DB6AC' }} />
+              <Home sx={{ color: 'primary.main' }} />
             </ListItemIcon>
             <ListItemText 
               primary="Home" 
@@ -197,11 +197,11 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
               sx={{ 
                 borderRadius: 2, 
                 mb: 1,
-                '&:hover': { bgcolor: '#e3f2fd' }
+                '&:hover': { bgcolor: 'primary.light', opacity: 0.1 }
               }}
             >
               <ListItemIcon>
-                <School sx={{ color: '#4DB6AC' }} />
+                <School sx={{ color: 'primary.main' }} />
               </ListItemIcon>
               <ListItemText 
                 primary="PTE Practice" 
@@ -220,7 +220,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
               sx={{ 
                 maxHeight: '60vh', 
                 overflowY: 'auto',
-                bgcolor: '#f8f9fa',
+                bgcolor: 'background.default',
                 borderRadius: 2,
                 mx: 1,
                 mb: 1
@@ -231,15 +231,15 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
                   <Box sx={{ 
                     px: 2, 
                     py: 1, 
-                    bgcolor: '#fff', 
+                    bgcolor: 'background.paper', 
                     borderRadius: '8px 8px 0 0',
-                    borderBottom: '1px solid #e0e0e0'
+                    borderBottom: (theme) => `1px solid ${theme.palette.divider}`
                   }}>
                     <Typography 
                       variant="subtitle2" 
                       sx={{ 
                         fontWeight: 600, 
-                        color: '#1976d2',
+                        color: 'primary.main',
                         fontSize: '0.85rem',
                         display: 'flex',
                         alignItems: 'center',
@@ -259,7 +259,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
                           sx={{
                             pl: 3,
                             py: 0.8,
-                            '&:hover': { bgcolor: '#e3f2fd' },
+                            '&:hover': { bgcolor: 'primary.light', opacity: 0.1 },
                             borderRadius: 1,
                             mx: 1
                           }}
@@ -267,14 +267,14 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
                           <ListItemText 
                             primary={
                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <Typography sx={{ fontSize: '0.8rem', color: '#333' }}>
+                                <Typography sx={{ fontSize: '0.8rem', color: 'text.primary' }}>
                                   {item.label}
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                                   {item.hasAI && (
                                     <Box sx={{
-                                      bgcolor: '#e8f5e9',
-                                      color: '#2e7d32',
+                                      bgcolor: 'success.light',
+                                      color: 'success.dark',
                                       px: 0.8,
                                       py: 0.2,
                                       borderRadius: 1,
@@ -286,8 +286,8 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
                                   )}
                                   {item.isCore && (
                                     <Box sx={{
-                                      bgcolor: '#f3e5f5',
-                                      color: '#6a1b9a',
+                                      bgcolor: 'secondary.light',
+                                      color: 'secondary.dark',
                                       px: 0.8,
                                       py: 0.2,
                                       borderRadius: 1,
@@ -323,7 +323,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
               }}
             >
               <ListItemIcon>
-                <MenuBook sx={{ color: '#4DB6AC' }} />
+                <MenuBook sx={{ color: 'primary.main' }} />
               </ListItemIcon>
               <ListItemText 
                 primary="Study Materials" 
@@ -345,7 +345,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
               }}
             >
               <ListItemIcon>
-                <TrendingUp sx={{ color: '#4DB6AC' }} />
+                <TrendingUp sx={{ color: 'primary.main' }} />
               </ListItemIcon>
               <ListItemText 
                 primary="Progress" 
@@ -379,9 +379,9 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
                 onClick={() => { onLoginClick(); setMobileDrawerOpen(false); }}
                 sx={{ 
                   borderRadius: 2, 
-                  bgcolor: '#4DB6AC',
-                  color: 'white',
-                  '&:hover': { bgcolor: '#3C9C92' }
+                  bgcolor: 'primary.main',
+                  color: 'common.white',
+                  '&:hover': { bgcolor: 'primary.dark' }
                 }}
               >
                 <ListItemText 
@@ -409,7 +409,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
               onClick={handleDrawerToggle}
               sx={{ mr: 2 }}
             >
-              <Dehaze sx={{ color: '#4DB6AC' }} />
+              <Dehaze sx={{ color: 'primary.main' }} />
             </IconButton>
           )}
 
@@ -419,7 +419,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
               src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiM0REI2QUMiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIiBmb250LXNpemU9IjMyIiBmb250LXdlaWdodD0iYm9sZCI+QTwvdGV4dD4KPC9zdmc+"
               sx={{ width: 40, height: 40, mr: 2 }}
             />
-            <Typography variant="h6" sx={{ fontWeight: 700, color: '#4DB6AC', fontSize: '1.5rem' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main', fontSize: '1.5rem' }}>
               APEUNI
             </Typography>
 
@@ -429,7 +429,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
                 item.hasSubMenu ? (
                   <PtePracticeMenu key={item.path} />
                 ) : (
-                  <Button
+                  <MuiButton
                     key={item.path}
                     color="inherit"
                     component={Link}
@@ -437,15 +437,15 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
                     sx={{
                       fontSize: '1rem',
                       fontWeight: 500,
-                      color: '#333',
+                      color: 'text.primary',
                       '&:hover': {
-                        color: '#4DB6AC',
+                        color: 'primary.main',
                         backgroundColor: 'transparent',
                       },
                     }}
                   >
                     {item.label}
-                  </Button>
+                  </MuiButton>
                 )
               )}
             </Box>
@@ -456,43 +456,43 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
             {isLoggedIn ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <IconButton onClick={handleProfileMenu} sx={{ p: 0 }}>
-                  <Avatar sx={{ bgcolor: '#4DB6AC', width: 36, height: 36, fontSize: '1rem' }}>
+                  <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '1rem' }}>
                     {user?.name?.charAt(0).toUpperCase()}
                   </Avatar>
                 </IconButton>
               </Box>
             ) : (
               <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button
+                <MuiButton
                   color="inherit"
                   onClick={onLoginClick}
                   sx={{
                     fontSize: '0.9rem',
                     fontWeight: 500,
-                    color: '#333',
+                    color: 'text.primary',
                     '&:hover': {
-                      color: '#4DB6AC',
+                      color: 'primary.main',
                       backgroundColor: 'transparent',
                     },
                   }}
                 >
                   Login
-                </Button>
-                <Button
+                </MuiButton>
+                <MuiButton
                   variant="contained"
                   onClick={onLoginClick}
                   sx={{
                     fontSize: '0.9rem',
                     fontWeight: 500,
-                    bgcolor: '#4DB6AC',
+                    bgcolor: 'primary.main',
                     color: 'white',
                     '&:hover': {
-                      bgcolor: '#3C9C92',
+                      bgcolor: 'primary.dark',
                     },
                   }}
                 >
                   Sign Up
-                </Button>
+                </MuiButton>
               </Box>
             )}
           </Box>
@@ -500,7 +500,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
           {/* Mobile Profile Icon */}
           {isMobile && isLoggedIn && (
             <IconButton onClick={handleProfileMenu} sx={{ p: 0, ml: 1 }}>
-              <Avatar sx={{ bgcolor: '#4DB6AC', width: 32, height: 32, fontSize: '0.9rem' }}>
+              <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: '0.9rem' }}>
                 {user?.name?.charAt(0).toUpperCase()}
               </Avatar>
             </IconButton>
@@ -542,24 +542,24 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
           }}
         >
           <MenuItem onClick={() => { navigate('/profile'); handleCloseProfileMenu(); }}>
-            <Settings sx={{ mr: 1, color: '#333' }} />
-            <Typography sx={{ fontSize: '0.9rem', color: '#333' }}>Profile</Typography>
+            <Settings sx={{ mr: 1, color: 'text.primary' }} />
+            <Typography sx={{ fontSize: '0.9rem', color: 'text.primary' }}>Profile</Typography>
           </MenuItem>
           <MenuItem component={Link} to="/dashboard" onClick={handleCloseProfileMenu}>
-            <ListItemIcon><Dashboard sx={{ color: '#333' }} /></ListItemIcon>
-            <ListItemText><Typography sx={{ fontSize: '0.9rem', color: '#333' }}>Dashboard</Typography></ListItemText>
+            <ListItemIcon><Dashboard sx={{ color: 'text.primary' }} /></ListItemIcon>
+            <ListItemText><Typography sx={{ fontSize: '0.9rem', color: 'text.primary' }}>Dashboard</Typography></ListItemText>
           </MenuItem>
           {/* <MenuItem component={Link} to="/admin" onClick={handleCloseProfileMenu}>
             <ListItemIcon><AdminPanelSettings sx={{ color: '#333' }} /></ListItemIcon>
             <ListItemText><Typography sx={{ fontSize: '0.9rem', color: '#333' }}>Admin Panel</Typography></ListItemText>
           </MenuItem> */}
           {isAdmin && (<MenuItem component={Link} to="/admin/new" onClick={handleCloseProfileMenu}>
-            <ListItemIcon><AdminPanelSettings sx={{ color: '#4DB6AC' }} /></ListItemIcon>
-            <ListItemText><Typography sx={{ fontSize: '0.9rem', color: '#4DB6AC', fontWeight: 500 }}>Admin-new</Typography></ListItemText>
+            <ListItemIcon><AdminPanelSettings sx={{ color: 'primary.main' }} /></ListItemIcon>
+            <ListItemText><Typography sx={{ fontSize: '0.9rem', color: 'primary.main', fontWeight: 500 }}>Admin-new</Typography></ListItemText>
           </MenuItem>)}
           <MenuItem onClick={handleLogout}>
-            <Logout sx={{ mr: 1, color: '#333' }} />
-            <Typography sx={{ fontSize: '0.9rem', color: '#333' }}>Logout</Typography>
+            <Logout sx={{ mr: 1, color: 'text.primary' }} />
+            <Typography sx={{ fontSize: '0.9rem', color: 'text.primary' }}>Logout</Typography>
           </MenuItem>
         </Menu>
       )}

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Container, Typography, Grid, Card, CardMedia, CardContent, Box, Chip, CardActions, Button } from '@mui/material';
+import { Container, Typography, Grid, Card, CardMedia, CardContent, Box, Chip, CardActions } from '@mui/material';
 import { Download } from '@mui/icons-material';
 import { User } from '../types';
+import { Button } from './common/Button';
 
 interface StudyMaterialsProps {
   user: User | null;

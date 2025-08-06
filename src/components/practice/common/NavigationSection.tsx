@@ -1,6 +1,8 @@
 import React from 'react';
-import { Stack, Button, Chip, Typography, Box } from '@mui/material';
+import { Stack, Chip, Typography, Box, useTheme } from '@mui/material';
 import { ArrowForward } from '@mui/icons-material';
+import { getButtonStyles, getChipStyles, layoutStyles, typographyStyles } from '../../../styles/common';
+import { Button } from '../../common/Button';
 
 interface NavigationSectionProps {
   onSearch: () => void;
@@ -15,6 +17,10 @@ const NavigationSection: React.FC<NavigationSectionProps> = ({
   onNext,
   questionNumber,
 }) => {
+  const theme = useTheme();
+  const buttonStyles = getButtonStyles(theme);
+  const chipStyles = getChipStyles(theme);
+
   return (
     <Box sx={{ width: '100%' }}>
       {/* Mobile: Stack vertically, Desktop: Stack horizontally */}
@@ -25,15 +31,21 @@ const NavigationSection: React.FC<NavigationSectionProps> = ({
         spacing={{ xs: 2, md: 0 }}
       >
         {/* Question Counter - Always visible */}
-        <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', alignItems: 'center' }}>
-          <Chip onClick={() => { }} label="× 5" color="error" variant="outlined" size="small" />
+        <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'center', alignItems: 'center' }}>
+          <Chip 
+            onClick={() => { }} 
+            label="× 5" 
+            variant="outlined" 
+            size="small"
+            sx={chipStyles.small}
+          />
           <Typography 
             variant="body2" 
             sx={{ 
-              color: '#666', 
+              ...typographyStyles.body2,
+              color: theme.palette.text.secondary,
               display: 'flex', 
               alignItems: 'center',
-              fontSize: { xs: '12px', sm: '14px' },
               textAlign: 'center'
             }}
           >
@@ -43,51 +55,42 @@ const NavigationSection: React.FC<NavigationSectionProps> = ({
 
         {/* Navigation Buttons */}
         <Stack 
-          direction={{ xs: 'column', sm: 'row' }} 
+          direction={layoutStyles.responsiveStack}
           spacing={{ xs: 1, sm: 1 }}
           sx={{ 
-            width: { xs: '100%', md: 'auto' },
+            ...layoutStyles.fullWidthOnMobile,
             alignItems: 'stretch'
           }}
         >
           <Button 
-            variant="contained" 
-            color="primary" 
+            variant="outlined"
             onClick={onSearch}
-            sx={{ 
-              minHeight: '36px',
-              fontSize: { xs: '12px', sm: '14px' },
-              px: { xs: 2, sm: 3 }
+            sx={{
+              ...buttonStyles.outlined,
+              minWidth: { xs: '100%', sm: '100px' }
             }}
-            size="small"
           >
             Search
           </Button>
           <Button 
-            variant="contained" 
-            color="success" 
+            variant="outlined"
             onClick={onPrevious}
             disabled={questionNumber <= 1}
-            sx={{ 
-              minHeight: '36px',
-              fontSize: { xs: '12px', sm: '14px' },
-              px: { xs: 2, sm: 3 }
+            sx={{
+              ...buttonStyles.outlined,
+              minWidth: { xs: '100%', sm: '100px' }
             }}
-            size="small"
           >
             Previous
           </Button>
           <Button
             variant="contained"
-            color="success"
             onClick={onNext}
-            endIcon={<ArrowForward sx={{ fontSize: { xs: '16px', sm: '20px' } }} />}
-            sx={{ 
-              minHeight: '36px',
-              fontSize: { xs: '12px', sm: '14px' },
-              px: { xs: 2, sm: 3 }
+            endIcon={<ArrowForward sx={{ fontSize: 20 }} />}
+            sx={{
+              ...buttonStyles.contained,
+              minWidth: { xs: '100%', sm: '100px' }
             }}
-            size="small"
           >
             Next
           </Button>

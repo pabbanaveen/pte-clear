@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Container, Typography, Button, Chip, IconButton, useTheme } from '@mui/material';
+import { Box, Container, Typography, Chip, IconButton, useTheme } from '@mui/material';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { heroSlides } from '../heroSlides';
+import { Button } from '../common/Button';
 
 interface HeroSectionProps {
   onGetStarted: () => void;
@@ -76,7 +77,7 @@ const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
   return (
     <Box
       sx={{
-        background: 'linear-gradient(135deg, #E0F2F1 0%, #B2DFDB 100%)',
+        background: (theme) => `linear-gradient(135deg, ${theme.palette.primary.light}40 0%, ${theme.palette.primary.main}40 100%)`,
         py: 0,
         position: 'relative',
         overflow: 'hidden',
@@ -167,8 +168,8 @@ const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
                 fontSize: { xs: '1.3rem', md: '2rem' },
                 letterSpacing: '-0.5px',
                 textAlign: { xs: 'center', md: 'left' },
-                color: '#fff',
-                textShadow: '0 2px 12px rgba(0,0,0,0.55)',
+                color: 'common.white',
+                textShadow: (theme) => `0 2px 12px ${theme.palette.common.black}8C`,
               }}
             >
               {heroSlides[idx].title}
@@ -177,10 +178,10 @@ const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               variant="body1"
               sx={{
                 mb: 2,
-                color: '#fff',
+                color: 'common.white',
                 fontSize: { xs: '1rem', md: '1.15rem' },
                 textAlign: { xs: 'center', md: 'left' },
-                textShadow: '0 2px 12px rgba(0,0,0,0.55)',
+                textShadow: (theme) => `0 2px 12px ${theme.palette.common.black}8C`,
               }}
             >
               {heroSlides[idx].subtitle}
@@ -197,15 +198,16 @@ const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
                   mb: 1.5,
                   borderRadius: 2,
                   boxShadow: 2,
-                  background: '#4DB6AC',
-                  color: theme.palette.getContrastText(theme.palette.secondary.main),
-                  border: '2px solid #fff',
+                  bgcolor: 'primary.main',
+                  color: 'common.white',
+                  border: '2px solid',
+                  borderColor: 'common.white',
                   fontWeight: 700,
                   letterSpacing: 1,
                   '&:hover': {
-                    background: theme.palette.secondary.dark,
-                    color: theme.palette.getContrastText(theme.palette.secondary.dark),
-                    border: '2px solid #fff',
+                    bgcolor: 'primary.dark',
+                    color: 'common.white',
+                    borderColor: 'common.white',
                   },
                 }}
               >
@@ -213,8 +215,8 @@ const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               </Button>
             )}
             <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1, justifyContent: { xs: 'center', md: 'flex-start' } }}>
-              <Chip label="NEW" color="secondary" size="small" sx={{ color: '#fff', background: 'rgba(0,0,0,0.7)', textShadow: '0 2px 8px #000' }} />
-              <Typography variant="body2" sx={{ color: '#fff', textShadow: '0 2px 8px #000' }}>
+              <Chip label="NEW" color="secondary" size="small" sx={{ color: 'common.white', bgcolor: (theme) => `${theme.palette.common.black}B3`, textShadow: (theme) => `0 2px 8px ${theme.palette.common.black}` }} />
+              <Typography variant="body2" sx={{ color: 'common.white', textShadow: (theme) => `0 2px 8px ${theme.palette.common.black}` }}>
                 AI-powered instant scoring
               </Typography>
             </Box>
@@ -230,12 +232,14 @@ const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
           left: 8,
           top: '50%',
           transform: 'translateY(-50%)',
-          background: 'rgba(0,0,0,0.5)',
-          color: '#fff',
+          background: (theme) => `${theme.palette.common.black}80`,
+          color: 'common.white',
           boxShadow: 2,
           zIndex: 3,
           display: { xs: 'flex', md: 'flex' },
-          '&:hover': { background: 'rgba(0,0,0,0.7)' },
+          '&:hover': { 
+            background: (theme) => `${theme.palette.common.black}B3`
+          },
         }}
         aria-label="Previous slide"
       >
@@ -250,12 +254,14 @@ const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
           right: 8,
           top: '50%',
           transform: 'translateY(-50%)',
-          background: 'rgba(0,0,0,0.5)',
-          color: '#fff',
+          background: (theme) => `${theme.palette.common.black}80`,
+          color: 'common.white',
           boxShadow: 2,
           zIndex: 3,
           display: { xs: 'flex', md: 'flex' },
-          '&:hover': { background: 'rgba(0,0,0,0.7)' },
+          '&:hover': { 
+            background: (theme) => `${theme.palette.common.black}B3`
+          },
         }}
         aria-label="Next slide"
       >
@@ -281,8 +287,9 @@ const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               width: 10,
               height: 10,
               borderRadius: '50%',
-              background: idx === current ? theme.palette.primary.main : '#fff',
-              border: '1.5px solid #fff',
+              background: idx === current ? 'primary.main' : 'common.white',
+              border: '1.5px solid',
+              borderColor: 'common.white',
               transition: 'background 0.3s',
               cursor: isTransitioning ? 'not-allowed' : 'pointer',
               opacity: isTransitioning ? 0.5 : 1,

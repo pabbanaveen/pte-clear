@@ -1,5 +1,6 @@
 import React from 'react';
-import { Container, Typography, Grid, Card, CardContent, List, ListItem, ListItemIcon, ListItemText, Button, Box } from '@mui/material';
+import { Container, Typography, Grid, Card, CardContent, List, ListItem, ListItemIcon, ListItemText, Box } from '@mui/material';
+import { Button } from '../common/Button';
 import { CheckCircle } from '@mui/icons-material';
 
 const AIPracticeSection = () => {

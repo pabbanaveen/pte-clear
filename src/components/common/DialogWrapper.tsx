@@ -7,11 +7,11 @@ import {
   IconButton,
   Typography,
   Stack,
-  Button,
   useMediaQuery,
   useTheme
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
+import { Button } from './Button';
 
 export interface DialogWrapperProps {
   open: boolean;
@@ -45,6 +45,39 @@ const DialogWrapper: React.FC<DialogWrapperProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const buttonStyles = {
+    height: '36px',
+    fontSize: '0.875rem',
+    fontWeight: 500,
+    textTransform: 'none',
+    boxShadow: 'none',
+    borderRadius: '6px',
+    minWidth: '100px',
+    '&:hover': {
+      boxShadow: 'none',
+    },
+  };
+
+  const containedButtonStyles = {
+    ...buttonStyles,
+    backgroundColor: theme.palette.primary.main,
+    color: 'white',
+    '&:hover': {
+      backgroundColor: theme.palette.primary.dark,
+      boxShadow: `0 4px 12px ${theme.palette.primary.main}30`,
+    },
+  };
+
+  const outlinedButtonStyles = {
+    ...buttonStyles,
+    borderColor: theme.palette.grey[300],
+    color: theme.palette.text.primary,
+    '&:hover': {
+      backgroundColor: theme.palette.grey[50],
+      borderColor: theme.palette.grey[400],
+    },
+  };
 
   return (
     <Dialog 
@@ -90,7 +123,7 @@ const DialogWrapper: React.FC<DialogWrapperProps> = ({
       </DialogContent>
       
       {(actions || defaultActions) && (
-        <DialogActions sx={{ p: 3, pt: 1 }}>
+        <DialogActions sx={{ p: 3, pt: 2, gap: 1 }}>
           {actions ? (
             actions
           ) : defaultActions ? (
@@ -98,9 +131,11 @@ const DialogWrapper: React.FC<DialogWrapperProps> = ({
               {defaultActions.onCancel && (
                 <Button 
                   onClick={defaultActions.onCancel}
-                  variant={defaultActions.variant || 'outlined'}
-                  size={isMobile ? 'small' : 'medium'}
-                  sx={{ minWidth: { xs: 80, sm: 100 } }}
+                  variant="outlined"
+                  sx={{
+                    ...outlinedButtonStyles,
+                    minWidth: isMobile ? '100%' : '100px',
+                  }}
                 >
                   {defaultActions.cancelText || 'Cancel'}
                 </Button>
@@ -108,10 +143,19 @@ const DialogWrapper: React.FC<DialogWrapperProps> = ({
               {defaultActions.onConfirm && (
                 <Button 
                   onClick={defaultActions.onConfirm}
-                  variant={defaultActions.variant || 'contained'}
+                  variant="contained"
                   color={defaultActions.confirmColor || 'primary'}
-                  size={isMobile ? 'small' : 'medium'}
-                  sx={{ minWidth: { xs: 80, sm: 100 } }}
+                  sx={{
+                    ...containedButtonStyles,
+                    minWidth: isMobile ? '100%' : '100px',
+                    ...(defaultActions.confirmColor === 'error' && {
+                      backgroundColor: theme.palette.error.main,
+                      '&:hover': {
+                        backgroundColor: theme.palette.error.dark,
+                        boxShadow: `0 4px 12px ${theme.palette.error.main}30`,
+                      },
+                    }),
+                  }}
                 >
                   {defaultActions.confirmText || 'Confirm'}
                 </Button>

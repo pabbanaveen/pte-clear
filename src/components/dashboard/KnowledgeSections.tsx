@@ -1,5 +1,6 @@
 import React from 'react';
-import { Container, Typography, Grid, Card, CardContent, Button } from '@mui/material';
+import { Container, Typography, Grid, Card, CardContent } from '@mui/material';
+import { Button } from '../common/Button';
 
 const KnowledgeSections = () => {
   const sections = [

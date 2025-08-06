@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, Avatar, Button, useTheme, useMediaQuery } from '@mui/material';
+import { Box, Typography, Avatar, useTheme, useMediaQuery } from '@mui/material';
+import { Button } from '../common/Button';
 
 const testimonials = [
   {

@@ -6,7 +6,8 @@ import {
   MenuItem,
   Typography,
   Box,
-  Alert
+  Alert,
+  useTheme
 } from '@mui/material';
 import DialogWrapper from './DialogWrapper';
 
@@ -49,6 +50,7 @@ const TranslationDialog: React.FC<TranslationDialogProps> = ({
   isLoading = false,
   translatedText
 }) => {
+  const theme = useTheme();
   const [selectedLanguage, setSelectedLanguage] = useState(defaultLanguage);
 
   const handleTranslate = () => {
@@ -74,15 +76,55 @@ const TranslationDialog: React.FC<TranslationDialogProps> = ({
       <Box>
         {/* Language Selection */}
         <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Select Language</InputLabel>
+          <InputLabel sx={{
+            fontSize: '0.875rem',
+            '&.Mui-focused': {
+              color: theme.palette.primary.main
+            },
+            '&.Mui-disabled': {
+              color: theme.palette.text.disabled
+            }
+          }}>
+            Select Language
+          </InputLabel>
           <Select 
             value={selectedLanguage} 
             label="Select Language"
             onChange={(e) => setSelectedLanguage(e.target.value)}
             disabled={isLoading}
+            sx={{
+              height: '42px',
+              '& .MuiSelect-select': { 
+                fontSize: '0.875rem',
+                py: 1
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: theme.palette.primary.main,
+                borderWidth: '1px'
+              },
+              '&.Mui-disabled': {
+                backgroundColor: theme.palette.action.disabledBackground,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.action.disabled
+                }
+              }
+            }}
           >
             {languages.map((lang) => (
-              <MenuItem key={lang.value} value={lang.value}>
+              <MenuItem 
+                key={lang.value} 
+                value={lang.value}
+                sx={{
+                  fontSize: '0.875rem',
+                  py: 1,
+                  '&.Mui-selected': {
+                    backgroundColor: `${theme.palette.primary.main}10`,
+                    '&:hover': {
+                      backgroundColor: `${theme.palette.primary.main}20`
+                    }
+                  }
+                }}
+              >
                 {lang.label}
               </MenuItem>
             ))}
@@ -96,7 +138,18 @@ const TranslationDialog: React.FC<TranslationDialogProps> = ({
 
         {/* Loading State */}
         {isLoading && (
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert 
+            severity="info" 
+            sx={{ 
+              mb: 2,
+              '& .MuiAlert-message': {
+                fontSize: '0.875rem'
+              },
+              '& .MuiAlert-icon': {
+                fontSize: '1.25rem'
+              }
+            }}
+          >
             Translating content, please wait...
           </Alert>
         )}
@@ -104,16 +157,36 @@ const TranslationDialog: React.FC<TranslationDialogProps> = ({
         {/* Translated Content */}
         {translatedText && (
           <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+            <Typography 
+              variant="subtitle2" 
+              sx={{ 
+                mb: 1.5, 
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                color: theme.palette.text.primary
+              }}
+            >
               Translated Text:
             </Typography>
             <Box sx={{ 
               p: 2, 
-              bgcolor: '#f5f5f5', 
-              borderRadius: 2,
-              border: '1px solid #e0e0e0'
+              bgcolor: theme.palette.grey[50], 
+              borderRadius: 1.5,
+              border: `1px solid ${theme.palette.grey[200]}`,
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                bgcolor: theme.palette.grey[100],
+                borderColor: theme.palette.grey[300],
+              }
             }}>
-              <Typography variant="body2">
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                  color: theme.palette.text.primary 
+                }}
+              >
                 {translatedText}
               </Typography>
             </Box>
@@ -122,7 +195,18 @@ const TranslationDialog: React.FC<TranslationDialogProps> = ({
 
         {/* Feature Notice */}
         {!onTranslate && (
-          <Alert severity="info" sx={{ mt: 2 }}>
+          <Alert 
+            severity="info" 
+            sx={{ 
+              mt: 2,
+              '& .MuiAlert-message': {
+                fontSize: '0.875rem'
+              },
+              '& .MuiAlert-icon': {
+                fontSize: '1.25rem'
+              }
+            }}
+          >
             Translation feature is coming soon! This will help you understand content in multiple languages.
           </Alert>
         )}

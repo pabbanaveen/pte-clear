@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Typography, Card, Box, Chip, LinearProgress, Button } from '@mui/material';
+import { Container, Typography, Card, Box, Chip, LinearProgress } from '@mui/material';
+import { Button } from './common/Button';
 import {Grid} from '@mui/material';
 import { Quiz, CheckCircle, Star, Timer, PlayArrow, Book, TrendingUp, Psychology } from '@mui/icons-material';
 import { User } from '../types';

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Container, Typography, Tabs, Tab, Box, Grid, Card, CardContent, Avatar, Chip, IconButton, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Divider, List, ListItem, ListItemIcon, ListItemText, LinearProgress } from '@mui/material';
+import { Container, Typography, Tabs, Tab, Box, Grid, Card, CardContent, Avatar, Chip, IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Divider, List, ListItem, ListItemIcon, ListItemText, LinearProgress } from '@mui/material';
 import { Quiz, Mic, Edit, Book, VolumeUp, PlayArrow, ArrowBack, Psychology, Visibility } from '@mui/icons-material';
+import { Button } from './common/Button';
 import { User } from '../types';
 
 interface PracticeTestsProps {

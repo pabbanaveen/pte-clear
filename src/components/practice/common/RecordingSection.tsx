@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Button, Typography, CircularProgress, Alert, LinearProgress } from '@mui/material';
+import { Box, Typography, CircularProgress, Alert, LinearProgress } from '@mui/material';
+import { Button } from '../../common/Button';
 import { Mic, MicOff } from '@mui/icons-material';
 
 interface RecordingSectionProps {

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Paper, Stack, Box, Typography, Button, IconButton } from '@mui/material';
+import { Paper, Stack, Box, Typography, IconButton } from '@mui/material';
+import { Button } from '../../common/Button';
 import { Close } from '@mui/icons-material';
 
 const StageGoalBanner = () => {

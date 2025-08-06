@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Stack, Button, Box, useMediaQuery, useTheme } from '@mui/material';
+import { Stack, Box, useMediaQuery, useTheme } from '@mui/material';
 import { Help, Refresh, Send, Translate } from '@mui/icons-material';
+import { Button } from '../../common/Button';
 
 interface ActionButtonsProps {
   hasResponse?: boolean
@@ -46,59 +47,64 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   return (
     <Stack
       direction={isMobile ? 'column' : 'row'}
-      spacing={isMobile ? 1 : 2}
+      spacing={isMobile ? 1 : 1.5}
       sx={{ flexWrap: 'wrap' }}
     >
       <Button
         variant="contained"
-        color="primary"
-        startIcon={<Send />}
+        startIcon={<Send sx={{ fontSize: 20 }} />}
         onClick={() => {
           console.log('Submit button clicked');
           onSubmit();
         }}
         disabled={disableSave}
         aria-label="Submit recording"
-        sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+        fullWidthOnMobile
+        sx={{
+          opacity: disableSave ? 0.6 : 1,
+          minWidth: '120px'
+        }}
       >
         Submit
       </Button>
       <Button
         variant="outlined"
-        color="secondary"
-        startIcon={<Refresh />}
+        startIcon={<Refresh sx={{ fontSize: 20 }} />}
         onClick={() => {
           console.log('Redo button clicked');
           onRedo();
         }}
         aria-label="Redo recording"
-        sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+        fullWidthOnMobile
+        sx={{ minWidth: '120px' }}
       >
         Re-do
       </Button>
       <Button
         variant="outlined"
-        color="info"
-        startIcon={<Translate />}
+        startIcon={<Translate sx={{ fontSize: 20 }} />}
         onClick={() => {
           console.log('Translate button clicked');
           onTranslate();
         }}
         aria-label="Translate question"
-        sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+        fullWidthOnMobile
+        sx={{ minWidth: '120px' }}
       >
         Translate
       </Button>
       <Button
         variant="outlined"
-        color="info"
-        startIcon={<Help />}
+        startIcon={<Help sx={{ fontSize: 20 }} />}
         onClick={() => {
           console.log('Show Answer button clicked');
           onShowAnswer();
         }}
         aria-label="Show sample answer"
-        sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+        fullWidthOnMobile
+        sx={{
+          py: isMobile ? 1.5 : 1,
+        }}
       >
         Show Answer
       </Button>
@@ -108,7 +114,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           variant="outlined"
           color="primary"
           onClick={handleViewAttempts}
-          sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
+          fullWidthOnMobile
         >
           View Attempts
         </Button>
@@ -120,7 +126,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           variant={action.variant || 'outlined'}
           color={action.color || 'info'}
           onClick={action.onClick}
-          sx={{ minWidth: isMobile ? '100%' : 'auto', py: isMobile ? 1.5 : 1 }}
+          fullWidthOnMobile
+          sx={{ py: isMobile ? 1.5 : 1 }}
         >
           {action.label}
         </Button>

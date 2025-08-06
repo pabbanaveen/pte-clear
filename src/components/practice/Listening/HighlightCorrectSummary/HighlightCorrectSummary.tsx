@@ -7,7 +7,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   IconButton,
   List,
   ListItem,
@@ -17,6 +16,7 @@ import {
   Radio,
   Paper
 } from '@mui/material';
+import { Button } from '../../../common/Button';
 import { Close } from '@mui/icons-material';
 import {
   PracticeCard,

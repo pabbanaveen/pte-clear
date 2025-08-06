@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Container, Typography, Card, Box, Avatar, Button, TextField, Grid } from '@mui/material';
+import { Container, Typography, Card, Box, Avatar, TextField, Grid } from '@mui/material';
 import { Edit } from '@mui/icons-material';
 import { User } from '../types';
+import { Button } from './common/Button';
 
 interface ProfileProps {
   user: User | null;

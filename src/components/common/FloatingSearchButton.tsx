@@ -67,35 +67,37 @@ const FloatingSearchButton: React.FC<FloatingSearchButtonProps> = ({
   return (
     <>
       {/* Floating Search Button - Fixed to viewport edge */}
-      <Zoom in={!searchOpen} timeout={300} unmountOnExit>
+      <Zoom in={!searchOpen} timeout={400} unmountOnExit>
         <Box
           sx={{
             position: 'fixed',
-            right: -28, // Partially outside viewport when closed
+            right: -32,
             top: '50%',
             transform: 'translateY(-50%)',
             zIndex: 1400,
-            transition: 'all 0.3s ease-in-out',
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            // '&:hover': {
+            //   right: -8,
+            // }
           }}
         >
           <Fab
             onClick={handleSearchOpen}
             sx={{
-              backgroundColor: '#FF6666',
+              backgroundColor: theme.palette.primary.main,
               color: 'white',
               width: { xs: 48, sm: 56 },
               height: { xs: 48, sm: 56 },
               '&:hover': {
-                backgroundColor: '#FF5252',
+                backgroundColor: theme.palette.primary.dark,
                 transform: 'scale(1.05)',
-                boxShadow: '0 6px 16px rgba(255, 102, 102, 0.5)',
+                boxShadow: `0 8px 20px ${theme.palette.primary.main}40`,
               },
               '&:active': {
-                transform: 'scale(0.95)',
+                transform: 'scale(0.98)',
               },
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 4px 12px rgba(255, 102, 102, 0.4)',
-              // border: '2px solid #FF6666',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: `0 4px 14px ${theme.palette.primary.main}30`,
             }}
             size={isMobile ? 'small' : 'medium'}
           >
@@ -126,25 +128,20 @@ const FloatingSearchButton: React.FC<FloatingSearchButtonProps> = ({
           <IconButton
             onClick={handleSearchClose}
             sx={{
-              backgroundColor: '#FF6666',
+              backgroundColor: theme.palette.primary.main,
               color: 'white',
               width: { xs: 48, sm: 56 },
               height: { xs: 48, sm: 56 },
-              borderRadius: '50%',
               '&:hover': {
-                backgroundColor: '#FF5252',
+                backgroundColor: theme.palette.primary.dark,
                 transform: 'scale(1.05)',
-                boxShadow: '0 6px 16px rgba(255, 102, 102, 0.5)',
+                boxShadow: `0 8px 20px ${theme.palette.primary.main}40`,
               },
               '&:active': {
-                transform: 'scale(0.95)',
+                transform: 'scale(0.98)',
               },
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 4px 12px rgba(255, 102, 102, 0.4)',
-              // border: '2px solid #FF6666',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: `0 4px 14px ${theme.palette.primary.main}30`,
             }}
           >
             <ChevronRight

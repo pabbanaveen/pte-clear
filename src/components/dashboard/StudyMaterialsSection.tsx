@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Container, Typography, Card, Button } from '@mui/material';
+import { Box, Container, Typography, Card } from '@mui/material';
+import { Button } from '../common/Button';
 import { Download } from '@mui/icons-material';
 
 const StudyMaterialsSection = () => {

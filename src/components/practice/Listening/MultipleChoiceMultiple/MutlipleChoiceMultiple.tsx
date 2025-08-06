@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Box, FormGroup, FormControlLabel, Checkbox, Typography, Stack, Chip, Paper, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText } from '@mui/material';
+import { Box, FormGroup, FormControlLabel, Checkbox, Typography, Stack, Chip, Paper, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText } from '@mui/material';
+import { Button } from '../../../common/Button';
 import {
   TimerDisplay,
   ProgressIndicator,
